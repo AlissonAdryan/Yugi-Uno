@@ -47,6 +47,8 @@ export class Hud {
             selfHP: $('self-hp'),
             oppName: $('opponent-name'),
             oppHP: $('opponent-hp'),
+            selfHpBox: $('self-hp-container'),
+            oppHpBox: $('opponent-hp-container'),
             endTurn: $('end-turn-btn'),
             vignette: $('damage-vignette'),
             damageText: $('damage-text-container'),
@@ -68,8 +70,18 @@ export class Hud {
         };
 
         this.cache = {
-            selfHP: -1, oppHP: -1, phase: null, endVisible: null, endEnabled: null, bgColor: -1, banner: null, rematch: ''
+            selfHP: -1, oppHP: -1, phase: null, endVisible: null, endEnabled: null, bgColor: -1, banner: null, rematch: '',
+            status: -1, reviveRounds: -1
         };
+        this.el.shield = this.el.selfHpBox.querySelector('.hp-shield');
+        this.el.shieldRipple = this.el.selfHpBox.querySelector('.hp-shield-ripple');
+        this.el.reviveBadge = this.el.selfHpBox.querySelector('.hp-revive-badge');
+        this.el.selfTrash = document.getElementById('self-trash');
+        this.el.oppTrash = document.getElementById('opp-trash');
+        this.el.trashValue = this.el.selfTrash.querySelector('.trash-value b');
+        this.trashState = 'idle';
+        // Timers das classes de disparo curto (pulseClass): elemento -> { classe: timer }
+        this.pulseTimers = new WeakMap();
         this.lastRoundColor = CONFIG.COLOR.NONE; // cor da rodada imediatamente antes do Rainbow
         this.colorAlertTimer = null;
         this.bgFadeTimer = null;
@@ -335,13 +347,124 @@ export class Hud {
         setTimeout(() => v.classList.remove('active'), FLOATING_TEXT_MS);
     }
 
-    showFloatingText(text, isSelfTarget) {
+    /**
+     * @param {string} text
+     * @param {boolean} isSelfTarget
+     * @param {string} [variant] '' | 'heal' | 'shielded' | 'guarded' (cor do texto)
+     */
+    showFloatingText(text, isSelfTarget, variant = '') {
         const node = document.createElement('div');
-        node.className = 'damage-text';
+        node.className = variant ? `damage-text ${variant}` : 'damage-text';
         node.textContent = text;
         node.style.top = isSelfTarget ? '70%' : '20%';
         this.el.damageText.appendChild(node);
         setTimeout(() => node.remove(), FLOATING_TEXT_MS);
+    }
+
+    // --- Efeitos de vida (Cura, Escudo, Reviver) ----------------------------
+
+    hpBox(isSelf) {
+        return isSelf ? this.el.selfHpBox : this.el.oppHpBox;
+    }
+
+    /**
+     * Estados persistentes do próprio jogador (o do oponente nunca chega: é secreto).
+     * @param {number} status bitmask CONFIG.STATUS
+     * @param {number} reviveRounds rodadas de guarda restantes do Reviver
+     */
+    setSelfStatus(status, reviveRounds) {
+        if (status === this.cache.status && reviveRounds === this.cache.reviveRounds) return;
+        const { STATUS } = CONFIG;
+        const box = this.el.selfHpBox;
+        box.classList.toggle('status-heal', (status & STATUS.HEAL) !== 0);
+        box.classList.toggle('status-shield', (status & STATUS.SHIELD) !== 0);
+        box.classList.toggle('status-revive', (status & STATUS.REVIVE_ACTIVE) !== 0);
+        if (reviveRounds !== this.cache.reviveRounds) this.el.reviveBadge.textContent = reviveRounds > 0 ? String(reviveRounds) : '';
+        this.cache.status = status;
+        this.cache.reviveRounds = reviveRounds;
+    }
+
+    /**
+     * Reinicia uma animação CSS de disparo curto: remove a classe, força o recálculo e a recoloca;
+     * some sozinha depois de `ms` pra não prender outras animações da mesma camada.
+     */
+    pulseClass(el, cls, ms) {
+        if (!el) return;
+        let timers = this.pulseTimers.get(el);
+        if (!timers) {
+            timers = {};
+            this.pulseTimers.set(el, timers);
+        }
+        clearTimeout(timers[cls]);
+        el.classList.remove(cls);
+        void el.offsetWidth;
+        el.classList.add(cls);
+        timers[cls] = setTimeout(() => el.classList.remove(cls), ms);
+    }
+
+    flashShield() {
+        this.pulseClass(this.el.shield, 'hit', 500);
+        this.pulseClass(this.el.shieldRipple, 'hit', 650);
+    }
+
+    playHealBurst(isSelf) {
+        this.pulseClass(this.hpBox(isSelf), 'heal-burst', 1150);
+    }
+
+    playHealFizzle() {
+        this.pulseClass(this.el.selfHpBox, 'heal-fizzle', 750);
+    }
+
+    playDivine(isSelf) {
+        this.pulseClass(this.hpBox(isSelf), 'divine-play', 2100);
+    }
+
+    flashGuard(isSelf) {
+        this.pulseClass(this.hpBox(isSelf), 'guard-flash', 850);
+    }
+
+    /** Centro da caixa de vida em px de tela (CSS). Só é lido em eventos, nunca por frame. */
+    hpCenter(isSelf) {
+        const rect = this.hpBox(isSelf).getBoundingClientRect();
+        return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+
+    // --- Lixeira ---------------------------------------------------------------
+
+    /**
+     * @param {'idle'|'armed'|'hover'} state armed = arrastando uma carta; hover = carta em cima da lixeira
+     * @param {number} [value] moedas que a carta renderia (mostrado em cima da lixeira no hover)
+     */
+    setTrashState(state, value = 0) {
+        const el = this.el.selfTrash;
+        if (state === 'hover') this.el.trashValue.textContent = `+${value}`;
+        if (state === this.trashState) return;
+        this.trashState = state;
+        el.classList.toggle('armed', state === 'armed');
+        el.classList.toggle('hover', state === 'hover');
+    }
+
+    /** Retângulo da própria lixeira em px de tela (lido 1x por arrasto, nunca por frame). */
+    trashRect() {
+        return this.el.selfTrash.getBoundingClientRect();
+    }
+
+    trashCenter(isSelf) {
+        const r = (isSelf ? this.el.selfTrash : this.el.oppTrash).getBoundingClientRect();
+        return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+    }
+
+    /** A tampa bate, a lixeira pula e (só pra quem vendeu) sobe o "+N" de moedas. */
+    trashSold(isSelf, coins) {
+        const el = isSelf ? this.el.selfTrash : this.el.oppTrash;
+        this.pulseClass(el, 'sold', 500);
+        if (!isSelf || !(coins > 0)) return;
+        const gain = document.createElement('span');
+        gain.className = 'trash-gain';
+        gain.innerHTML = '<svg class="ico-coin"><use href="#ico-coin"/></svg><b></b>';
+        gain.querySelector('b').textContent = `+${coins}`;
+        el.appendChild(gain);
+        setTimeout(() => gain.remove(), 1350);
     }
 
     showGameOver(result, reason) {

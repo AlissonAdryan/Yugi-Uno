@@ -201,6 +201,252 @@ export const SOUND_PRESETS = Object.freeze({
         echo: { delay: 0.1, feedback: 0.3, mix: 0.25 }
     },
 
+    // --- Consumíveis de vida ---------------------------------------------------
+    // Cura usada: arpejo cristalino subindo, suave
+    HEAL_USE: {
+        duration: 0.22, volume: 0.09,
+        envelope: { attack: 0.01, decay: 0.1, sustain: 0.35, release: 0.1 },
+        layers: [
+            { kind: 'tone', wave: 'sine', freq: 'E5' },
+            { kind: 'tone', wave: 'triangle', freq: 'E6', gain: 0.25 }
+        ],
+        sequence: { step: 0.06, semitones: [0, 4, 7, 12, 16] },
+        echo: { delay: 0.12, feedback: 0.35, mix: 0.3 }
+    },
+    // Cura aplicada: acorde quente abrindo + brilho de ar
+    HEAL: {
+        duration: 0.9, volume: 0.1,
+        envelope: { attack: 0.06, decay: 0.25, sustain: 0.5, release: 0.45 },
+        filter: { type: 'lowpass', freq: 1800, freqEnd: 5200, q: 0.8 },
+        layers: [
+            { kind: 'tone', wave: 'triangle', freq: 'G4', vibrato: { rate: 5, depth: 8 } },
+            { kind: 'tone', wave: 'triangle', freq: 'B4', gain: 0.8, vibrato: { rate: 5.4, depth: 8 } },
+            { kind: 'tone', wave: 'sine', freq: 'D5', gain: 0.7 },
+            { kind: 'tone', wave: 'sine', freq: 'G5', gain: 0.35, delay: 0.12 },
+            { kind: 'noise', color: 'pink', gain: 0.12, filter: { type: 'bandpass', freq: 2500, freqEnd: 7000, q: 1.5 } }
+        ],
+        echo: { delay: 0.16, feedback: 0.35, mix: 0.3 }
+    },
+    // Cura desperdiçada: um "puff" apagado descendo
+    FIZZLE: {
+        duration: 0.35, volume: 0.07,
+        envelope: { attack: 0.005, decay: 0.15, sustain: 0.2, release: 0.15 },
+        layers: [
+            { kind: 'noise', color: 'pink', filter: { type: 'bandpass', freq: 1400, freqEnd: 250, q: 1.5 } },
+            { kind: 'tone', wave: 'sine', freq: 'A4', freqEnd: 'A3', gain: 0.35 }
+        ]
+    },
+    // Escudo erguido: zumbido de campo de força subindo + "ping" metálico
+    SHIELD_UP: {
+        duration: 0.7, volume: 0.09,
+        envelope: { attack: 0.04, decay: 0.2, sustain: 0.45, release: 0.3 },
+        filter: { type: 'lowpass', freq: 600, freqEnd: 5000, q: 4 },
+        layers: [
+            { kind: 'tone', wave: 'sawtooth', freq: 110, freqEnd: 440, sweepTime: 0.45 },
+            { kind: 'tone', wave: 'sawtooth', freq: 110, freqEnd: 440, sweepTime: 0.45, detune: 12, gain: 0.6 },
+            { kind: 'fm', freq: 'E6', modRatio: 1.414, modIndex: 5, modIndexEnd: 0.2, gain: 0.35, delay: 0.3 }
+        ],
+        echo: { delay: 0.1, feedback: 0.35, mix: 0.25 }
+    },
+    // Golpe absorvido pelo Escudo: "tink" de energia com reverberação curta
+    SHIELD_HIT: {
+        duration: 0.5, volume: 0.1, pitchJitter: 0.6,
+        envelope: { attack: 0.001, decay: 0.2, sustain: 0.15, release: 0.25 },
+        layers: [
+            { kind: 'fm', freq: 'A5', modRatio: 1.414, modIndex: 6, modIndexEnd: 0.3 },
+            { kind: 'tone', wave: 'sine', freq: 'E6', gain: 0.4, tremolo: { rate: 22, depth: 0.35 } },
+            { kind: 'noise', color: 'white', gain: 0.35, duration: 0.04, filter: { type: 'highpass', freq: 3000 } }
+        ],
+        echo: { delay: 0.08, feedback: 0.3, mix: 0.25 }
+    },
+    // Reviver usado: coro angelical em cadência plagal (IV -> I, o "amém")
+    REVIVE_USE: {
+        duration: 1.05, volume: 0.11,
+        envelope: { attack: 0.3, decay: 0.25, sustain: 0.7, release: 0.7 },
+        filter: { type: 'lowpass', freq: 3200, q: 0.7 },
+        layers: [
+            { kind: 'tone', wave: 'triangle', freq: 'C5', vibrato: { rate: 5, depth: 12 } },
+            { kind: 'tone', wave: 'triangle', freq: 'E5', gain: 0.8, vibrato: { rate: 5.3, depth: 12 } },
+            { kind: 'tone', wave: 'triangle', freq: 'G5', gain: 0.7, vibrato: { rate: 4.8, depth: 12 } },
+            { kind: 'tone', wave: 'sine', freq: 'C6', gain: 0.45, detune: 6 },
+            { kind: 'tone', wave: 'sawtooth', freq: 'C4', gain: 0.1, detune: -8 },
+            {
+                kind: 'fm', freq: 'C7', modRatio: 3.5, modIndex: 2, modIndexEnd: 0, gain: 0.18, delay: 0.2,
+                envelope: { attack: 0.002, decay: 0.3, sustain: 0, release: 0.3 }
+            }
+        ],
+        notes: [{ at: 0, semitones: 5, volume: 0.85 }, { at: 0.6, semitones: 0, duration: 1.3 }],
+        echo: { delay: 0.22, feedback: 0.45, mix: 0.35 }
+    },
+    // Reviver salvando da morte: sinos + coro crescendo, bem luminoso
+    REVIVE_SAVE: {
+        duration: 0.9, volume: 0.13,
+        envelope: { attack: 0.12, decay: 0.3, sustain: 0.65, release: 0.8 },
+        filter: { type: 'lowpass', freq: 2000, freqEnd: 6500, q: 0.8 },
+        layers: [
+            { kind: 'tone', wave: 'triangle', freq: 'D5', vibrato: { rate: 5.2, depth: 14 } },
+            { kind: 'tone', wave: 'triangle', freq: 'F#5', gain: 0.8, vibrato: { rate: 5, depth: 14 } },
+            { kind: 'tone', wave: 'triangle', freq: 'A5', gain: 0.75, vibrato: { rate: 5.5, depth: 14 } },
+            { kind: 'tone', wave: 'sine', freq: 'D6', gain: 0.4 },
+            {
+                kind: 'fm', freq: 'D7', modRatio: 3.5, modIndex: 3, modIndexEnd: 0, gain: 0.3,
+                envelope: { attack: 0.001, decay: 0.5, sustain: 0, release: 0.4 }
+            },
+            { kind: 'noise', color: 'pink', gain: 0.1, filter: { type: 'bandpass', freq: 3000, freqEnd: 9000, q: 1.2 } }
+        ],
+        notes: [
+            { at: 0, semitones: 0 },
+            { at: 0.45, semitones: 5, volume: 0.85 },
+            { at: 0.9, semitones: 0, duration: 1.4 }
+        ],
+        echo: { delay: 0.24, feedback: 0.45, mix: 0.4 }
+    },
+    // Carta gigante do Reviver se despedaçando: vidro/cristal quebrando + cascata de brilhos
+    REVIVE_SHATTER: {
+        duration: 0.7, volume: 0.11,
+        envelope: { attack: 0.001, decay: 0.25, sustain: 0.2, release: 0.4 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.8, duration: 0.3, filter: { type: 'highpass', freq: 2500, freqEnd: 6000 } },
+            { kind: 'noise', color: 'pink', gain: 0.5, duration: 0.15, filter: { type: 'lowpass', freq: 3000, freqEnd: 400 } },
+            {
+                kind: 'fm', freq: 'E7', modRatio: 2.76, modIndex: 4, modIndexEnd: 0.1, gain: 0.3,
+                envelope: { attack: 0.001, decay: 0.15, sustain: 0, release: 0.2 }
+            }
+        ],
+        notes: [
+            { at: 0, semitones: 0 }, { at: 0.07, semitones: -3, volume: 0.6 },
+            { at: 0.13, semitones: 4, volume: 0.45 }, { at: 0.2, semitones: -5, volume: 0.35 }
+        ],
+        echo: { delay: 0.1, feedback: 0.3, mix: 0.3 }
+    },
+
+    // --- Economia (lixeira, moedas, loja) --------------------------------------
+    // Moeda caindo: dois "tlins" metálicos curtinhos
+    COIN: {
+        bus: BUS.UI, duration: 0.16, volume: 0.09, cooldown: 0.04, pitchJitter: 0.8,
+        envelope: { attack: 0.001, decay: 0.08, sustain: 0.2, release: 0.07 },
+        layers: [
+            { kind: 'fm', freq: 'B6', modRatio: 2.4, modIndex: 2.5, modIndexEnd: 0.3 },
+            { kind: 'tone', wave: 'sine', freq: 'E7', gain: 0.35 }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.07, semitones: 5, volume: 0.8 }],
+        echo: { delay: 0.06, feedback: 0.2, mix: 0.15 }
+    },
+    // Carta queimando na lixeira + chuva de moedas
+    SELL: {
+        duration: 0.55, volume: 0.1,
+        envelope: { attack: 0.004, decay: 0.2, sustain: 0.25, release: 0.25 },
+        layers: [
+            { kind: 'noise', color: 'pink', gain: 0.7, filter: { type: 'bandpass', freq: 2200, freqEnd: 400, q: 1.2 } },
+            { kind: 'tone', wave: 'sine', freq: 180, freqEnd: 70, gain: 0.5, duration: 0.2 },
+            {
+                kind: 'fm', freq: 'A6', modRatio: 2.4, modIndex: 3, modIndexEnd: 0.2, gain: 0.35, delay: 0.14,
+                envelope: { attack: 0.001, decay: 0.08, sustain: 0.1, release: 0.1 }
+            }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.2, semitones: 4, volume: 0.5 }, { at: 0.29, semitones: 9, volume: 0.35 }],
+        echo: { delay: 0.08, feedback: 0.25, mix: 0.2 }
+    },
+    // Lixeira "acorda" quando o jogador pega uma carta
+    TRASH_ARM: {
+        bus: BUS.UI, duration: 0.12, volume: 0.05, cooldown: 0.1,
+        envelope: { attack: 0.004, decay: 0.06, sustain: 0.2, release: 0.05 },
+        layers: [
+            { kind: 'noise', color: 'brown', gain: 0.6, filter: { type: 'lowpass', freq: 900 } },
+            { kind: 'tone', wave: 'triangle', freq: 'G4', freqEnd: 'C5', gain: 0.4 }
+        ]
+    },
+    // Loja abrindo: sininho de porta + brilho subindo
+    SHOP_OPEN: {
+        bus: BUS.UI, duration: 0.5, volume: 0.09,
+        envelope: { attack: 0.005, decay: 0.2, sustain: 0.3, release: 0.25 },
+        layers: [
+            { kind: 'fm', freq: 'G6', modRatio: 3.5, modIndex: 2.5, modIndexEnd: 0 },
+            { kind: 'tone', wave: 'sine', freq: 'D7', gain: 0.3, delay: 0.08 },
+            { kind: 'noise', color: 'pink', gain: 0.15, filter: { type: 'bandpass', freq: 1500, freqEnd: 7000, q: 1.5 } }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.11, semitones: 4, volume: 0.8 }],
+        echo: { delay: 0.14, feedback: 0.35, mix: 0.3 }
+    },
+    SHOP_CLOSE: {
+        bus: BUS.UI, duration: 0.3, volume: 0.07,
+        envelope: { attack: 0.005, decay: 0.12, sustain: 0.25, release: 0.15 },
+        layers: [
+            { kind: 'fm', freq: 'D6', modRatio: 3.5, modIndex: 2, modIndexEnd: 0 },
+            { kind: 'noise', color: 'pink', gain: 0.15, filter: { type: 'bandpass', freq: 5000, freqEnd: 900, q: 1.5 } }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.09, semitones: -5, volume: 0.7 }]
+    },
+    // Compra: "ka-ching" de caixa registradora
+    SHOP_BUY: {
+        duration: 0.7, volume: 0.1,
+        envelope: { attack: 0.001, decay: 0.3, sustain: 0.2, release: 0.35 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.5, duration: 0.05, filter: { type: 'highpass', freq: 2000 } },
+            { kind: 'tone', wave: 'square', freq: 110, freqEnd: 70, gain: 0.25, duration: 0.07, filter: { type: 'lowpass', freq: 800 } },
+            {
+                kind: 'fm', freq: 'E6', modRatio: 3.5, modIndex: 4, modIndexEnd: 0.1, gain: 0.8, delay: 0.08,
+                envelope: { attack: 0.001, decay: 0.45, sustain: 0.1, release: 0.3 }
+            },
+            { kind: 'tone', wave: 'sine', freq: 'B6', gain: 0.35, delay: 0.1, tremolo: { rate: 18, depth: 0.25 } }
+        ],
+        echo: { delay: 0.12, feedback: 0.3, mix: 0.25 }
+    },
+    // Renovar: embaralhada mágica
+    SHOP_REROLL: {
+        duration: 0.06, volume: 0.09,
+        envelope: { attack: 0.002, decay: 0.04, sustain: 0.2, release: 0.02 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.6, filter: { type: 'bandpass', freq: 2600, q: 1.5 } },
+            { kind: 'tone', wave: 'triangle', freq: 'C6', gain: 0.35 }
+        ],
+        sequence: { step: 0.04, semitones: [0, 3, 5, 7, 10, 12, 15, 17, 19] },
+        echo: { delay: 0.1, feedback: 0.3, mix: 0.25 }
+    },
+    // Congelar: cristal de gelo
+    SHOP_FREEZE: {
+        bus: BUS.UI, duration: 0.5, volume: 0.08,
+        envelope: { attack: 0.002, decay: 0.2, sustain: 0.2, release: 0.25 },
+        layers: [
+            { kind: 'fm', freq: 'A6', modRatio: 5.2, modIndex: 3, modIndexEnd: 0.1 },
+            { kind: 'tone', wave: 'sine', freq: 'E7', gain: 0.3, tremolo: { rate: 26, depth: 0.4 } },
+            { kind: 'noise', color: 'white', gain: 0.18, filter: { type: 'highpass', freq: 6000 } }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.06, semitones: 7, volume: 0.6 }, { at: 0.12, semitones: 12, volume: 0.4 }],
+        echo: { delay: 0.09, feedback: 0.4, mix: 0.35 }
+    },
+    SHOP_UNFREEZE: {
+        bus: BUS.UI, duration: 0.3, volume: 0.07,
+        envelope: { attack: 0.002, decay: 0.12, sustain: 0.2, release: 0.15 },
+        layers: [
+            { kind: 'noise', color: 'pink', gain: 0.4, filter: { type: 'bandpass', freq: 3000, freqEnd: 800, q: 1.4 } },
+            { kind: 'fm', freq: 'E6', modRatio: 5.2, modIndex: 2, modIndexEnd: 0, gain: 0.4 }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.07, semitones: -5, volume: 0.6 }]
+    },
+    // Compra/renovação negada
+    SHOP_DENY: {
+        bus: BUS.UI, duration: 0.18, volume: 0.08, cooldown: 0.12,
+        envelope: { attack: 0.003, decay: 0.06, sustain: 0.5, release: 0.06 },
+        filter: { type: 'lowpass', freq: 1500 },
+        layers: [
+            { kind: 'tone', wave: 'square', freq: 'E3', tremolo: { rate: 30, depth: 0.4 } },
+            { kind: 'tone', wave: 'square', freq: 'Bb3', gain: 0.6 }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.1, semitones: -2 }]
+    },
+    // A loja se renovou sozinha
+    SHOP_REFRESH: {
+        duration: 0.18, volume: 0.08,
+        envelope: { attack: 0.004, decay: 0.08, sustain: 0.3, release: 0.08 },
+        layers: [
+            { kind: 'tone', wave: 'triangle', freq: 'E5' },
+            { kind: 'fm', freq: 'E6', modRatio: 3.5, modIndex: 1.5, modIndexEnd: 0, gain: 0.35 }
+        ],
+        sequence: { step: 0.07, semitones: [0, 7, 12, 16, 19] },
+        echo: { delay: 0.13, feedback: 0.35, mix: 0.3 }
+    },
+
     // --- Efeitos --------------------------------------------------------------
     SPARK: {
         duration: 0.035, volume: 0.1, cooldown: 0.02, pitchJitter: 4,

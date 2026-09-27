@@ -21,7 +21,7 @@ import { ZONE, ZONE_COUNT, ZONE_OFFSET, mirrorZone, zoneSeat, seatZone } from '.
  * o que garante que eventos e snapshots cheguem na mesma ordem em que o host os gerou.
  */
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 4;
 
 export const MSG = Object.freeze({
     SNAPSHOT: 1,
@@ -41,7 +41,11 @@ export const INPUT = Object.freeze({
     SET_NAME: 6,         // { name }  (aceito em qualquer fase, sem seq)
     REMATCH: 7,          // {}  (só na fase GAME_OVER; com os dois pedidos, uma nova partida começa)
     CHOOSE_COLOR: 8,     // { color }  (só na fase CHOOSING_COLOR, só de quem escolhe, só cor em comum)
-    CANCEL_READY: 9      // {}
+    CANCEL_READY: 9,     // {}
+    SELL_CARD: 10,       // { cardId }  carta da mão na lixeira -> moedas (só na preparação, antes de finalizar)
+    SHOP_BUY: 11,        // { slot }    compra o item do espaço da SUA loja (fase de preparação)
+    SHOP_REROLL: 12,     // {}          renova a loja pagando rerollCost
+    SHOP_FREEZE: 13      // { slot }    congela/descongela o item (sobrevive à próxima renovação)
 });
 
 export const EVENT = Object.freeze({
@@ -55,11 +59,25 @@ export const EVENT = Object.freeze({
     BLOCK_SMASH: 8,      // { blockId, victimIds: number[] }
     REVERSE_STEAL: 9,    // { reverseId, seat }
     REVERSE_SWAP: 10,    // { reverseId, seat }
-    DIRECT_HIT: 11,      // { cardId, seat, damage, effect }
+    // { cardId, seat, damage, effect, guarded } — `damage` já com o Escudo aplicado; `absorbed` (quanto o
+    // Escudo segurou) só vai para o alvo, pra o uso do Escudo continuar secreto pro atacante.
+    // `guarded` = 1 quando o Reviver (já revelado nesta rodada) segurou a vida em 1 de novo.
+    DIRECT_HIT: 11,
     DESTROY: 12,         // { cardIds: number[] }
     GAME_OVER: 13,       // { result, reason }  (enviado separadamente para cada jogador)
     REJECTED: 14,        // { input, seq, cardId, reason }  (só para quem enviou o input)
-    PLAYER_NAMES: 15     // { selfName, oppName }  (enviado a cada jogador na sua perspectiva)
+    PLAYER_NAMES: 15,    // { selfName, oppName }  (enviado a cada jogador na sua perspectiva)
+    // { seat, amount } — Cura resolvida no fim do combate (os dois veem). amount 0 = desperdiçada
+    // (sem dano causado ou vida cheia): esse aviso vai só para quem usou.
+    HEAL: 16,
+    REVIVE_TRIGGERED: 17, // { seat }  (os dois veem: luz divina na vida do alvo + carta despedaçada)
+    // { cardId, seat, coins? } — carta foi pra lixeira. `coins` só vai pra quem vendeu (moedas são secretas);
+    // o oponente vê o verso da carta indo pra lixeira dele.
+    CARD_SOLD: 18,
+    SHOP_PURCHASED: 19,  // { cardId, slot, type, color, power }  (só pra quem comprou: a carta nasce do item)
+    COINS_EARNED: 20,    // { amount, won }  moedas do fim da rodada (cada um recebe só as suas)
+    SHOP_REFRESHED: 21,  // {}  a loja se renovou sozinha (cada jogador, a sua)
+    SHOP_REROLLED: 22    // { cost }  renovação paga (só pra quem pagou)
 });
 
 export const HIT_EFFECT = Object.freeze({ NONE: 0, LOCKOUT: 1, HAND_SWAP: 2 });
@@ -105,18 +123,27 @@ export function localizeEvent(event, viewerSeat) {
 }
 
 // --- Snapshot binário -------------------------------------------------------
-// Header (22 bytes, big-endian):
+// Header (25 bytes, big-endian):
 //  0 u8 MSG.SNAPSHOT | 1 u8 versão | 2 u16 seq | 4 u8 fase | 5 u16 rodada
 //  7 i16 HP próprio | 9 i16 HP oponente | 11 u8 cor ativa própria | 12 u8 flags
 // 13 u8 descartes próprios | 14 u8 descartes do oponente | 15 u8 resultado
 // 16 u16 cartas no baralho | 18 u16 quantidade de cartas | 20 u16 último input processado (ack)
 // 22 u8 cores que podem ser escolhidas (máscara de colorBit; só chega para quem está escolhendo)
-// Carta (7 bytes): u16 id | u8 zona relativa | u8 ordem na zona | u8 tipo | u8 cor | i8 poder
+// 23 u8 status próprio (CONFIG.STATUS: Cura/Escudo/Reviver ativos, Reviver já usado)
+// 24 u8 rodadas restantes do Reviver próprio
+// 25 u16 moedas próprias | 27 u8 rodadas até a loja renovar | 28 u8 custo da renovação paga
+// 29 loja própria: SLOTS x 6 bytes (u8 tipo | u8 cor | i8 poder | u8 preço | u8 preço cheio | u8 flags)
+// Carta (8 bytes): u16 id | u8 zona relativa | u8 ordem na zona | u8 tipo | u8 cor | i8 poder | u8 marcas
+// (marcas = CONFIG.CARD_FLAGS, só nas próprias cartas)
 // A cor ativa do oponente NÃO é enviada (o uso de Trocar Cor é secreto), nem as cores em comum para
-// quem não está escolhendo (elas revelam um pouco da mão do oponente).
+// quem não está escolhendo (elas revelam um pouco da mão do oponente), nem o status do oponente
+// (Cura/Escudo/Reviver usados continuam secretos até o efeito aparecer em combate), nem as moedas e
+// a loja do oponente.
 
-const HEADER_BYTES = 23;
-const CARD_BYTES = 7;
+const SHOP_OFFSET = 29;
+const SHOP_ITEM_BYTES = 6;
+const HEADER_BYTES = SHOP_OFFSET + CONFIG.SHOP.SLOTS * SHOP_ITEM_BYTES;
+const CARD_BYTES = 8;
 const SEQ_OFFSET = 2;
 export const SNAPSHOT_MAX_BYTES = HEADER_BYTES + CARD_BYTES * CONFIG.DECK_SIZE;
 
@@ -138,12 +165,38 @@ export class SnapshotView {
         this.cardCount = 0;
         this.ackSeq = 0;
         this.colorChoices = 0;
+        this.selfStatus = 0;
+        this.reviveRounds = 0;
+        this.coins = 0;
+        this.shopRoundsLeft = 0;
+        this.rerollCost = 0;
+        const slots = CONFIG.SHOP.SLOTS;
+        this.shopType = new Uint8Array(slots).fill(CONFIG.CARD_TYPES.HIDDEN);
+        this.shopColor = new Uint8Array(slots);
+        this.shopPower = new Int8Array(slots);
+        this.shopPrice = new Uint8Array(slots);
+        this.shopFullPrice = new Uint8Array(slots);
+        this.shopFlags = new Uint8Array(slots);
         this.ids = new Uint16Array(capacity);
         this.zone = new Uint8Array(capacity);
         this.order = new Uint8Array(capacity);
         this.type = new Uint8Array(capacity);
         this.color = new Uint8Array(capacity);
         this.power = new Int8Array(capacity);
+        this.cardFlags = new Uint8Array(capacity);
+    }
+
+    /** Item da loja própria (objeto novo: só para eventos/UI, nunca no loop de render). */
+    shopItem(slot) {
+        return {
+            type: this.shopType[slot], color: this.shopColor[slot], power: this.shopPower[slot],
+            price: this.shopPrice[slot], fullPrice: this.shopFullPrice[slot], flags: this.shopFlags[slot]
+        };
+    }
+
+    /** Quantas cartas estão na mão do próprio jogador. */
+    handSize() {
+        return this.countInZone(ZONE.SELF_HAND);
     }
 
     hasFlag(flag) {
@@ -220,6 +273,7 @@ export function encodeSnapshot(state, viewerSeat, seq, ackSeq, scratch) {
             scratch.setUint8(offset + 4, visible ? state.type[id] : hidden);
             scratch.setUint8(offset + 5, visible ? state.color[id] : 0);
             scratch.setInt8(offset + 6, visible ? state.power[id] : 0);
+            scratch.setUint8(offset + 7, isOwn ? state.cardFlags[id] : 0);
             offset += CARD_BYTES;
             count++;
         }
@@ -257,6 +311,22 @@ export function encodeSnapshot(state, viewerSeat, seq, ackSeq, scratch) {
     scratch.setUint16(18, count);
     scratch.setUint16(20, ackSeq);
     scratch.setUint8(22, viewerChooses ? state.colorChoices : 0);
+    scratch.setUint8(23, state.statusOf(viewerSeat));
+    scratch.setUint8(24, state.reviveRounds[viewerSeat]);
+    scratch.setUint16(25, state.coins[viewerSeat]);
+    scratch.setUint8(27, state.shopRoundsLeft);
+    scratch.setUint8(28, state.rerollCost[viewerSeat]);
+    const slots = CONFIG.SHOP.SLOTS;
+    for (let slot = 0; slot < slots; slot++) {
+        const i = viewerSeat * slots + slot;
+        const o = SHOP_OFFSET + slot * SHOP_ITEM_BYTES;
+        scratch.setUint8(o, state.shopType[i]);
+        scratch.setUint8(o + 1, state.shopColor[i]);
+        scratch.setInt8(o + 2, state.shopPower[i]);
+        scratch.setUint8(o + 3, state.shopPrice[i]);
+        scratch.setUint8(o + 4, state.shopFullPrice[i]);
+        scratch.setUint8(o + 5, state.shopFlags[i]);
+    }
 
     return new Uint8Array(scratch.buffer.slice(0, offset));
 }
@@ -310,6 +380,20 @@ export function decodeSnapshot(data, view) {
     view.cardCount = count;
     view.ackSeq = dv.getUint16(20);
     view.colorChoices = dv.getUint8(22);
+    view.selfStatus = dv.getUint8(23);
+    view.reviveRounds = dv.getUint8(24);
+    view.coins = dv.getUint16(25);
+    view.shopRoundsLeft = dv.getUint8(27);
+    view.rerollCost = dv.getUint8(28);
+    for (let slot = 0; slot < CONFIG.SHOP.SLOTS; slot++) {
+        const o = SHOP_OFFSET + slot * SHOP_ITEM_BYTES;
+        view.shopType[slot] = dv.getUint8(o);
+        view.shopColor[slot] = dv.getUint8(o + 1);
+        view.shopPower[slot] = dv.getInt8(o + 2);
+        view.shopPrice[slot] = dv.getUint8(o + 3);
+        view.shopFullPrice[slot] = dv.getUint8(o + 4);
+        view.shopFlags[slot] = dv.getUint8(o + 5);
+    }
 
     let offset = HEADER_BYTES;
     for (let i = 0; i < count; i++) {
@@ -319,6 +403,7 @@ export function decodeSnapshot(data, view) {
         view.type[i] = dv.getUint8(offset + 4);
         view.color[i] = dv.getUint8(offset + 5);
         view.power[i] = dv.getInt8(offset + 6);
+        view.cardFlags[i] = dv.getUint8(offset + 7);
         offset += CARD_BYTES;
     }
     return true;

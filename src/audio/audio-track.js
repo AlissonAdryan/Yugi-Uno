@@ -20,15 +20,18 @@ export class AudioTrack {
     /**
      * @param {import('./audio-engine.js').AudioEngine} engine
      * @param {string|string[]} sources fontes em ordem de preferência (a 1ª suportada é usada)
-     * @param {{ name?: string, loop?: boolean, volume?: number, bus?: string }} [options]
+     * @param {{ name?: string, loop?: boolean, volume?: number, bus?: string, optional?: boolean }} [options]
+     *        optional: o arquivo pode ainda não existir — falha de carregamento é só aviso (`failed` = true)
      */
-    constructor(engine, sources, { name = '', loop = false, volume = 1, bus = CONFIG.AUDIO.BUS.MUSIC } = {}) {
+    constructor(engine, sources, { name = '', loop = false, volume = 1, bus = CONFIG.AUDIO.BUS.MUSIC, optional = false } = {}) {
         this.engine = engine;
         this.candidates = rankSources(sources);
         this.name = name || (this.candidates[0] || 'sem-fonte');
         this.bus = bus;
         this.volume = clamp01(volume);
         this.looping = loop;
+        this.optional = optional;
+        this.failed = false;
 
         this.element = null;
         this.mediaNode = null;
@@ -55,7 +58,8 @@ export class AudioTrack {
         if (this.loadPromise) return this.loadPromise;
         this.loadPromise = new Promise((resolve) => {
             if (this.candidates.length === 0) {
-                console.error(`[AudioTrack:${this.name}] Nenhuma fonte suportada por este navegador.`);
+                this.failed = true;
+                console[this.optional ? 'warn' : 'error'](`[AudioTrack:${this.name}] Nenhuma fonte suportada por este navegador.`);
                 resolve(false);
                 return;
             }
@@ -98,7 +102,8 @@ export class AudioTrack {
             if (this.wantsPlay && this.pendingFadeIn < 0) this.playElement(0);
             return;
         }
-        console.error(`[AudioTrack:${this.name}] Todas as fontes falharam.`);
+        this.failed = true;
+        console[this.optional ? 'warn' : 'error'](`[AudioTrack:${this.name}] Todas as fontes falharam${this.optional ? ' (faixa opcional: ainda sem arquivo?)' : ''}.`);
         this.emit('error', error);
         resolve(false);
     }
@@ -122,6 +127,7 @@ export class AudioTrack {
      * @param {{ fadeIn?: number, from?: number }} [options] fadeIn em segundos; from = posição inicial
      */
     play({ fadeIn = 0, from } = {}) {
+        if (this.failed) return this;
         this.load();
         if (from !== undefined) this.seek(from);
         this.wantsPlay = true;
@@ -186,7 +192,7 @@ export class AudioTrack {
                 this.pendingFadeIn = fadeIn;
                 console.warn(`[AudioTrack:${this.name}] Reprodução bloqueada pelo navegador. Tentará no próximo toque.`);
             } else if (err.name !== 'AbortError') {
-                console.error(`[AudioTrack:${this.name}] Erro ao tocar:`, err);
+                console[this.optional ? 'warn' : 'error'](`[AudioTrack:${this.name}] Erro ao tocar:`, err);
             }
         });
     }

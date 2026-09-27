@@ -1,5 +1,5 @@
 import { CONFIG } from '../config/constants.js';
-import { canPlayOnCombatSlot, isConsumable, isValidCombo } from './rules.js';
+import { canPlayOnCombatSlot, consumableBlockReason, isConsumable, isValidCombo } from './rules.js';
 import { ZONE } from '../utils/zones.js';
 
 /**
@@ -20,13 +20,16 @@ export class PlayableSystem {
 
         this.excludedTypes = new Uint8Array(256);
         for (const type of CONFIG.PLAYABLE_OUTLINE.EXCLUDED_TYPES) this.excludedTypes[type] = 1;
+        // Status próprio (CONFIG.STATUS) do último snapshot: Cura/Escudo já ativos, Reviver já usado
+        this.status = 0;
     }
 
     /** Regras de slot (sem cor): tipo de carta compatível, slot livre e defesa não bloqueada. */
     slotAccepts(id, zone) {
         const type = this.pool.type[id];
         if (zone === ZONE.SELF_USE) {
-            return isConsumable(type) && this.layout.stack(ZONE.SELF_USE).length === 0;
+            return isConsumable(type) && this.layout.stack(ZONE.SELF_USE).length === 0
+                && consumableBlockReason(type, this.status) === null;
         }
         if (zone !== ZONE.SELF_ATTACK && zone !== ZONE.SELF_DEFENSE) return false;
         if (isConsumable(type)) return false;
@@ -64,8 +67,10 @@ export class PlayableSystem {
      * Recalcula o contorno das cartas da mão. Chamar após layout.rebuild().
      * @param {boolean} canPrepare jogador local está na preparação e ainda não finalizou
      * @param {number} activeColor cor ativa do jogador local
+     * @param {number} [status] bitmask CONFIG.STATUS do jogador local
      */
-    update(canPrepare, activeColor) {
+    update(canPrepare, activeColor, status = 0) {
+        this.status = status;
         const pool = this.pool;
         pool.outlined.fill(0);
         if (!canPrepare) return;

@@ -19,6 +19,8 @@ export class CardPool {
         this.type = new Uint8Array(capacity);
         this.color = new Uint8Array(capacity);
         this.power = new Int16Array(capacity);
+        // CONFIG.CARD_FLAGS das próprias cartas (ex.: RESALE: comprada na loja, revende pela metade)
+        this.cardFlags = new Uint8Array(capacity);
 
         // Transformações de renderização (animadas pelo Animator)
         this.x = new Float32Array(capacity);

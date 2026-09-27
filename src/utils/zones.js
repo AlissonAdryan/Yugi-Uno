@@ -22,6 +22,14 @@ export const ZONE = Object.freeze({
 
 export const ZONE_COUNT = 10;
 
+/**
+ * Zonas que só existem na previsão local do cliente (nunca na rede nem no servidor). O layout ignora
+ * cartas nelas, então a carta fica onde o jogador soltou até a cinemática/servidor decidir.
+ */
+export const CLIENT_ZONE = Object.freeze({
+    TRASH: 200   // carta solta na lixeira, esperando o CARD_SOLD
+});
+
 export const SEAT = Object.freeze({ P1: 0, P2: 1 });
 
 export const ZONE_OFFSET = Object.freeze({ HAND: 0, ATTACK: 1, DEFENSE: 2, USE: 3 });

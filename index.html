@@ -9,6 +9,45 @@
     <link href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" rel="stylesheet">
 </head>
 <body>
+    <!-- Sprite de ícones vetoriais (moeda, carrinho, gelo...). Tamanho 0 em vez de display:none:
+         gradientes dentro de um SVG com display:none não renderizam em alguns navegadores. -->
+    <svg class="icon-sprite" width="0" height="0" aria-hidden="true" focusable="false">
+        <defs>
+            <radialGradient id="coin-grad" cx="35%" cy="30%" r="75%">
+                <stop offset="0" stop-color="#fff6c2"/>
+                <stop offset="0.45" stop-color="#f7c948"/>
+                <stop offset="1" stop-color="#b7791f"/>
+            </radialGradient>
+        </defs>
+        <symbol id="ico-coin" viewBox="0 0 24 24">
+            <circle cx="12" cy="12" r="10.5" fill="url(#coin-grad)" stroke="#8a5a12" stroke-width="1.2"/>
+            <circle cx="12" cy="12" r="7.3" fill="none" stroke="#fff3b0" stroke-opacity="0.75" stroke-width="1.1"/>
+            <path d="M12 7.6l1.3 2.7 3 .4-2.2 2.1.5 3-2.6-1.4-2.6 1.4.5-3-2.2-2.1 3-.4z" fill="#fff8d6"/>
+        </symbol>
+        <symbol id="ico-cart" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2.5 3.5h2.6l2.3 11.2a1.6 1.6 0 0 0 1.6 1.3h8.6a1.6 1.6 0 0 0 1.6-1.2L21 7.5H6.1"/>
+            <circle cx="9.5" cy="20" r="1.6"/>
+            <circle cx="17.5" cy="20" r="1.6"/>
+        </symbol>
+        <symbol id="ico-snow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2v20M4.2 6.5l15.6 11M4.2 17.5l15.6-11"/>
+            <path d="M9 3.8l3 2.4 3-2.4M9 20.2l3-2.4 3 2.4M3.3 10.1l3.6-1.4-.6-3.8M20.7 13.9l-3.6 1.4.6 3.8M3.3 13.9l3.6 1.4-.6 3.8M20.7 10.1l-3.6-1.4.6-3.8"/>
+        </symbol>
+        <symbol id="ico-reroll" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/>
+            <path d="M4 3.5V8h4.5"/>
+            <path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/>
+            <path d="M20 20.5V16h-4.5"/>
+        </symbol>
+        <symbol id="ico-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/>
+            <path d="M12 7v5l3.2 2"/>
+        </symbol>
+        <symbol id="ico-close" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round">
+            <path d="M6 6l12 12M18 6L6 18"/>
+        </symbol>
+    </svg>
+
     <!-- Aviso para celular em pé (o jogo é jogado na horizontal) -->
     <div id="rotate-overlay">
         <div class="rotate-icon">⟳</div>
@@ -112,14 +151,94 @@
         <canvas id="game-canvas"></canvas>
 
         <div id="ui-layer">
+            <!-- Efeitos de vida (hud.js): camada de trás = auras/luz divina; da frente = escudo e reflexos -->
             <div id="opponent-hp-container" class="hp-container">
+                <div class="hp-fx hp-fx--back" aria-hidden="true">
+                    <span class="hp-heal-glow"></span>
+                    <span class="hp-divine-rays"></span>
+                    <span class="hp-divine-glow"></span>
+                </div>
                 <span id="opponent-name" class="player-name" data-i18n="OPPONENT">OPONENTE</span>
                 <span id="opponent-hp" class="hp-value">30</span>
+                <div class="hp-fx hp-fx--front" aria-hidden="true">
+                    <span class="hp-divine-beam"></span>
+                </div>
+                <!-- Lixeira do oponente (só mostra as cartas dele sendo vendidas: verso, sem valor) -->
+                <div id="opp-trash" class="trash trash--opp" aria-hidden="true">
+                    <svg class="trash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <g class="trash-lid"><path d="M4 6.5h16"/><path d="M9.5 6.5V4.5h5v2"/></g>
+                        <path d="M6 8.5l1 11.5h10l1-11.5"/>
+                        <path d="M10 11.5v6M14 11.5v6"/>
+                    </svg>
+                </div>
             </div>
 
             <div id="self-hp-container" class="hp-container">
+                <div class="hp-fx hp-fx--back" aria-hidden="true">
+                    <span class="hp-heal-glow"></span>
+                    <span class="hp-divine-rays"></span>
+                    <span class="hp-divine-glow"></span>
+                </div>
+                <span class="hp-halo" aria-hidden="true"></span>
                 <span id="self-name" class="player-name" data-i18n="YOU">VOCÊ</span>
                 <span id="self-hp" class="hp-value">30</span>
+                <div class="hp-fx hp-fx--front" aria-hidden="true">
+                    <span class="hp-shield"></span>
+                    <span class="hp-shield-ripple"></span>
+                    <span class="hp-gold-sheen"></span>
+                    <span class="hp-divine-beam"></span>
+                </div>
+                <span class="hp-revive-badge" aria-hidden="true"></span>
+                <!-- Lixeira: arraste uma carta da mão até aqui para vendê-la por moedas -->
+                <div id="self-trash" class="trash trash--self" aria-hidden="true">
+                    <span class="trash-ember"></span>
+                    <svg class="trash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <g class="trash-lid"><path d="M4 6.5h16"/><path d="M9.5 6.5V4.5h5v2"/></g>
+                        <path d="M6 8.5l1 11.5h10l1-11.5"/>
+                        <path d="M10 11.5v6M14 11.5v6"/>
+                    </svg>
+                    <span class="trash-value"><svg class="ico-coin"><use href="#ico-coin"/></svg><b></b></span>
+                    <span class="trash-hint" data-i18n="TRASH_HINT">Solte para vender</span>
+                </div>
+            </div>
+
+            <!-- Loja: botão (carrinho + carteira de moedas, só você vê as suas) e a janela da loja (shop-panel.js) -->
+            <button id="shop-btn" class="shop-btn" type="button" aria-label="Abrir loja" data-i18n="SHOP_OPEN" data-i18n-attr="aria-label">
+                <svg class="shop-btn-icon"><use href="#ico-cart"/></svg>
+                <span class="shop-btn-dot"></span>
+                <span class="wallet"><svg class="ico-coin"><use href="#ico-coin"/></svg><b id="wallet-coins">0</b></span>
+            </button>
+
+            <div id="shop" class="shop" hidden>
+                <div class="shop-backdrop"></div>
+                <canvas class="shop-fx"></canvas>
+                <div class="shop-float">
+                    <div class="shop-panel" role="dialog" aria-modal="true" aria-labelledby="shop-title">
+                        <div class="shop-rays" aria-hidden="true"></div>
+                        <div class="shop-motes" aria-hidden="true"></div>
+                        <header class="shop-header">
+                            <h2 id="shop-title" class="shop-title">
+                                <svg class="shop-title-icon"><use href="#ico-cart"/></svg>
+                                <span data-i18n="SHOP_TITLE">LOJA</span>
+                            </h2>
+                            <div class="shop-wallet"><svg class="ico-coin"><use href="#ico-coin"/></svg><b class="shop-coins">0</b></div>
+                            <button class="shop-close" type="button" aria-label="Fechar loja" data-i18n="SHOP_CLOSE" data-i18n-attr="aria-label">
+                                <svg><use href="#ico-close"/></svg>
+                            </button>
+                        </header>
+                        <div class="shop-items"></div>
+                        <footer class="shop-footer">
+                            <div class="shop-refresh"><svg><use href="#ico-clock"/></svg><span class="shop-refresh-text"></span></div>
+                            <p class="shop-message" aria-live="polite"></p>
+                            <button class="shop-reroll" type="button">
+                                <svg class="shop-reroll-icon"><use href="#ico-reroll"/></svg>
+                                <span data-i18n="SHOP_REROLL">RENOVAR</span>
+                                <span class="shop-reroll-cost"><svg class="ico-coin"><use href="#ico-coin"/></svg><b>1</b></span>
+                            </button>
+                        </footer>
+                        <p class="shop-hint" data-i18n="SHOP_HINT"></p>
+                    </div>
+                </div>
             </div>
 
             <button id="end-turn-btn" hidden disabled data-i18n="END_TURN">FINALIZAR TURNO</button>

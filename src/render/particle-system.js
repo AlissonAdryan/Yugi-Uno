@@ -79,7 +79,7 @@ export class ParticleSystem {
      * @param {number} speed Velocidade base
      * @param {number} type Tipo PARTICLE_TYPES
      */
-    emitBurst(x, y, hexColor, count = 50, speed = 200, type = PARTICLE_TYPES.CIRCLE) {
+    emitBurst(x, y, hexColor, count = 50, speed = 200, type = PARTICLE_TYPES.CIRCLE, sizeScale = 1) {
         // Converte hex para RGB puro matematicamente
         const r = parseInt(hexColor.slice(1, 3), 16) || 255;
         const g = parseInt(hexColor.slice(3, 5), 16) || 255;
@@ -91,11 +91,48 @@ export class ParticleSystem {
             const velocity = (Math.random() * speed) + (speed * 0.2); // variação de velocidade
             const vx = Math.cos(angle) * velocity;
             const vy = Math.sin(angle) * velocity;
-            
+
             const life = (Math.random() * 0.5) + 0.5; // Duração: 0.5s a 1.0s
-            const size = (Math.random() * 6) + 2; // Tamanho: 2 a 8px
+            const size = ((Math.random() * 6) + 2) * sizeScale; // Tamanho: 2 a 8px (x escala)
 
             this.emit(x, y, vx, vy, life, size, type, r, g, b);
+        }
+    }
+
+    /**
+     * Partículas subindo de uma área (luz divina, cura): nascem espalhadas em volta de (x,y)
+     * e flutuam pra cima com leve deriva lateral, vivendo mais que uma explosão comum.
+     */
+    emitRise(x, y, hexColor, count = 40, spread = 50, speed = 300, type = PARTICLE_TYPES.STAR) {
+        const r = parseInt(hexColor.slice(1, 3), 16) || 255;
+        const g = parseInt(hexColor.slice(3, 5), 16) || 255;
+        const b = parseInt(hexColor.slice(5, 7), 16) || 255;
+        for (let i = 0; i < count; i++) {
+            const px = x + (Math.random() - 0.5) * spread * 2;
+            const py = y + (Math.random() - 0.5) * spread * 0.8;
+            const vx = (Math.random() - 0.5) * speed * 0.35;
+            const vy = -(speed * (0.45 + Math.random() * 0.55));
+            const life = 0.8 + Math.random() * 0.9;
+            const size = 2 + Math.random() * 5;
+            this.emit(px, py, vx, vy, life, size, type, r, g, b);
+        }
+    }
+
+    /** Rastro de faíscas espalhadas ao longo de um segmento (ex.: energia do slot USE indo até a vida). */
+    emitLine(x0, y0, x1, y1, hexColor, count = 30, type = PARTICLE_TYPES.STAR) {
+        const r = parseInt(hexColor.slice(1, 3), 16) || 255;
+        const g = parseInt(hexColor.slice(3, 5), 16) || 255;
+        const b = parseInt(hexColor.slice(5, 7), 16) || 255;
+        for (let i = 0; i < count; i++) {
+            const t = count > 1 ? i / (count - 1) : 0;
+            const px = x0 + (x1 - x0) * t + (Math.random() - 0.5) * 14;
+            const py = y0 + (y1 - y0) * t + (Math.random() - 0.5) * 14;
+            const vx = (Math.random() - 0.5) * 60;
+            const vy = (Math.random() - 0.5) * 60;
+            // Quem está mais perto do destino vive mais: o rastro "chega" e se apaga do início pro fim
+            const life = 0.35 + t * 0.6 + Math.random() * 0.2;
+            const size = 2 + Math.random() * 4;
+            this.emit(px, py, vx, vy, life, size, type, r, g, b);
         }
     }
 

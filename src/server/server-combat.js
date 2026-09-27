@@ -1,12 +1,13 @@
 import { CONFIG } from '../config/constants.js';
 import {
-    CLASH_KIND, classifyClash, isConsumable, isSummon, resolveNumberClash, summonCount
+    CLASH_KIND, classifyClash, healAmount, isConsumable, isSummon, resolveNumberClash, shieldedDamage, summonCount
 } from '../systems/rules.js';
 import { SEAT, ZONE, ZONE_OFFSET, seatZone } from '../utils/zones.js';
 import { EVENT, HIT_EFFECT } from '../network/protocol.js';
 
 const { CARD_TYPES, TIMINGS } = CONFIG;
 const { ATTACK, DEFENSE, HAND, USE } = ZONE_OFFSET;
+const SEATS = [SEAT.P1, SEAT.P2];
 
 /**
  * ServerCombat - resolução autoritativa do combate (GAME_RULES.md §3 e §6).
@@ -26,6 +27,8 @@ export class ServerCombat {
         this.gameWinner = -1;
         // Dano numérico (-X ♥) que cada assento levou na rodada; Block/Reverso na vida não contam
         this.damageTaken = new Int16Array(2);
+        // Dano numérico que cada assento causou na rodada (base da Cura)
+        this.damageDealt = new Int16Array(2);
     }
 
     /**
@@ -36,6 +39,7 @@ export class ServerCombat {
         this.roundWinner = -1;
         this.gameWinner = -1;
         this.damageTaken.fill(0);
+        this.damageDealt.fill(0);
 
         await this.revealCards([...s.zone(SEAT.P1, ATTACK), ...s.zone(SEAT.P2, ATTACK)], TIMINGS.REVEAL);
 
@@ -75,7 +79,10 @@ export class ServerCombat {
             console.warn('[ServerCombat] Limite de passos de combate atingido. Encerrando combate por segurança.');
         }
 
-        if (!this.engine.isGameOver() && this.gameWinner < 0) this.returnLeftovers();
+        if (!this.engine.isGameOver() && this.gameWinner < 0) {
+            await this.applyHeals();
+            this.returnLeftovers();
+        }
         return { roundWinner: this.roundWinner, gameWinner: this.gameWinner };
     }
 
@@ -267,6 +274,7 @@ export class ServerCombat {
                 continue;
             }
 
+            let revived = false;
             if (type === CARD_TYPES.BLOCK) {
                 console.log(`[ServerCombat] Block atingiu P${target + 1}: defesa bloqueada na próxima rodada.`);
                 this.engine.emit(EVENT.DIRECT_HIT, { cardId, seat: attacker, damage: 0, effect: HIT_EFFECT.LOCKOUT });
@@ -278,21 +286,95 @@ export class ServerCombat {
                 this.deck.discard(cardId);
                 this.swapHands();
             } else {
-                const damage = Math.max(0, s.power[cardId]);
-                console.log(`[ServerCombat] Dano direto de P${attacker + 1}: -${damage} HP em P${target + 1}`);
-                this.engine.emit(EVENT.DIRECT_HIT, { cardId, seat: attacker, damage, effect: HIT_EFFECT.NONE });
-                s.hp[target] = Math.max(0, s.hp[target] - damage);
-                this.damageTaken[target] += damage;
-                s.moveCard(cardId, seatZone(attacker, HAND));
+                revived = this.numericHit(attacker, target, cardId);
             }
 
             this.engine.markDirty();
             await this.engine.sleep(TIMINGS.DIRECT_HIT);
+            if (revived) await this.reviveSave(target);
 
             if (s.hp[target] <= 0) {
                 this.gameWinner = attacker;
                 return;
             }
+        }
+    }
+
+    /**
+     * Golpe numérico na vida, com os consumíveis do alvo aplicados na ordem: Escudo (metade do dano)
+     * -> Reviver (um golpe que mataria deixa a vida em 1; depois de salvar, todo golpe da mesma
+     * rodada também para em 1). A carta volta para a mão do atacante.
+     * @returns {boolean} true se o Reviver acabou de salvar o alvo neste golpe
+     */
+    numericHit(attacker, target, cardId) {
+        const s = this.state;
+        const raw = Math.max(0, s.power[cardId]);
+        const damage = shieldedDamage(raw, s.shieldActive[target] === 1);
+        const absorbed = raw - damage;
+
+        let hp = s.hp[target] - damage;
+        let revived = false;
+        let guarded = false;
+        if (hp <= 0 && damage > 0) {
+            if (s.reviveGuard[target]) {
+                hp = CONFIG.CONSUMABLES.REVIVE_SURVIVE_HP;
+                guarded = true;
+            } else if (s.reviveRounds[target] > 0) {
+                hp = CONFIG.CONSUMABLES.REVIVE_SURVIVE_HP;
+                revived = true;
+            }
+        }
+
+        console.log(`[ServerCombat] Dano direto de P${attacker + 1}: -${damage} HP em P${target + 1}`
+            + (absorbed > 0 ? ` (Escudo segurou ${absorbed})` : '')
+            + (revived ? ' -> REVIVER salvou da morte!' : guarded ? ' -> Reviver segurou a vida em 1' : ''));
+
+        const payload = { cardId, seat: attacker, damage, effect: HIT_EFFECT.NONE, guarded: guarded ? 1 : 0 };
+        this.engine.emitTo(attacker, EVENT.DIRECT_HIT, payload);
+        this.engine.emitTo(target, EVENT.DIRECT_HIT, absorbed > 0 ? Object.assign({ absorbed }, payload) : payload);
+
+        s.hp[target] = Math.max(0, hp);
+        this.damageTaken[target] += damage;
+        this.damageDealt[attacker] += damage;
+        if (revived) {
+            s.reviveRounds[target] = 0;
+            s.reviveGuard[target] = 1;
+        }
+        s.moveCard(cardId, seatZone(attacker, HAND));
+        return revived;
+    }
+
+    /** O Reviver se revela para os dois: luz divina na vida do alvo e a carta se despedaça no centro. */
+    async reviveSave(target) {
+        console.log(`[ServerCombat] Reviver de P${target + 1} ativado: vida travada em ${CONFIG.CONSUMABLES.REVIVE_SURVIVE_HP} pelo resto da rodada.`);
+        this.engine.emit(EVENT.REVIVE_TRIGGERED, { seat: target });
+        this.engine.markDirty();
+        await this.engine.sleep(TIMINGS.REVIVE_SAVE);
+    }
+
+    /**
+     * Fim do combate: quem usou Cura recupera metade do dano que causou (pra baixo, até a vida máxima).
+     * Sem dano causado (ou vida cheia) a carta foi desperdiçada — só quem usou fica sabendo.
+     */
+    async applyHeals() {
+        const s = this.state;
+        for (const seat of SEATS) {
+            if (!s.healActive[seat]) continue;
+            s.healActive[seat] = 0;
+            const amount = healAmount(this.damageDealt[seat], s.hp[seat]);
+
+            if (amount <= 0) {
+                console.log(`[ServerCombat] Cura de P${seat + 1} desperdiçada (dano causado: ${this.damageDealt[seat]}, vida: ${s.hp[seat]}).`);
+                this.engine.markDirty();
+                this.engine.emitTo(seat, EVENT.HEAL, { seat, amount: 0 });
+                continue;
+            }
+
+            console.log(`[ServerCombat] Cura de P${seat + 1}: +${amount} HP (dano causado: ${this.damageDealt[seat]}).`);
+            this.engine.emit(EVENT.HEAL, { seat, amount });
+            s.hp[seat] += amount;
+            this.engine.markDirty();
+            await this.engine.sleep(TIMINGS.HEAL);
         }
     }
 

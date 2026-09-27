@@ -95,7 +95,103 @@ export function summonCount(type) {
 }
 
 export function isConsumable(type) {
-    return type === CARD_TYPES.CHANGE_COLOR;
+    return type === CARD_TYPES.CHANGE_COLOR || type === CARD_TYPES.HEAL
+        || type === CARD_TYPES.SHIELD || type === CARD_TYPES.REVIVE;
+}
+
+/**
+ * Por que este consumível não pode ser usado agora (null = pode). Única fonte da regra: o servidor
+ * valida com ela, o cliente usa pra aceitar/recusar o arraste no slot USE e a IA pra decidir.
+ * @param {number} type CARD_TYPES.*
+ * @param {number} status bitmask CONFIG.STATUS do próprio jogador
+ * @returns {string|null}
+ */
+export function consumableBlockReason(type, status) {
+    const { STATUS } = CONFIG;
+    switch (type) {
+        case CARD_TYPES.HEAL: return (status & STATUS.HEAL) ? 'HEAL_ALREADY_ACTIVE' : null;
+        case CARD_TYPES.SHIELD: return (status & STATUS.SHIELD) ? 'SHIELD_ALREADY_ACTIVE' : null;
+        case CARD_TYPES.REVIVE: return (status & STATUS.REVIVE_USED) ? 'REVIVE_ALREADY_USED' : null;
+        default: return null;
+    }
+}
+
+/**
+ * Dano que um golpe direto realmente tira, com o Escudo (metade, arredondada pra baixo) aplicado.
+ * @param {number} rawDamage
+ * @param {boolean} shielded
+ */
+export function shieldedDamage(rawDamage, shielded) {
+    return shielded ? Math.floor(rawDamage * CONFIG.CONSUMABLES.SHIELD_DAMAGE_RATIO) : rawDamage;
+}
+
+// --- Economia (lixeira, moedas e loja) ---------------------------------------
+
+const TYPE_NAMES = Object.freeze(Object.fromEntries(Object.entries(CARD_TYPES).map(([k, v]) => [v, k])));
+
+/** Nome do tipo em CARD_TYPES (chave do catálogo e das traduções CARD_*), ou '' se desconhecido. */
+export function cardTypeName(type) {
+    return TYPE_NAMES[type] || '';
+}
+
+/** @returns {object|null} entrada de CONFIG.CARD_CATALOG */
+export function catalogEntry(type) {
+    return CONFIG.CARD_CATALOG[TYPE_NAMES[type]] || null;
+}
+
+export function hasCardTag(type, tag) {
+    const entry = catalogEntry(type);
+    return !!entry && (entry.tags & tag) !== 0;
+}
+
+/**
+ * Moedas que a carta rende na lixeira. Números valem o valor atual; especiais, o do catálogo.
+ * Carta comprada na loja (CARD_FLAGS.RESALE) revende por uma fração — sem isso, comprar um 9 por 8
+ * e revendê-lo por 9 viraria dinheiro infinito.
+ * @returns {number} 0 se não puder ser vendida
+ */
+export function sellValue(type, power, cardFlags = 0) {
+    const entry = catalogEntry(type);
+    if (!entry || (entry.tags & CONFIG.CARD_TAGS.SELLABLE) === 0) return 0;
+    const base = entry.sell === 'POWER' ? Math.max(0, power) : entry.sell;
+    if (cardFlags & CONFIG.CARD_FLAGS.RESALE) return Math.floor(base * CONFIG.SHOP.RESALE_RATIO);
+    return base;
+}
+
+/**
+ * Por que a compra do item não pode acontecer (null = pode). Mesma regra no servidor e no cliente.
+ * @param {{ price: number, flags: number, type: number }} item
+ */
+export function purchaseBlockReason(item, coins, handSize) {
+    if (item.type === CARD_TYPES.HIDDEN || (item.flags & CONFIG.SHOP_ITEM_FLAGS.SOLD)) return 'ITEM_UNAVAILABLE';
+    if (coins < item.price) return 'NOT_ENOUGH_COINS';
+    if (handSize >= CONFIG.MAX_HAND_SIZE) return 'HAND_FULL';
+    return null;
+}
+
+/** Moedas do fim da rodada: quem perdeu ganha mais (o oposto das compras de carta). */
+export function roundCoinsFor(seat, roundWinner) {
+    const { ROUND_COINS } = CONFIG.SHOP;
+    if (roundWinner < 0) return ROUND_COINS.TIE;
+    return seat === roundWinner ? ROUND_COINS.WINNER : ROUND_COINS.LOSER;
+}
+
+/** Sorteio ponderado de uma lista [valor, peso]. */
+export function weightedPick(pairs, random = Math.random) {
+    let total = 0;
+    for (let i = 0; i < pairs.length; i++) total += pairs[i][1];
+    let roll = random() * total;
+    for (let i = 0; i < pairs.length; i++) {
+        roll -= pairs[i][1];
+        if (roll < 0) return pairs[i][0];
+    }
+    return pairs[pairs.length - 1][0];
+}
+
+/** Cura do fim do combate: metade do dano causado na rodada (pra baixo), limitada à vida máxima. */
+export function healAmount(damageDealt, currentHp) {
+    const heal = Math.floor(damageDealt * CONFIG.CONSUMABLES.HEAL_RATIO);
+    return Math.max(0, Math.min(heal, CONFIG.MAX_HP - currentHp));
 }
 
 /**
@@ -108,7 +204,8 @@ export function resolveNumberClash(powerA, powerB) {
 
 /**
  * Classifica o choque entre duas cartas de topo (nunca +2/+4, que explodem antes).
- * Trocar Cor que chegue ao combate via invocação se comporta como número de valor 0.
+ * Consumíveis (Trocar Cor, Cura, Escudo, Reviver) que cheguem ao combate via invocação se comportam
+ * como número de valor 0 — o efeito deles só existe quando usados no slot USE.
  */
 export function classifyClash(typeA, typeB) {
     const aSpecial = typeA === CARD_TYPES.BLOCK || typeA === CARD_TYPES.REVERSE;

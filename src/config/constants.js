@@ -15,7 +15,43 @@ const CARD_TYPES = Object.freeze({
     BLOCK: 3,
     REVERSE: 4,
     CHANGE_COLOR: 5,
+    HEAL: 6,
+    SHIELD: 7,
+    REVIVE: 8,
     HIDDEN: 255
+});
+
+// Estados que um consumível deixa ativos no assento (bitmask). Só o próprio jogador recebe os seus.
+const STATUS = Object.freeze({
+    HEAL: 1,
+    SHIELD: 2,
+    REVIVE_ACTIVE: 4,
+    REVIVE_USED: 8
+});
+
+/*
+ * Etiquetas de catálogo (bitmask) — dizem por onde cada tipo de carta circula:
+ *   DECK     pode sair do baralho          SHOP      pode aparecer na loja
+ *   SELLABLE pode ir para a lixeira (vira moeda)
+ * Carta só de loja = SHOP sem DECK. Especial não comprável = sem SHOP. Nada mais no código muda.
+ */
+const CARD_TAGS = Object.freeze({
+    DECK: 1,
+    SHOP: 2,
+    SELLABLE: 4
+});
+const ALL_TAGS = CARD_TAGS.DECK | CARD_TAGS.SHOP | CARD_TAGS.SELLABLE;
+
+// Estado de cada item da loja (bitmask)
+const SHOP_ITEM_FLAGS = Object.freeze({
+    DISCOUNT: 1,  // veio em oferta (preço cheio riscado)
+    FROZEN: 2,    // congelado: sobrevive à próxima renovação automática
+    SOLD: 4       // já comprado neste ciclo
+});
+
+// Marcas por carta (bitmask, só o dono recebe as suas no snapshot)
+const CARD_FLAGS = Object.freeze({
+    RESALE: 1     // comprada na loja: revende por CONFIG.SHOP.RESALE_RATIO do valor (evita lucro infinito)
 });
 
 export const CONFIG = Object.freeze({
@@ -26,6 +62,8 @@ export const CONFIG = Object.freeze({
     INITIAL_HAND_SIZE: 9,
     MAX_HAND_SIZE: 15,
     STARTING_HP: 30,
+    // Teto de vida para cura (a Cura nunca passa disso)
+    MAX_HP: 30,
     NAME_MAX_LENGTH: 16,
     FORCED_DISCARD_COUNT: 2,
     ROUND_DRAWS: Object.freeze({ WINNER: 2, LOSER: 1, TIE: 1 }),
@@ -34,6 +72,42 @@ export const CONFIG = Object.freeze({
     // Trava de segurança contra loops de combate (cadeias de +2/+4 são finitas, mas nunca confiamos cegamente)
     COMBAT_MAX_STEPS: 200,
     COMBO_MAX_STACK: 3,
+
+    // O código normaliza pelo total, então os pesos não precisam somar 100
+    CARD_SPAWN_WEIGHTS: Object.freeze({
+        NUMBER: 70,
+        SPECIAL_BASE: 30,
+        SPECIALS: Object.freeze({
+            PLUS2: 10,
+            PLUS4: 5,
+            BLOCK: 8,
+            REVERSE: 7,
+            CHANGE_COLOR: 8,
+            HEAL: 3,
+            SHIELD: 6,
+            REVIVE: 1
+        })
+    }),
+    
+    /*
+     * Catálogo econômico por tipo de carta (chave = nome em CARD_TYPES):
+     *   tags        CARD_TAGS (por onde a carta circula)
+     *   sell        moedas ao jogar na lixeira ('POWER' = o valor atual do número)
+     *   price       preço base na loja (números: calculado por CONFIG.SHOP.NUMBER_*)
+     *   shopWeight  chance relativa de aparecer num espaço da loja
+     * O peso de nascer do baralho continua em CARD_SPAWN_WEIGHTS (só vale para quem tem a tag DECK).
+     */
+    CARD_CATALOG: Object.freeze({
+        NUMBER: Object.freeze({ tags: ALL_TAGS, sell: 'POWER', shopWeight: 30 }),
+        PLUS2: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 8, shopWeight: 14 }),
+        PLUS4: Object.freeze({ tags: ALL_TAGS, sell: 4, price: 14, shopWeight: 5 }),
+        BLOCK: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 6, shopWeight: 12 }),
+        REVERSE: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 6, shopWeight: 11 }),
+        CHANGE_COLOR: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 4, shopWeight: 12 }),
+        HEAL: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 5, shopWeight: 10 }),
+        SHIELD: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 5, shopWeight: 10 }),
+        REVIVE: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 16, shopWeight: 3 })
+    }),
 
     // Resolução virtual de referência: altura mínima para mãos + tabuleiro com respiro (~870px ocupados)
     // Mantém a proporção 20:13 de 1425x926; (canvas + HUD) levemente para cima.
@@ -75,11 +149,65 @@ export const CONFIG = Object.freeze({
     DEFAULT_BACKGROUND: Object.freeze(['#1e0f61', '#152066', '#37064a', '#2e1060']),
 
     CARD_TYPES,
+    STATUS,
+    CARD_TAGS,
+    SHOP_ITEM_FLAGS,
+    CARD_FLAGS,
+
+
+    SHOP: Object.freeze({
+        SLOTS: 3,
+        REFRESH_EVERY_ROUNDS: 2,        // rodadas de combate entre renovações automáticas
+        STARTING_COINS: 2,
+        MAX_COINS: 999,
+        // Ao fim de cada combate (o oposto das compras de carta, pra equilibrar)
+        ROUND_COINS: Object.freeze({ WINNER: 1, LOSER: 2, TIE: 1 }),
+        // Números na loja: só estes valores, custando o valor menos [desconto, peso]
+        NUMBER_POWERS: Object.freeze([8, 9]),
+        NUMBER_MARKDOWN: Object.freeze([[1, 75], [2, 25]]),
+        // Ofertas relâmpago em qualquer item: [moedas a menos, peso]
+        DISCOUNT_CHANCE: 0.2,
+        DISCOUNT_AMOUNTS: Object.freeze([[1, 70], [2, 30]]),
+        MIN_PRICE: 1,
+        RESALE_RATIO: 0.5,
+        // Renovar a loja na hora: custo começa em BASE e sobe STEP a cada uso (zera na renovação automática)
+        REROLL_BASE_COST: 1,
+        REROLL_COST_STEP: 2,
+        // Tentativas de evitar itens repetidos na mesma loja
+        UNIQUE_TRIES: 4,
+        // Congelar: só 1 item por vez (força escolher qual guardar), e ele fica mais caro ao "descongelar"
+        // na renovação seguinte (senão seria só uma reserva de graça, sem custo nenhum)
+        MAX_FROZEN: 1,
+        FREEZE_SURCHARGE: 2
+    }),
+
+    // Especiais sem cor (podem ser jogadas em qualquer cor e não contam no sorteio de cores em comum)
+    COLORLESS_SPECIALS: Object.freeze(['PLUS4', 'CHANGE_COLOR', 'HEAL', 'SHIELD', 'REVIVE']),
+
+    // Regras numéricas dos consumíveis de vida (GAME_RULES §6.5–6.7)
+    CONSUMABLES: Object.freeze({
+        HEAL_RATIO: 0.5,            // cura = floor(dano causado na rodada * ratio)
+        SHIELD_DAMAGE_RATIO: 0.5,   // dano recebido por golpe = floor(dano * ratio)
+        REVIVE_ROUNDS: 5,           // rodadas de combate em que o Reviver fica de guarda
+        REVIVE_SURVIVE_HP: 1        // vida que sobra quando o Reviver impede a morte
+    }),
+
+    /*
+     * Visual por tipo de carta, além do padrão (fundo = cor da carta, ícone branco).
+     * - background/border: cores da face e da moldura
+     * - painted: face estática pintada uma vez num cache (card-art.js) em vez de redesenhada a cada frame
+     * - fx: efeito animado sobreposto à face (card-effects.js: 'FOIL_GOLD', 'FOIL_HOLO', ...)
+     * Para dar um efeito novo a qualquer carta no futuro: registre o preset em card-effects.js e
+     * aponte `fx` para ele aqui — nenhuma outra parte do renderer precisa mudar.
+     */
+    CARD_VISUALS: Object.freeze({
+        [CARD_TYPES.REVIVE]: Object.freeze({ background: '#fbf7ea', border: '#d4af37', painted: true, fx: 'FOIL_GOLD' })
+    }),
 
     // Contorno animado (sentido horário) nas cartas da mão que podem ser jogadas agora. Só visual e só local.
     PLAYABLE_OUTLINE: Object.freeze({
         // Tipos que nunca recebem o contorno, mesmo quando jogáveis
-        EXCLUDED_TYPES: Object.freeze([CARD_TYPES.CHANGE_COLOR]),
+        EXCLUDED_TYPES: Object.freeze([CARD_TYPES.CHANGE_COLOR, CARD_TYPES.HEAL, CARD_TYPES.SHIELD, CARD_TYPES.REVIVE]),
         COLOR: '#7df9ff',
         GLOW_COLOR: 'rgba(0, 229, 255, 0.35)',
         LINE_WIDTH: 3,
@@ -88,19 +216,6 @@ export const CONFIG = Object.freeze({
         DASH_COUNT: 4,
         DASH_FILL: 0.5,
         SPEED: 140
-    }),
-
-    // O código normaliza pelo total, então os pesos não precisam somar 100
-    CARD_SPAWN_WEIGHTS: Object.freeze({
-        NUMBER: 70,
-        SPECIAL_BASE: 30,
-        SPECIALS: Object.freeze({
-            PLUS2: 10,
-            PLUS4: 5,
-            BLOCK: 8,
-            REVERSE: 7,
-            CHANGE_COLOR: 8
-        })
     }),
 
     GAME_STATES: Object.freeze({
@@ -133,7 +248,12 @@ export const CONFIG = Object.freeze({
         NEXT_ROUND_DELAY: 600,
         FORCED_REDRAW_DELAY: 700,
         GAME_OVER_SEQUENCE: 3000,
-        COLOR_CHOICE_TIMEOUT: 10000
+        COLOR_CHOICE_TIMEOUT: 10000,
+        HEAL: 1300,
+        // Luz divina na vida + carta gigante se despedaçando (ver ANIM.DIVINE_LEAD + SHOWCASE_*)
+        REVIVE_SAVE: 2800,
+        // Moedas do fim da rodada e renovação da loja (pausa curta pra a animação respirar)
+        ROUND_ECONOMY: 500
     }),
 
     ANIM: Object.freeze({
@@ -158,7 +278,19 @@ export const CONFIG = Object.freeze({
         DIRECT_DASH: 150,
         DIRECT_RETURN: 400,
         SAFETY_MARGIN: 150,
-        RENDER_SMOOTHING: 0.6
+        RENDER_SMOOTHING: 0.6,
+        HEAL_BURST: 1100,
+        DIVINE_LEAD: 850,
+        // Carta gigante no centro: entra, fica, racha e se despedaça (soma <= TIMINGS.REVIVE_SAVE - DIVINE_LEAD)
+        SHOWCASE_IN: 450,
+        SHOWCASE_HOLD: 450,
+        SHOWCASE_CRACK: 420,
+        SHOWCASE_FADE: 320,
+        SHOWCASE_SCALE: 2.3,
+        // Carta indo pra lixeira e virando moeda
+        SELL_FLY: 260,
+        SELL_BURN: 220,
+        MUSIC_FADE_S: 0.9
     }),
 
     AI: Object.freeze({
@@ -166,7 +298,16 @@ export const CONFIG = Object.freeze({
         ACTION_GAP_MS: 700,
         DEFENSE_CHANCE: 0.5,
         CONSUMABLE_CHANCE: 0.7,
-        MAX_REJECTIONS: 3
+        MAX_REJECTIONS: 3,
+        HEAL_MIN_MISSING_HP: 6,
+        SHIELD_BELOW_HP: 18,
+        SHIELD_RANDOM_CHANCE: 0.25,
+        REVIVE_BELOW_HP: 14,
+        // Economia: compra itens especiais/9 se sobrar moeda; vende números fracos com mão cheia
+        BUY_CHANCE: 0.65,
+        SELL_WHEN_HAND_AT_LEAST: 11,
+        SELL_MAX_POWER: 3,
+        MAX_SHOP_ACTIONS_PER_ROUND: 2
     }),
 
     NETWORK: Object.freeze({

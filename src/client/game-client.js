@@ -10,8 +10,10 @@ import { InputSystem } from '../systems/input-system.js';
 import { LayoutSystem } from '../systems/layout-system.js';
 import { PlayableSystem } from '../systems/playable-system.js';
 import { SAMPLES, SFX } from '../config/sound-presets.js';
+import { consumableBlockReason, isConsumable, sellValue } from '../systems/rules.js';
 import { ColorPicker } from '../ui/color-picker.js';
-import { ZONE } from '../utils/zones.js';
+import { ShopPanel } from '../ui/shop-panel.js';
+import { CLIENT_ZONE, ZONE } from '../utils/zones.js';
 import {
     EVENT, INPUT, MSG, SNAPSHOT_FLAGS, SnapshotView, decodeSnapshot, isBinaryMessage, isSeqAfter
 } from '../network/protocol.js';
@@ -54,11 +56,25 @@ export class GameClient {
         this.input = new InputSystem();
         this.layout = new LayoutSystem(this.pool, this.board, this.animator);
         this.playable = new PlayableSystem(this.pool, this.layout, this.board);
+        // Carta gigante no centro da tela (Reviver se despedaçando): estado pré-alocado, lido pelo renderer
+        this.showcase = {
+            cardVisible: false, type: 0, color: 0, scale: 1, alpha: 1, rotation: 0,
+            dim: 0, glow: 0, flash: 0, crack: 0, shakeX: 0, shakeY: 0, cracks: []
+        };
         this.cinematics = new CinematicPlayer({
             pool: this.pool, animator: this.animator, particles: this.particles, hud: this.hud, board: this.board,
-            viewport: this.viewport, audio: this.audio
+            viewport: this.viewport, audio: this.audio, showcase: this.showcase
         });
         this.colorPicker = new ColorPicker(audio);
+
+        // Economia: loja + carteira. Toda ação vira INPUT validado pelo servidor (Pilar 11)
+        this.shopPanel = new ShopPanel({ audio, viewport });
+        this.shopPanel.onBuy = (slot) => this.sendInput(INPUT.SHOP_BUY, -1, -1, 0, undefined, { slot });
+        this.shopPanel.onReroll = () => this.sendInput(INPUT.SHOP_REROLL, -1);
+        this.shopPanel.onFreeze = (slot) => this.sendInput(INPUT.SHOP_FREEZE, -1, -1, 0, undefined, { slot });
+        // Lixeira em coordenadas virtuais (lida uma vez por arrasto) e se o ponteiro está sobre ela
+        this.trashZone = { x0: 0, y0: 0, x1: 0, y1: 0 };
+        this.overTrash = false;
 
         this.canvas = document.getElementById(CONFIG.CANVAS_ID);
         this.renderer = null;
@@ -75,7 +91,7 @@ export class GameClient {
         this.inputSeq = 0;
         this.pendingInputs = [];
 
-        this.scene = { deckX: 0, deckY: 0, deckCount: 0, hoveredCard: -1, selectableZone: -1 };
+        this.scene = { deckX: 0, deckY: 0, deckCount: 0, hoveredCard: -1, selectableZone: -1, showcase: this.showcase };
 
         network.on(NET_EVENT.SERVER_MESSAGE, (msg) => this.enqueue(msg));
     }
@@ -91,6 +107,9 @@ export class GameClient {
             this.particles.setBounds(w, h);
             if (this.hasSnapshot) this.relayout();
         });
+        // A loja desenha as prévias com o mesmo pintor do jogo (ícones, laminado animado, tudo igual)
+        this.shopPanel.painter = (ctx, type, color, power, seed, density) =>
+            this.renderer.drawCardInto(ctx, type, color, power, seed, density);
 
         this.setupInput();
         this.hud.onEndTurn(() => this.toggleReady());
@@ -137,8 +156,34 @@ export class GameClient {
             console.warn(`[Client] Jogada recusada pelo servidor: ${evt.reason}`);
             this.pendingInputs = this.pendingInputs.filter((p) => p.seq !== evt.seq);
             if (evt.input === INPUT.CHOOSE_COLOR) this.colorPicker.unlock();
+            if (evt.input === INPUT.SHOP_BUY || evt.input === INPUT.SHOP_REROLL || evt.input === INPUT.SHOP_FREEZE) {
+                this.shopPanel.onRejected(evt);
+            }
+            if (evt.input === INPUT.SELL_CARD) this.audio.play(SFX.SHOP_DENY);
             this.restoreFromView();
             if (this.cinematics.gameOverShown) this.syncRematch();
+            return;
+        }
+
+        // Economia privada: não entra na fila de cinemáticas do tabuleiro (é UI, não trava nada)
+        if (evt.t === EVENT.SHOP_PURCHASED) {
+            this.spawnPurchased(evt);
+            this.shopPanel.handleEvent(evt);
+            return;
+        }
+        if (evt.t === EVENT.SHOP_REROLLED || evt.t === EVENT.SHOP_REFRESHED) {
+            this.shopPanel.handleEvent(evt);
+            return;
+        }
+        if (evt.t === EVENT.COINS_EARNED) {
+            this.shopPanel.handleEvent(evt);
+            if (!document.hidden) {
+                const w = this.shopPanel.walletCenter();
+                const vx = this.viewport.toVirtual(w.x);
+                const vy = this.viewport.toVirtual(w.y);
+                this.particles.emitRise(vx, vy, '#ffd700', 10 + evt.amount * 8, 26, 240, PARTICLE_TYPES.STAR);
+                this.particles.emitBurst(vx, vy, '#fff3b0', 12, 160, PARTICLE_TYPES.CIRCLE);
+            }
             return;
         }
 
@@ -182,6 +227,8 @@ export class GameClient {
 
         if (this.boardFrozen) {
             this.hud.setHP(v.selfHP, v.oppHP);
+            this.hud.setSelfStatus(v.selfStatus, v.reviveRounds);
+            this.shopPanel.sync(v, false);
             this.hud.setEndTurn(false, false);
             this.hud.setPhaseMessage(null);
             this.dropAckedInputs();
@@ -208,6 +255,7 @@ export class GameClient {
             pool.type[id] = v.type[i];
             pool.color[id] = v.color[i];
             pool.power[id] = v.power[i];
+            pool.cardFlags[id] = v.cardFlags[i];
         }
         if (drewCards) this.audio.play(SFX.CARD_DRAW);
 
@@ -227,13 +275,17 @@ export class GameClient {
         if (dragged !== -1 && (!pool.isActive(dragged) || pool.zone[dragged] !== ZONE.SELF_HAND || !this.canPrepare())) {
             this.input.cancelDrag();
             this.board.highlightZone = -1;
+            this.hud.setTrashState('idle');
+            this.overTrash = false;
         }
 
         this.scene.deckCount = v.deckCount;
         this.board.setLocked(ZONE.SELF_DEFENSE, v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED));
         this.board.setLocked(ZONE.OPP_DEFENSE, v.hasFlag(SNAPSHOT_FLAGS.OPP_DEFENSE_LOCKED));
         this.hud.setHP(v.selfHP, v.oppHP);
+        this.hud.setSelfStatus(v.selfStatus, v.reviveRounds);
         this.hud.syncBackground(v.selfColor);
+        this.shopPanel.sync(v, v.phase === GAME_STATES.PLAYING && !this.cinematics.gameOverShown);
 
         this.relayout();
 
@@ -278,6 +330,7 @@ export class GameClient {
         this.cinematics.reset();
         this.hud.hideGameOver();
         this.colorPicker.hide();
+        this.shopPanel.setAvailable(false);
         this.input.cancelDrag();
         this.board.highlightZone = -1;
         this.hoveredCard = -1;
@@ -358,7 +411,7 @@ export class GameClient {
     relayout() {
         this.layout.rebuild();
         this.layout.apply(this.input.draggedCard);
-        this.playable.update(this.canPrepare(), this.view.selfColor);
+        this.playable.update(this.canPrepare(), this.view.selfColor, this.view.selfStatus);
         this.refreshControls();
     }
 
@@ -507,16 +560,85 @@ export class GameClient {
         pool.hoverOffsetY[id] = 0;
         pool.zIndex[id] = DRAG_Z_INDEX;
         this.animator.to(id, { scale: 1.0 }, 150, Easing.QuadOut, null, null, pool);
+        this.armTrash();
         return true;
+    }
+
+    /** Começo do arrasto: a lixeira "acorda" e sua área é lida uma vez (em coordenadas virtuais). */
+    armTrash() {
+        const r = this.hud.trashRect();
+        const pad = 18;
+        const vp = this.viewport;
+        this.trashZone.x0 = vp.toVirtual(r.left - pad);
+        this.trashZone.y0 = vp.toVirtual(r.top - pad);
+        this.trashZone.x1 = vp.toVirtual(r.right + pad);
+        this.trashZone.y1 = vp.toVirtual(r.bottom + pad);
+        this.overTrash = false;
+        this.hud.setTrashState('armed');
+        this.audio.play(SFX.TRASH_ARM);
+    }
+
+    isPointerOverTrash() {
+        const z = this.trashZone;
+        const x = this.input.pointerX;
+        const y = this.input.pointerY;
+        return x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1;
     }
 
     onDragMove(id, x, y) {
         const pool = this.pool;
         pool.targetX[id] = x;
         pool.targetY[id] = y;
+
+        const over = this.isPointerOverTrash();
+        if (over !== this.overTrash) {
+            this.overTrash = over;
+            if (over) this.audio.play(SFX.HOVER);
+        }
+        if (over) {
+            this.hud.setTrashState('hover', sellValue(pool.type[id], pool.power[id], pool.cardFlags[id]));
+            this.board.highlightZone = -1;
+            pool.rotation[id] = 0;
+            return;
+        }
+        this.hud.setTrashState('armed');
+
         const zone = this.board.getZoneAt(x + HALF_W, y + HALF_H);
         this.board.highlightZone = this.isValidDrop(id, zone) ? zone : -1;
         pool.rotation[id] = zone === ZONE.SELF_DEFENSE ? Math.PI / 2 : 0;
+    }
+
+    /** Carta solta na lixeira: fica parada ali (zona só do cliente) até o servidor confirmar a venda. */
+    sellCard(id) {
+        const pool = this.pool;
+        console.log(`[Client] Vendendo a carta ${id} na lixeira.`);
+        this.audio.playSample(SAMPLES.CARD_HOVER);
+        pool.zIndex[id] = DRAG_Z_INDEX;
+        this.animator.to(id, { scale: 0.8 }, 150, Easing.QuadOut, null, null, pool);
+        this.sendInput(INPUT.SELL_CARD, id, CLIENT_ZONE.TRASH, 0);
+    }
+
+    /**
+     * Compra confirmada: a carta nasce já virada no lugar do item da loja (por baixo da janela) e o
+     * snapshot seguinte a leva voando até a mão.
+     */
+    spawnPurchased(evt) {
+        const pool = this.pool;
+        const id = evt.cardId;
+        if (!pool.isValid(id)) return;
+        const c = this.shopPanel.itemCenter(evt.slot);
+        const x = this.viewport.toVirtual(c.x) - HALF_W;
+        const y = this.viewport.toVirtual(c.y) - HALF_H;
+        pool.activate(id, x, y);
+        pool.type[id] = evt.type;
+        pool.color[id] = evt.color;
+        pool.power[id] = evt.power;
+        pool.cardFlags[id] = CONFIG.CARD_FLAGS.RESALE;
+        pool.zone[id] = ZONE.SELF_HAND;
+        pool.order[id] = PREDICTED_HAND_ORDER;
+        pool.scale[id] = 1.25;
+        pool.zIndex[id] = DRAG_Z_INDEX;
+        this.relayout();
     }
 
     isValidDrop(id, zone) {
@@ -528,7 +650,23 @@ export class GameClient {
         this.board.highlightZone = -1;
         const zone = this.board.getZoneAt(pool.targetX[id] + HALF_W, pool.targetY[id] + HALF_H);
 
-        if (!this.canPrepare() || !pool.isActive(id) || pool.zone[id] !== ZONE.SELF_HAND || !this.isValidDrop(id, zone)) {
+        const canDrop = this.canPrepare() && pool.isActive(id) && pool.zone[id] === ZONE.SELF_HAND;
+        const onTrash = this.overTrash || this.isPointerOverTrash();
+        this.overTrash = false;
+        this.hud.setTrashState('idle');
+        if (canDrop && onTrash && sellValue(pool.type[id], pool.power[id], pool.cardFlags[id]) > 0) {
+            this.sellCard(id);
+            return;
+        }
+        if (canDrop && zone === ZONE.SELF_USE && isConsumable(pool.type[id])
+            && consumableBlockReason(pool.type[id], this.view.selfStatus) !== null) {
+            // Reviver já usado / Cura ou Escudo já ativos: a carta treme e volta, com som de erro
+            console.log(`[Client] Consumível recusado localmente: ${consumableBlockReason(pool.type[id], this.view.selfStatus)}`);
+            this.audio.play(SFX.ERROR);
+            this.shakeBackToHand(id);
+            return;
+        }
+        if (!canDrop || !this.isValidDrop(id, zone)) {
             this.relayout();
             return;
         }

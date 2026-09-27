@@ -37,7 +37,8 @@ export class LayoutSystem {
         const pool = this.pool;
         for (let z = 0; z < ZONE_COUNT; z++) this.stacks[z].length = 0;
         for (let id = 0; id < pool.maxCards; id++) {
-            if (pool.active[id] === 1) this.stacks[pool.zone[id]].push(id);
+            // Zonas só do cliente (CLIENT_ZONE) ficam de fora: a carta não tem lugar de repouso
+            if (pool.active[id] === 1 && pool.zone[id] < ZONE_COUNT) this.stacks[pool.zone[id]].push(id);
         }
         for (let z = 0; z < ZONE_COUNT; z++) {
             if (this.stacks[z].length > 1) this.stacks[z].sort(this._byOrder);

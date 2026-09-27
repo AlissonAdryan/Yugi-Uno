@@ -1,9 +1,11 @@
 import { CONFIG } from '../config/constants.js';
 import { ServerState } from './server-state.js';
 import { ServerCombat } from './server-combat.js';
+import { ServerShop } from './server-shop.js';
 import { DeckSystem } from '../systems/deck-system.js';
 import {
-    canPlayOnCombatSlot, colorBit, colorCount, handLimitExcess, isConsumable, pickColorFromMask, roundDrawsFor, isValidCombo
+    canPlayOnCombatSlot, colorBit, colorCount, consumableBlockReason, handLimitExcess, isConsumable,
+    pickColorFromMask, roundDrawsFor, isValidCombo, cardTypeName, purchaseBlockReason, roundCoinsFor, sellValue
 } from '../systems/rules.js';
 import {
     SEAT, ZONE_OFFSET, isCombatOffset, isValidZone, mirrorZone, seatZone, zoneOffset, zoneSeat
@@ -14,7 +16,7 @@ import {
 } from '../network/protocol.js';
 import { NET_EVENT } from '../network/network-system.js';
 
-const { GAME_STATES, TIMINGS, COLOR } = CONFIG;
+const { GAME_STATES, TIMINGS, COLOR, CARD_TYPES } = CONFIG;
 const SEATS = [SEAT.P1, SEAT.P2];
 const INPUT_NAMES = Object.fromEntries(Object.entries(INPUT).map(([k, v]) => [v, k]));
 
@@ -35,6 +37,7 @@ export class ServerEngine {
         this.state = new ServerState();
         this.deck = new DeckSystem(this.state);
         this.combat = new ServerCombat(this.state, this.deck, this);
+        this.shop = new ServerShop(this.state);
 
         this.scratch = new DataView(new ArrayBuffer(SNAPSHOT_MAX_BYTES));
         this.snapshotSeq = [0, 0];
@@ -71,6 +74,8 @@ export class ServerEngine {
         this.startRequested = false;
         console.log(`[Server] Iniciando partida: ${this.names[SEAT.P1]} x ${this.names[SEAT.P2]}`);
         this.deck.reset();
+        for (const seat of SEATS) this.shop.reset(seat);
+        console.log(`[Server] Lojas montadas. Moedas iniciais: ${CONFIG.SHOP.STARTING_COINS}.`);
 
         for (let i = 0; i < CONFIG.INITIAL_HAND_SIZE; i++) {
             for (const seat of SEATS) this.deck.draw(seatZone(seat, ZONE_OFFSET.HAND));
@@ -147,6 +152,9 @@ export class ServerEngine {
         s.colorChooser = -1;
         s.colorChoices = 0;
         this.colorChoiceToken++;
+        // O Escudo protege até a rodada seguinte começar; a Cura já resolveu no fim do combate
+        s.shieldActive.fill(0);
+        s.healActive.fill(0);
         s.round++;
         s.phase = GAME_STATES.PLAYING;
         this.markDirty();
@@ -163,6 +171,7 @@ export class ServerEngine {
 
         const outcome = await this.combat.resolve();
         if (this.isGameOver()) return;
+        this.tickRoundEffects();
 
         if (outcome.gameWinner >= 0) {
             this.finishGame(outcome.gameWinner, END_REASON.HP);
@@ -174,9 +183,61 @@ export class ServerEngine {
         s.colorChooser = loser >= 0 && this.combat.damageTaken[loser] > 0 ? loser : -1;
         if (s.colorChooser >= 0) console.log(`[Server] P${loser + 1} levou dano: vai escolher a próxima cor.`);
 
+        this.awardRoundCoins(outcome.roundWinner);
+        this.tickShop();
+        await this.sleep(TIMINGS.ROUND_ECONOMY);
+        if (this.isGameOver()) return;
+
         await this.sleep(TIMINGS.ROUND_END_PAUSE);
         if (this.isGameOver()) return;
         this.startDrawPhase(outcome.roundWinner);
+    }
+
+    /**
+     * Fim de cada combate: o Reviver conta uma rodada de guarda (5 no total) ou, se salvou alguém
+     * nesta rodada, encerra de vez. Rodadas sem combate (Descarte Forçado) não contam.
+     */
+    tickRoundEffects() {
+        const s = this.state;
+        for (const seat of SEATS) {
+            if (s.reviveGuard[seat]) {
+                s.reviveGuard[seat] = 0;
+                console.log(`[Server] Proteção do Reviver de P${seat + 1} encerrada (já salvou nesta rodada).`);
+            } else if (s.reviveRounds[seat] > 0) {
+                s.reviveRounds[seat]--;
+                console.log(`[Server] Reviver de P${seat + 1}: ${s.reviveRounds[seat]} rodada(s) de guarda restante(s).`);
+            }
+        }
+        this.markDirty();
+    }
+
+    /** Moedas do fim do combate (quem perdeu ganha mais). Cada jogador só fica sabendo das suas. */
+    awardRoundCoins(roundWinner) {
+        const s = this.state;
+        for (const seat of SEATS) {
+            const amount = roundCoinsFor(seat, roundWinner);
+            this.emitTo(seat, EVENT.COINS_EARNED, { amount, won: seat === roundWinner ? 1 : 0 });
+            s.coins[seat] = Math.min(CONFIG.SHOP.MAX_COINS, s.coins[seat] + amount);
+        }
+        console.log(`[Server] Moedas da rodada: P1=${s.coins[0]} P2=${s.coins[1]} (vencedor: ${roundWinner >= 0 ? `P${roundWinner + 1}` : 'empate'}).`);
+        this.markDirty();
+    }
+
+    /** A cada REFRESH_EVERY_ROUNDS combates as duas lojas se renovam (itens congelados ficam uma vez). */
+    tickShop() {
+        const s = this.state;
+        s.shopRoundsLeft--;
+        if (s.shopRoundsLeft > 0) {
+            this.markDirty();
+            return;
+        }
+        s.shopRoundsLeft = CONFIG.SHOP.REFRESH_EVERY_ROUNDS;
+        for (const seat of SEATS) {
+            this.emitTo(seat, EVENT.SHOP_REFRESHED, {});
+            this.shop.refresh(seat);
+        }
+        console.log('[Server] Lojas renovadas.');
+        this.markDirty();
     }
 
     startDrawPhase(roundWinner) {
@@ -289,6 +350,10 @@ export class ServerEngine {
             case INPUT.SET_NAME: reason = this.setName(seat, msg.name); break;
             case INPUT.REMATCH: reason = this.requestRematch(seat); break;
             case INPUT.CHOOSE_COLOR: reason = this.chooseColor(seat, msg.color); break;
+            case INPUT.SELL_CARD: reason = this.sellCard(seat, msg.cardId); break;
+            case INPUT.SHOP_BUY: reason = this.buyItem(seat, msg.slot); break;
+            case INPUT.SHOP_REROLL: reason = this.rerollShop(seat); break;
+            case INPUT.SHOP_FREEZE: reason = this.toggleFreeze(seat, msg.slot); break;
             default: reason = 'UNKNOWN_INPUT';
         }
 
@@ -406,16 +471,116 @@ export class ServerEngine {
         const phaseError = this.canPrepare(seat);
         if (phaseError) return phaseError;
         if (!this.isInHand(seat, cardId)) return 'NOT_IN_HAND';
-        if (!isConsumable(s.type[cardId])) return 'NOT_CONSUMABLE';
+        const type = s.type[cardId];
+        if (!isConsumable(type)) return 'NOT_CONSUMABLE';
         if (s.zone(seat, ZONE_OFFSET.USE).length > 0) return 'USE_SLOT_BUSY';
+        const blocked = consumableBlockReason(type, s.statusOf(seat));
+        if (blocked) return blocked;
 
+        // O oponente só vê o verso caindo no slot USE e explodindo: qual consumível foi usado é secreto
         s.moveCard(cardId, seatZone(seat, ZONE_OFFSET.USE));
         this.emit(EVENT.CONSUMABLE_USED, { cardId, seat });
-        this.emitTo(seat, EVENT.RAINBOW, {});
-
+        if (type === CARD_TYPES.CHANGE_COLOR) this.emitTo(seat, EVENT.RAINBOW, {});
         this.deck.discard(cardId);
-        s.activeColor[seat] = COLOR.RAINBOW;
-        console.log(`[Server] P${seat + 1} usou Trocar Cor -> Arco-Íris até o fim do turno.`);
+
+        switch (type) {
+            case CARD_TYPES.CHANGE_COLOR:
+                s.activeColor[seat] = COLOR.RAINBOW;
+                console.log(`[Server] P${seat + 1} usou Trocar Cor -> Arco-Íris até o fim do turno.`);
+                break;
+            case CARD_TYPES.HEAL:
+                s.healActive[seat] = 1;
+                console.log(`[Server] P${seat + 1} usou Cura: recupera metade do dano que causar nesta rodada.`);
+                break;
+            case CARD_TYPES.SHIELD:
+                s.shieldActive[seat] = 1;
+                console.log(`[Server] P${seat + 1} usou Escudo: recebe metade do dano até a próxima rodada.`);
+                break;
+            case CARD_TYPES.REVIVE:
+                s.reviveUsed[seat] = 1;
+                s.reviveRounds[seat] = CONFIG.CONSUMABLES.REVIVE_ROUNDS;
+                console.log(`[Server] P${seat + 1} usou Reviver: protegido de 1 morte pelas próximas ${CONFIG.CONSUMABLES.REVIVE_ROUNDS} rodadas.`);
+                break;
+        }
+        this.markDirty();
+        return null;
+    }
+
+    // --- Economia: lixeira e loja ---------------------------------------------
+
+    /** Carta da mão vai pra lixeira e vira moeda (só na preparação, antes de finalizar o turno). */
+    sellCard(seat, cardId) {
+        const s = this.state;
+        const phaseError = this.canPrepare(seat);
+        if (phaseError) return phaseError;
+        if (!this.isInHand(seat, cardId)) return 'NOT_IN_HAND';
+        const coins = sellValue(s.type[cardId], s.power[cardId], s.cardFlags[cardId]);
+        if (coins <= 0) return 'NOT_SELLABLE';
+
+        // O valor é secreto: só quem vendeu recebe `coins`; o oponente vê o verso indo pra lixeira
+        this.emitTo(seat, EVENT.CARD_SOLD, { cardId, seat, coins });
+        this.emitTo(1 - seat, EVENT.CARD_SOLD, { cardId, seat });
+        this.deck.discard(cardId);
+        s.coins[seat] = Math.min(CONFIG.SHOP.MAX_COINS, s.coins[seat] + coins);
+        console.log(`[Server] P${seat + 1} vendeu ${cardTypeName(s.type[cardId])} (${s.power[cardId]}) por ${coins} moeda(s). Total: ${s.coins[seat]}.`);
+        this.markDirty();
+        return null;
+    }
+
+    isValidSlot(slot) {
+        return Number.isInteger(slot) && slot >= 0 && slot < CONFIG.SHOP.SLOTS;
+    }
+
+    /** Compra o item da loja DO PRÓPRIO jogador: o servidor confere preço, estoque, moedas e mão. */
+    buyItem(seat, slot) {
+        const s = this.state;
+        if (s.phase !== GAME_STATES.PLAYING) return 'SHOP_CLOSED';
+        if (!this.isValidSlot(slot)) return 'INVALID_SLOT';
+        const item = this.shop.item(seat, slot);
+        const blocked = purchaseBlockReason(item, s.coins[seat], s.handSize(seat));
+        if (blocked) return blocked;
+        const cardId = this.deck.peekBlank();
+        if (cardId < 0) return 'NO_CARDS_AVAILABLE';
+
+        // A carta nasce do item da loja (face já vai no evento) e só depois entra na mão
+        this.emitTo(seat, EVENT.SHOP_PURCHASED, { cardId, slot, type: item.type, color: item.color, power: item.power });
+        s.type[cardId] = item.type;
+        s.color[cardId] = item.color;
+        s.power[cardId] = item.power;
+        s.cardFlags[cardId] = CONFIG.CARD_FLAGS.RESALE;
+        s.moveCard(cardId, seatZone(seat, ZONE_OFFSET.HAND));
+        s.coins[seat] -= item.price;
+        const i = this.shop.index(seat, slot);
+        s.shopFlags[i] = (s.shopFlags[i] | CONFIG.SHOP_ITEM_FLAGS.SOLD) & ~CONFIG.SHOP_ITEM_FLAGS.FROZEN;
+        console.log(`[Server] P${seat + 1} comprou ${cardTypeName(item.type)}${item.power ? ` ${item.power}` : ''} por ${item.price} moeda(s). Restam ${s.coins[seat]}.`);
+        this.markDirty();
+        return null;
+    }
+
+    rerollShop(seat) {
+        const s = this.state;
+        if (s.phase !== GAME_STATES.PLAYING) return 'SHOP_CLOSED';
+        const cost = s.rerollCost[seat];
+        if (s.coins[seat] < cost) return 'NOT_ENOUGH_COINS';
+
+        this.emitTo(seat, EVENT.SHOP_REROLLED, { cost });
+        s.coins[seat] -= cost;
+        this.shop.reroll(seat);
+        console.log(`[Server] P${seat + 1} renovou a loja por ${cost} moeda(s). Próxima renovação: ${s.rerollCost[seat]}.`);
+        this.markDirty();
+        return null;
+    }
+
+    toggleFreeze(seat, slot) {
+        const s = this.state;
+        if (s.phase !== GAME_STATES.PLAYING) return 'SHOP_CLOSED';
+        if (!this.isValidSlot(slot)) return 'INVALID_SLOT';
+        const i = this.shop.index(seat, slot);
+        if (s.shopFlags[i] & CONFIG.SHOP_ITEM_FLAGS.SOLD) return 'ITEM_UNAVAILABLE';
+        const wasFrozen = (s.shopFlags[i] & CONFIG.SHOP_ITEM_FLAGS.FROZEN) !== 0;
+        if (!wasFrozen && this.shop.frozenCount(seat) >= CONFIG.SHOP.MAX_FROZEN) return 'FREEZE_LIMIT';
+        s.shopFlags[i] ^= CONFIG.SHOP_ITEM_FLAGS.FROZEN;
+        console.log(`[Server] P${seat + 1} ${wasFrozen ? 'descongelou' : 'congelou'} o item ${slot + 1}.`);
         this.markDirty();
         return null;
     }

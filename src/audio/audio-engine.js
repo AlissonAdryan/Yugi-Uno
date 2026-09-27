@@ -113,7 +113,7 @@ export class AudioEngine {
 
         for (const name in AUDIO.MUSIC) {
             const track = AUDIO.MUSIC[name];
-            this.music.register(name, track.sources, { volume: track.volume, loop: track.loop });
+            this.music.register(name, track.sources, { volume: track.volume, loop: track.loop, optional: track.optional });
         }
         for (const name in AUDIO.SAMPLES) {
             const sample = AUDIO.SAMPLES[name];

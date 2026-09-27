@@ -19,7 +19,8 @@ export class MusicPlayer {
      * Registra sem baixar nada (o download começa no preload() ou no 1º play()).
      * @param {string} name
      * @param {string|string[]} sources
-     * @param {{ loop?: boolean, volume?: number }} [options] loop padrão: true
+     * @param {{ loop?: boolean, volume?: number, optional?: boolean }} [options] loop padrão: true;
+     *        optional: arquivo ainda pode não existir (falha vira aviso, não erro)
      * @returns {import('./audio-track.js').AudioTrack}
      */
     register(name, sources, options = {}) {
@@ -29,7 +30,8 @@ export class MusicPlayer {
             name,
             loop: options.loop !== undefined ? options.loop : true,
             volume: options.volume !== undefined ? options.volume : 1,
-            bus: BUS.MUSIC
+            bus: BUS.MUSIC,
+            optional: !!options.optional
         });
         this.tracks.set(name, track);
         return track;

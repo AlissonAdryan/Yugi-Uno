@@ -110,9 +110,64 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 * **O Efeito (Coringa de Turno):** Imediatamente após a explosão, o jogador que a usou recebe o status de "Arco-Íris". A cor de fundo da sua tela mudará para uma mistura das 4 cores e, a partir daquele momento até o fim do turno, ele estará livre para colocar cartas de **qualquer cor** na mesa (ignorando a cor padrão sorteada no início da rodada).
 * **Reset:** Após o combate terminar e uma nova cor ser sorteada, o efeito de Arco-Íris acaba e ambos os jogadores voltam a seguir a nova cor da rodada.
 
+### 6.5 Consumível - Cura (Heal)
+* **Visual:** Carta de fundo preto com uma cruz de cura branca. Sem cor (pode ser usada em qualquer cor).
+* **Ativação:** Slot USE, durante a Preparação, como qualquer consumível (o oponente só vê o verso explodindo).
+* **Efeito:** Se o jogador causar dano na vida do oponente nesta rodada, ao fim do combate ele recupera **metade do dano total causado, arredondado para baixo** (ex.: causou 9 → cura 4). A vida nunca passa do máximo (30).
+* **Desperdício:** Se não causar dano (ou já estiver com a vida cheia), a carta é desperdiçada — só quem usou fica sabendo.
+* Só uma Cura pode estar ativa por rodada.
+
+### 6.6 Consumível - Escudo (Shield)
+* **Visual:** Carta de fundo preto com um escudo branco. Sem cor.
+* **Ativação:** Slot USE, durante a Preparação.
+* **Efeito:** Até a rodada seguinte começar, cada golpe de dano direto que o jogador receber é reduzido pela metade (o dano que entra é arredondado para baixo: um golpe de 9 tira 4).
+* **Segredo:** Só quem usou vê o efeito: a caixa de vida ganha um campo de força ciano animado, e cada golpe absorvido faz o escudo brilhar. O oponente só vê o número de dano final.
+* Só um Escudo pode estar ativo por rodada.
+
+### 6.7 Consumível - Reviver (Revive)
+* **Visual:** Carta branca com moldura e emblema dourados (coração alado com auréola) e efeito laminado dourado animado. Sem cor.
+* **Limite:** Cada jogador só pode usar **1 Reviver por partida**. Um segundo Reviver na mão não pode mais ser usado (ele treme e volta para a mão).
+* **Ativação:** Slot USE, durante a Preparação, com um som divino. Enquanto o efeito estiver ativo, a vida do jogador fica dourada, com uma auréola e o número de rodadas restantes (só ele vê).
+* **Duração:** 5 rodadas de combate (rodadas de Descarte Forçado, sem combate, não contam).
+* **Efeito:** Se o jogador receber um golpe que o mataria, ele fica com **1 de vida**. Pelo resto daquela rodada, qualquer outro golpe (ex.: uma sequência de cartas atacando) também para em 1 de vida. Depois dessa rodada, o efeito acaba.
+* **Revelação:** Quando o Reviver salva o jogador, os dois veem uma luz divina com partículas sobre a vida do alvo e um som angelical; em seguida a carta do Reviver aparece gigante no centro da tela, racha e se despedaça.
+* **Ordem com o Escudo:** O Escudo reduz o golpe primeiro; o Reviver só age se o dano já reduzido ainda for letal.
+
+### 6.8 Consumíveis dentro de Invocações
+* Qualquer consumível (Trocar Cor, Cura, Escudo, Reviver) puxado por um +2/+4 não ativa seu efeito: luta como uma carta de valor 0 e vai para o fundo da pilha recém-puxada (§6.1).
+
 ## 7. Revanche
 - Ao fim da partida, a tela de Vitória/Derrota oferece o botão **Revanche**, acima de "Voltar ao Menu".
 - Quando um jogador pede revanche, o oponente recebe um aviso no canto da tela.
 - Se os dois pedirem, uma nova partida começa imediatamente na mesma sala (mesmos jogadores e nomes, sem precisar de um novo link): vida, mãos, baralho e rodadas são reiniciados do zero.
 - No modo contra a CPU, a CPU sempre aceita a revanche.
 - Se a partida terminou por abandono (oponente desconectado), não há revanche.
+
+## 8. Economia: Lixeira, Moedas e Loja
+Cada jogador tem sua própria carteira de **moedas**, visível só para ele (ao lado do botão da loja, no topo da tela, e dentro da loja). O oponente nunca vê suas moedas nem sua loja.
+
+### 8.1 Moedas
+- Todo jogador começa a partida com **3 moedas**.
+- **Fim de cada rodada de combate:** quem **perdeu** a rodada ganha **2 moedas** e quem **venceu** ganha **1** (o oposto das compras de carta, para equilibrar). Em empate, os dois ganham 1.
+
+### 8.2 Lixeira (vender cartas)
+- Acima da vida de cada jogador existe uma **lixeira**. Durante a preparação (antes de finalizar o turno), arraste uma carta da mão até ela para destruí-la e receber moedas.
+- **Cartas de número** valem o seu **valor atual** em moedas (um 7 vale 7).
+- **Cartas especiais** têm valor próprio, configurável: +2 = 2, +4 = 4, Block = 3, Reverso = 3, Trocar Cor = 2, Cura = 2, Escudo = 2, Reviver = 4.
+- **Cartas compradas na loja revendem pela metade** (arredondado para baixo). Sem isso, comprar um 9 por 8 e vendê-lo por 9 daria dinheiro infinito.
+- Ao passar a carta sobre a lixeira, aparece quanto ela vale. O oponente vê o verso da carta indo para a lixeira dele, mas não o valor.
+
+### 8.3 Loja
+- Botão com ícone de carrinho no topo da tela. A loja **só abre durante a preparação** e fecha sozinha quando o combate começa.
+- Cada jogador tem a **sua própria loja, com 3 itens**, diferente da do oponente. O servidor guarda os itens de cada um e valida toda compra (preço, estoque, moedas e mão).
+- **Números** na loja são **sempre 8 ou 9**, custando **1 moeda a menos** que o valor na maioria das vezes (às vezes 2 a menos).
+- Os outros itens são **cartas especiais**, com preço de catálogo (+2 = 5, +4 = 8, Block = 6, Reverso = 6, Trocar Cor = 4, Cura = 5, Escudo = 5, Reviver = 11).
+- **Ofertas:** de vez em quando um item vem com desconto de 1 ou 2 moedas (selo "OFERTA!" e preço cheio riscado).
+- A carta comprada vai direto para a mão. Não dá para comprar com a mão cheia (15 cartas) nem o mesmo item duas vezes.
+- **Renovação automática:** a loja é trocada a cada **2 rodadas de combate**.
+- **Renovar (pago):** troca os itens na hora. Custa 1 moeda e fica 1 mais cara a cada uso; volta a 1 na renovação automática.
+- **Congelar:** um item congelado sobrevive a qualquer renovação (paga ou automática) até a próxima renovação automática, quando descongela sozinho. Só **1 item por vez** pode estar congelado (é preciso descongelar um para congelar outro), e ao descongelar sozinho na renovação automática ele fica **2 moedas mais caro**. Congelar/descongelar em si é grátis.
+
+### 8.4 Catálogo e etiquetas
+- Cada tipo de carta tem etiquetas no catálogo (`CONFIG.CARD_CATALOG`): **DECK** (sai do baralho), **SHOP** (pode aparecer na loja) e **SELLABLE** (pode ir para a lixeira).
+- Uma carta **só de loja** é uma carta com SHOP e sem DECK; uma **especial não comprável** é uma carta sem SHOP. Nenhuma outra regra precisa mudar.

@@ -1,5 +1,7 @@
 import { CONFIG } from '../config/constants.js';
-import { canPlayColor, canPlayOnCombatSlot, isConsumable, pickColorFromMask } from './rules.js';
+import {
+    canPlayColor, canPlayOnCombatSlot, consumableBlockReason, isConsumable, pickColorFromMask, purchaseBlockReason, sellValue
+} from './rules.js';
 import { ZONE } from '../utils/zones.js';
 import {
     EVENT, INPUT, MSG, SNAPSHOT_FLAGS, SnapshotView, decodeSnapshot, isBinaryMessage, isSeqAfter
@@ -26,7 +28,8 @@ export class AISystem {
         this.awaitingUpdate = false;
         this.rejections = 0;
         this.inputSeq = 0;
-        this.plan = { round: -1, wantsDefense: false, consumableChecked: false };
+        // consumableMask: bit (1 << tipo) de cada consumível já avaliado nesta rodada
+        this.plan = { round: -1, wantsDefense: false, consumableMask: 0, shopActions: 0, buyChecked: false };
 
         this.hand = [];
         this.playable = [];
@@ -131,7 +134,9 @@ export class AISystem {
         if (this.plan.round !== v.round) {
             this.plan.round = v.round;
             this.plan.wantsDefense = Math.random() < AI.DEFENSE_CHANCE;
-            this.plan.consumableChecked = false;
+            this.plan.consumableMask = 0;
+            this.plan.shopActions = 0;
+            this.plan.buyChecked = false;
             this.rejections = 0;
         }
 
@@ -140,14 +145,11 @@ export class AISystem {
             return v.countInZone(ZONE.SELF_ATTACK) > 0 ? { t: INPUT.READY } : this.randomAttack();
         }
 
-        if (!this.plan.consumableChecked) {
-            this.plan.consumableChecked = true;
-            const consumable = this.hand.find((i) => isConsumable(v.type[i]));
-            if (consumable !== undefined && v.selfColor !== COLOR.RAINBOW && Math.random() < AI.CONSUMABLE_CHANCE) {
-                console.log(`[AISystem:${this.label}] Usando Trocar Cor.`);
-                return { t: INPUT.PLAY_CONSUMABLE, cardId: v.ids[consumable] };
-            }
-        }
+        const consumable = this.decideConsumable();
+        if (consumable) return consumable;
+
+        const economy = this.decideEconomy();
+        if (economy) return economy;
 
         if (v.countInZone(ZONE.SELF_ATTACK) === 0) return this.randomAttack();
 
@@ -161,12 +163,99 @@ export class AISystem {
         return { t: INPUT.READY };
     }
 
+    /** Avalia cada tipo de consumível da mão uma vez por rodada; usa no máximo um por decisão. */
+    decideConsumable() {
+        const v = this.view;
+        for (const i of this.hand) {
+            const type = v.type[i];
+            if (!isConsumable(type)) continue;
+            const bit = 1 << type;
+            if (this.plan.consumableMask & bit) continue;
+            this.plan.consumableMask |= bit;
+            if (consumableBlockReason(type, v.selfStatus) || !this.wantsConsumable(type)) continue;
+            console.log(`[AISystem:${this.label}] Usando consumível do tipo ${type} (vida ${v.selfHP}).`);
+            return { t: INPUT.PLAY_CONSUMABLE, cardId: v.ids[i] };
+        }
+        return null;
+    }
+
+    /**
+     * Economia da CPU (antes de montar o ataque): vende o número mais fraco se a mão estiver cheia
+     * e, uma vez por rodada, compra o melhor item que couber no bolso.
+     */
+    decideEconomy() {
+        const v = this.view;
+        if (this.plan.shopActions >= AI.MAX_SHOP_ACTIONS_PER_ROUND) return null;
+
+        if (this.hand.length >= AI.SELL_WHEN_HAND_AT_LEAST) {
+            let weakest = -1;
+            for (const i of this.hand) {
+                if (v.type[i] !== CARD_TYPES.NUMBER || v.power[i] > AI.SELL_MAX_POWER) continue;
+                if (sellValue(v.type[i], v.power[i], v.cardFlags[i]) <= 0) continue;
+                if (weakest < 0 || v.power[i] < v.power[weakest]) weakest = i;
+            }
+            if (weakest >= 0) {
+                this.plan.shopActions++;
+                console.log(`[AISystem:${this.label}] Vendendo um ${v.power[weakest]} na lixeira.`);
+                return { t: INPUT.SELL_CARD, cardId: v.ids[weakest] };
+            }
+        }
+
+        if (!this.plan.buyChecked) {
+            this.plan.buyChecked = true;
+            if (Math.random() >= AI.BUY_CHANCE) return null;
+            const slot = this.bestShopSlot();
+            if (slot >= 0) {
+                this.plan.shopActions++;
+                console.log(`[AISystem:${this.label}] Comprando o item ${slot + 1} da loja (moedas ${v.coins}).`);
+                return { t: INPUT.SHOP_BUY, slot };
+            }
+        }
+        return null;
+    }
+
+    /** Item mais valioso que dá pra comprar agora (-1 se nenhum). */
+    bestShopSlot() {
+        const v = this.view;
+        const hand = v.handSize();
+        let best = -1;
+        let bestScore = 0;
+        for (let slot = 0; slot < CONFIG.SHOP.SLOTS; slot++) {
+            const item = v.shopItem(slot);
+            if (purchaseBlockReason(item, v.coins, hand)) continue;
+            if (item.type === CARD_TYPES.REVIVE && (v.selfStatus & CONFIG.STATUS.REVIVE_USED)) continue;
+            const score = item.type === CARD_TYPES.NUMBER ? item.power : 10 + (item.flags & CONFIG.SHOP_ITEM_FLAGS.DISCOUNT ? 2 : 0);
+            if (score > bestScore) {
+                bestScore = score;
+                best = slot;
+            }
+        }
+        return best;
+    }
+
+    wantsConsumable(type) {
+        const v = this.view;
+        switch (type) {
+            case CARD_TYPES.CHANGE_COLOR:
+                return v.selfColor !== COLOR.RAINBOW && Math.random() < AI.CONSUMABLE_CHANCE;
+            case CARD_TYPES.HEAL:
+                return CONFIG.MAX_HP - v.selfHP >= AI.HEAL_MIN_MISSING_HP && Math.random() < AI.CONSUMABLE_CHANCE;
+            case CARD_TYPES.SHIELD:
+                return v.selfHP <= AI.SHIELD_BELOW_HP || Math.random() < AI.SHIELD_RANDOM_CHANCE;
+            case CARD_TYPES.REVIVE:
+                return v.selfHP <= AI.REVIVE_BELOW_HP;
+            default:
+                return false;
+        }
+    }
+
     randomAttack() {
         const v = this.view;
         if (this.playable.length === 0) {
-            const consumable = this.hand.find((i) => isConsumable(v.type[i]));
-            if (consumable !== undefined && v.selfColor !== COLOR.RAINBOW) {
-                return { t: INPUT.PLAY_CONSUMABLE, cardId: v.ids[consumable] };
+            // Só o Trocar Cor destrava cartas de outra cor pro ataque
+            const changeColor = this.hand.find((i) => v.type[i] === CARD_TYPES.CHANGE_COLOR);
+            if (changeColor !== undefined && v.selfColor !== COLOR.RAINBOW) {
+                return { t: INPUT.PLAY_CONSUMABLE, cardId: v.ids[changeColor] };
             }
             console.warn(`[AISystem:${this.label}] Sem cartas jogáveis para o ataque.`);
             return null;
