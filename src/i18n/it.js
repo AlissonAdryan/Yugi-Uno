@@ -40,6 +40,7 @@ export const IT = {
     "END_TURN": "FINE TURNO",
     "CANCEL_TURN": "ANNULLA TURNO",
     "CHOOSE_COLOR": "SCEGLI IL PROSSIMO COLORE",
+    "USE_SLOT": "USA",
 
     // Messages
     "WAITING_OPPONENT": "IN ATTESA DELL'AVVERSARIO...",

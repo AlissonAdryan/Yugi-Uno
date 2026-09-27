@@ -40,6 +40,7 @@ export const EN = {
     "END_TURN": "END TURN",
     "CANCEL_TURN": "CANCEL TURN",
     "CHOOSE_COLOR": "CHOOSE NEXT COLOR",
+    "USE_SLOT": "USE",
     
     // Messages
     "WAITING_OPPONENT": "WAITING FOR OPPONENT...",

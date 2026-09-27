@@ -40,6 +40,7 @@ export const JA = {
     "END_TURN": "ターン終了",
     "CANCEL_TURN": "ターンを取り消す",
     "CHOOSE_COLOR": "次の色を選んでください",
+    "USE_SLOT": "使用",
 
     // Messages
     "WAITING_OPPONENT": "相手を待っています...",

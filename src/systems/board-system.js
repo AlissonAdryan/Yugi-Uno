@@ -1,14 +1,18 @@
 import { CONFIG } from '../config/constants.js';
 import { BOARD_ZONES, ZONE } from '../utils/zones.js';
+import { i18n } from '../i18n/index.js';
+import { globalEvents } from '../core/event-bus.js';
 
 /**
  * BoardSystem - geometria dos slots do tabuleiro, sempre na perspectiva do jogador local
  * (SELF_* embaixo, OPP_* em cima). Chaveado pelas zonas relativas do protocolo.
  *
- * As bordas tracejadas e os rótulos "USE" são estáticos entre resizes (só a geometria dos
- * slots muda, e raramente). Setar `ctx.font`/`fillText` a cada frame é caro (força resolução
- * da fonte). Por isso esse conteúdo é rasterizado uma vez num canvas offscreen e só "colado"
- * (drawImage) nos frames seguintes; realce de arrasto e cadeado continuam ao vivo, pois mudam de fato.
+ * As bordas tracejadas e o rótulo do slot de consumível são estáticos entre resizes (só a
+ * geometria dos slots muda, e raramente). Setar `ctx.font`/`fillText` a cada frame é caro (força
+ * resolução da fonte). Por isso esse conteúdo é rasterizado uma vez num canvas offscreen e só
+ * "colado" (drawImage) nos frames seguintes; realce de arrasto e cadeado continuam ao vivo, pois
+ * mudam de fato. O rótulo (i18n.t('USE_SLOT')) também invalida o cache quando o idioma muda
+ * (ver 'LANGUAGE_CHANGED' no event-bus), pra não ficar preso na tradução antiga até o próximo resize.
  */
 export class BoardSystem {
     constructor() {
@@ -23,6 +27,8 @@ export class BoardSystem {
         this.cacheDirty = true;
         this.cacheCanvas = document.createElement('canvas');
         this.cacheCtx = this.cacheCanvas.getContext('2d');
+
+        globalEvents.on('LANGUAGE_CHANGED', () => { this.cacheDirty = true; });
     }
 
     /** @param {number} pixelScale vp.scale * vp.dpr — resolução do cache bate 1:1 com o backbuffer real */
@@ -35,11 +41,11 @@ export class BoardSystem {
 
         this.slots[ZONE.SELF_ATTACK] = this.makeSlot(cx - cw / 2, cy + gap, 0);
         this.slots[ZONE.SELF_DEFENSE] = this.makeSlot(cx - cw / 2, cy + gap + ch + gap + cw / 2 - ch / 2, Math.PI / 2);
-        this.slots[ZONE.SELF_USE] = this.makeSlot(cx + ch + gap, cy + gap, 0, 'USE');
+        this.slots[ZONE.SELF_USE] = this.makeSlot(cx + ch + gap, cy + gap, 0, true);
 
         this.slots[ZONE.OPP_ATTACK] = this.makeSlot(cx - cw / 2, cy - gap - ch, 0);
         this.slots[ZONE.OPP_DEFENSE] = this.makeSlot(cx - cw / 2, cy - gap - ch - gap - cw / 2 - ch / 2, Math.PI / 2);
-        this.slots[ZONE.OPP_USE] = this.makeSlot(cx + ch + gap, cy - gap - ch, 0, 'USE');
+        this.slots[ZONE.OPP_USE] = this.makeSlot(cx + ch + gap, cy - gap - ch, 0, true);
 
         this.viewWidth = width;
         this.viewHeight = height;
@@ -48,7 +54,7 @@ export class BoardSystem {
     }
 
     /** x/y: canto da carta sem rotação; hit*: retângulo visual já rotacionado. */
-    makeSlot(x, y, rotation, label = null) {
+    makeSlot(x, y, rotation, useSlot = false) {
         const cw = CONFIG.CARD_DIMENSIONS.WIDTH;
         const ch = CONFIG.CARD_DIMENSIONS.HEIGHT;
         const rotated = rotation !== 0;
@@ -57,7 +63,7 @@ export class BoardSystem {
         const centerX = x + cw / 2;
         const centerY = y + ch / 2;
         return {
-            x, y, width: cw, height: ch, rotation, label,
+            x, y, width: cw, height: ch, rotation, useSlot,
             hitX: centerX - hitW / 2, hitY: centerY - hitH / 2, hitW, hitH
         };
     }
@@ -88,7 +94,7 @@ export class BoardSystem {
         this.drawDynamic(ctx);
     }
 
-    /** Bordas tracejadas + rótulos "USE": só muda quando o tabuleiro redimensiona. */
+    /** Bordas tracejadas + rótulo do slot de consumível (traduzido): só muda ao redimensionar ou trocar idioma. */
     rebuildCache() {
         this.cacheDirty = false;
         const scale = this.cachePixelScale;
@@ -105,6 +111,7 @@ export class BoardSystem {
         ctx.font = '20px Righteous';
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
+        const useLabel = i18n.t('USE_SLOT');
 
         for (let i = 0; i < BOARD_ZONES.length; i++) {
             const r = this.slots[BOARD_ZONES[i]];
@@ -112,7 +119,7 @@ export class BoardSystem {
             ctx.beginPath();
             ctx.roundRect(r.hitX, r.hitY, r.hitW, r.hitH, CONFIG.CARD_DIMENSIONS.RADIUS);
             ctx.stroke();
-            if (r.label) ctx.fillText(r.label, r.hitX + r.hitW / 2, r.hitY + r.hitH / 2);
+            if (r.useSlot) ctx.fillText(useLabel, r.hitX + r.hitW / 2, r.hitY + r.hitH / 2);
         }
     }
 

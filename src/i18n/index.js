@@ -5,6 +5,12 @@ import { DE } from './de.js';
 import { FR } from './fr.js';
 import { IT } from './it.js';
 import { JA } from './ja.js';
+import { ZH } from './zh.js';
+import { KO } from './ko.js';
+import { RU } from './ru.js';
+import { HI } from './hi.js';
+import { TR } from './tr.js';
+import { globalEvents } from '../core/event-bus.js';
 
 export const LANGUAGES = {
     'pt-BR': { name: 'Português', dict: PT_BR },
@@ -13,7 +19,12 @@ export const LANGUAGES = {
     'de': { name: 'Deutsch', dict: DE },
     'fr': { name: 'Français', dict: FR },
     'it': { name: 'Italiano', dict: IT },
-    'ja': { name: '日本語', dict: JA }
+    'ja': { name: '日本語', dict: JA },
+    'zh': { name: '中文', dict: ZH },
+    'ko': { name: '한국어', dict: KO },
+    'ru': { name: 'Русский', dict: RU },
+    'hi': { name: 'हिन्दी', dict: HI },
+    'tr': { name: 'Türkçe', dict: TR }
 };
 
 export const DEFAULT_LANGUAGE = 'en';
@@ -54,6 +65,9 @@ class I18nManager {
         this.dict = LANGUAGES[langCode].dict;
         localStorage.setItem('yugi_uno_lang', langCode);
         this.updateDOM();
+        // Avisa sistemas que desenham texto traduzido fora do DOM (ex.: BoardSystem, em canvas) que
+        // precisam se redesenhar — pub/sub central em vez de import cruzado (Pilar 7).
+        globalEvents.emit('LANGUAGE_CHANGED', langCode);
     }
 
     t(key, params = {}) {

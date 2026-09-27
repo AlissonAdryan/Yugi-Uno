@@ -40,6 +40,7 @@ export const DE = {
     "END_TURN": "ZUG BEENDEN",
     "CANCEL_TURN": "ZUG ABBRECHEN",
     "CHOOSE_COLOR": "NÄCHSTE FARBE WÄHLEN",
+    "USE_SLOT": "NUTZEN",
 
     // Messages
     "WAITING_OPPONENT": "WARTE AUF DEN GEGNER...",
