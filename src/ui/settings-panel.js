@@ -1,5 +1,6 @@
 import { CONFIG } from '../config/constants.js';
 import { SFX } from '../config/sound-presets.js';
+import { i18n, LANGUAGES } from '../i18n/index.js';
 
 const { BUS } = CONFIG.AUDIO;
 const STORAGE_KEY = 'yugi-uno:volume';
@@ -26,9 +27,30 @@ export class SettingsPanel {
         this.button = $('settings-btn');
         this.panel = $('settings-panel');
         this.closeBtn = $('settings-close');
+        this.langSelect = $('language-select');
 
         this.loadSaved();
+        this.initLanguageSelect();
         this.bindEvents();
+    }
+
+    initLanguageSelect() {
+        if (!this.langSelect) return;
+        
+        for (const [code, info] of Object.entries(LANGUAGES)) {
+            const option = document.createElement('option');
+            option.value = code;
+            option.textContent = info.name;
+            if (code === i18n.currentLang) {
+                option.selected = true;
+            }
+            this.langSelect.appendChild(option);
+        }
+
+        this.langSelect.addEventListener('change', (e) => {
+            i18n.setLanguage(e.target.value);
+            this.audio.play(SFX.CLICK);
+        });
     }
 
     /** Restaura os sliders do localStorage (ou 100% se não houver nada salvo) e aplica no motor de áudio. */

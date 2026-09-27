@@ -2,20 +2,24 @@ import { CONFIG } from '../config/constants.js';
 import { END_REASON, GAME_RESULT } from '../network/protocol.js';
 import { NET_STATUS } from '../network/network-system.js';
 import { SFX } from '../config/sound-presets.js';
+import { i18n } from '../i18n/index.js';
 
 const COLOR_ALERT_MS = 1500;
 const FLOATING_TEXT_MS = 1500;
 // Deve bater com a duração de `transition: opacity` de .plasma-layer--incoming em style.css
 const BG_FADE_MS = 1500;
 
-const CONNECTION_TEXT = {
-    [NET_STATUS.CONNECTING]: 'Conectando...',
-    [NET_STATUS.UNSTABLE]: 'Conexão instável...',
-    [NET_STATUS.OPPONENT_DISCONNECTED]: 'Oponente desconectado. Aguardando reconexão (até 2 min)...',
-    [NET_STATUS.RECONNECTING]: 'Conexão com o host perdida. Reconectando (até 2 min)...',
-    [NET_STATUS.LOST]: 'Conexão perdida definitivamente.',
-    [NET_STATUS.ERROR]: 'Erro de conexão.'
-};
+function getConnectionText(status) {
+    switch(status) {
+        case NET_STATUS.CONNECTING: return i18n.t('NET_CONNECTING');
+        case NET_STATUS.UNSTABLE: return i18n.t('NET_UNSTABLE');
+        case NET_STATUS.OPPONENT_DISCONNECTED: return i18n.t('NET_OPP_DISCONNECTED');
+        case NET_STATUS.RECONNECTING: return i18n.t('NET_RECONNECTING');
+        case NET_STATUS.LOST: return i18n.t('NET_LOST');
+        case NET_STATUS.ERROR: return i18n.t('NET_ERROR');
+        default: return '';
+    }
+}
 
 /**
  * Hud - única camada que toca no DOM da interface (menu, sala, HP, mensagens, fim de jogo, conexão).
@@ -149,7 +153,7 @@ export class Hud {
     showRoomHosting(code, link, isLocalOrigin) {
         this.roomLink = link;
         this.el.roomModal.hidden = false;
-        this.el.roomTitle.textContent = 'SALA CRIADA';
+        this.el.roomTitle.textContent = i18n.t('ROOM_CREATED');
         this.el.roomInfo.hidden = false;
         this.el.roomCode.textContent = code;
         this.el.roomWarning.hidden = !isLocalOrigin;
@@ -158,9 +162,9 @@ export class Hud {
 
     showRoomJoining(code) {
         this.el.roomModal.hidden = false;
-        this.el.roomTitle.textContent = `ENTRANDO NA SALA ${code}`;
+        this.el.roomTitle.textContent = i18n.t('ROOM_JOINING', { code });
         this.el.roomInfo.hidden = true;
-        this.setRoomStatus('Procurando o host... (a conexão P2P pode levar até ~10s)');
+        this.setRoomStatus(i18n.t('SEARCHING_HOST'));
     }
 
     setRoomStatus(text, isError = false) {
@@ -176,15 +180,15 @@ export class Hud {
         const btn = this.el.btnCopyLink;
         const done = (label) => {
             btn.textContent = label;
-            setTimeout(() => { btn.textContent = 'COPIAR LINK'; }, 2000);
+            setTimeout(() => { btn.textContent = i18n.t('COPY_LINK'); }, 2000);
         };
         if (!navigator.clipboard) {
-            window.prompt('Copie o link da sala:', this.roomLink);
+            window.prompt(i18n.t('PROMPT_COPY'), this.roomLink);
             return;
         }
         navigator.clipboard.writeText(this.roomLink)
-            .then(() => done('COPIADO!'))
-            .catch(() => window.prompt('Copie o link da sala:', this.roomLink));
+            .then(() => done(i18n.t('COPIED')))
+            .catch(() => window.prompt(i18n.t('PROMPT_COPY'), this.roomLink));
     }
 
     // --- Partida -----------------------------------------------------------
@@ -192,8 +196,8 @@ export class Hud {
     showGame(opponentLabel) {
         this.el.mainMenu.hidden = true;
         this.el.gameContainer.hidden = false;
-        this.el.selfName.textContent = 'VOCÊ';
-        this.el.oppName.textContent = opponentLabel;
+        this.el.selfName.textContent = i18n.t('YOU');
+        this.el.oppName.textContent = opponentLabel || i18n.t('OPPONENT');
     }
 
     setHP(selfHP, oppHP) {
@@ -216,7 +220,7 @@ export class Hud {
             this.cache.endEnabled = enabled;
             this.el.endTurn.disabled = !enabled;
         }
-        const text = isReady ? 'CANCELAR FINALIZAÇÃO' : 'FINALIZAR TURNO';
+        const text = isReady ? i18n.t('CANCEL_TURN') : i18n.t('END_TURN');
         if (this.el.endTurn.textContent !== text) {
             this.el.endTurn.textContent = text;
         }
@@ -312,7 +316,7 @@ export class Hud {
         this.syncBackground(color);
 
         const alert = this.el.colorAlert;
-        alert.textContent = palette.name;
+        alert.textContent = i18n.t(CONFIG.COLOR_NAME_KEYS[color]);
         alert.style.color = color === CONFIG.COLOR.RAINBOW ? '#ffffff' : CONFIG.COLOR_HEX[color];
         alert.classList.add('show');
         clearTimeout(this.colorAlertTimer);
@@ -341,9 +345,9 @@ export class Hud {
         const screen = isVictory ? this.el.victory : this.el.defeat;
         const reasonEl = isVictory ? this.el.victoryReason : this.el.defeatReason;
         if (reason === END_REASON.ABANDON) {
-            reasonEl.textContent = isVictory ? 'O oponente abandonou a partida.' : 'Você foi desconectado da partida.';
+            reasonEl.textContent = isVictory ? i18n.t('REASON_ABANDON_WIN') : i18n.t('REASON_ABANDON_LOSS');
         } else {
-            reasonEl.textContent = '';
+            reasonEl.textContent = isVictory ? i18n.t('REASON_WIN') : i18n.t('REASON_LOSS');
         }
         // Oponente abandonou (ou você caiu): não há com quem jogar a revanche
         for (const btn of this.el.rematchButtons) btn.hidden = reason === END_REASON.ABANDON;
@@ -370,10 +374,10 @@ export class Hud {
         if (key === this.cache.rematch) return;
         this.cache.rematch = key;
 
-        const opponent = this.el.oppName.textContent || 'O OPONENTE';
-        let label = 'REVANCHE';
-        if (selfRequested) label = 'AGUARDANDO...';
-        else if (oppRequested) label = 'ACEITAR REVANCHE';
+        const opponent = this.el.oppName.textContent || i18n.t('OPPONENT');
+        let label = i18n.t('REMATCH');
+        if (selfRequested) label = i18n.t('WAITING_REMATCH_BTN');
+        else if (oppRequested) label = i18n.t('ACCEPT_REMATCH');
         for (const btn of this.el.rematchButtons) {
             btn.textContent = label;
             btn.disabled = selfRequested;
@@ -381,9 +385,9 @@ export class Hud {
 
         const notice = this.el.rematchNotice;
         let text = null;
-        if (selfRequested && oppRequested) text = 'REVANCHE ACEITA! PREPARANDO NOVA PARTIDA...';
-        else if (oppRequested) text = `${opponent} QUER REVANCHE!`;
-        else if (selfRequested) text = `PEDIDO DE REVANCHE ENVIADO. AGUARDANDO ${opponent}...`;
+        if (selfRequested && oppRequested) text = i18n.t('REMATCH_ACCEPTED');
+        else if (oppRequested) text = i18n.t('OPP_WANTS_REMATCH', { opponent });
+        else if (selfRequested) text = i18n.t('WAITING_REMATCH_OPPONENT', { opponent });
 
         notice.textContent = text || '';
         notice.classList.toggle('incoming', oppRequested && !selfRequested);
@@ -400,7 +404,7 @@ export class Hud {
      * @param {string} status NET_STATUS.*
      */
     setConnectionStatus(status) {
-        const text = CONNECTION_TEXT[status] || null;
+        const text = getConnectionText(status) || null;
         if (text === this.cache.banner) return;
         this.cache.banner = text;
         this.el.banner.hidden = !text;

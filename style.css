@@ -788,6 +788,52 @@ body {
     color: #fff;
 }
 
+/* Select de idioma: mesmo cartão roxo neon dos outros controles do painel (bordas/seta customizadas,
+   já que o próprio <select> nativo não dá pra estilizar por dentro — é o jeito multiplataforma). */
+.settings-select {
+    flex: 1;
+    min-width: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    font-family: 'Righteous', sans-serif;
+    font-size: 14px;
+    letter-spacing: 0.5px;
+    color: #fff;
+    padding: 11px 38px 11px 16px;
+    background-color: #1c0f3d;
+    background-image:
+        linear-gradient(45deg, rgba(74, 0, 224, 0.4), rgba(142, 45, 226, 0.4)),
+        url("data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2024%2024'%3E%3Cpath%20d='M6%209l6%206%206-6'%20stroke='white'%20stroke-width='2.5'%20fill='none'%20stroke-linecap='round'%20stroke-linejoin='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: center, right 14px center;
+    background-size: cover, 13px;
+    border: 2px solid #8e2de2;
+    border-radius: 10px;
+    cursor: pointer;
+    outline: none;
+    box-shadow: 0 0 10px rgba(142, 45, 226, 0.35);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.settings-select:hover {
+    border-color: #ff007f;
+    box-shadow: 0 0 16px rgba(255, 0, 127, 0.5);
+    transform: translateY(-1px);
+}
+
+.settings-select:focus-visible {
+    border-color: #ff007f;
+    box-shadow: 0 0 0 3px rgba(255, 0, 127, 0.35);
+}
+
+/* Alguns navegadores (Chrome/Firefox no desktop) também aplicam isso à lista suspensa em si;
+   outros (Safari/iOS) sempre usam o menu nativo do SO ali — limitação de plataforma, não um bug. */
+.settings-select option {
+    background: #12081f;
+    color: #fff;
+}
+
 .settings-content .menu-btn {
     margin-top: 10px;
     width: 100%;

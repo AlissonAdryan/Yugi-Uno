@@ -58,6 +58,8 @@ export const CONFIG = Object.freeze({
     COLOR,
     BASIC_COLORS: Object.freeze([COLOR.RED, COLOR.BLUE, COLOR.GREEN, COLOR.YELLOW]),
     COLOR_HEX: Object.freeze(['#2c3e50', '#e74c3c', '#3498db', '#2ecc71', '#ffcc00', '#111111', '#ffffff']),
+    // `name` é só pra log de servidor/depuração (Pilar 10) — nunca mostrado ao jogador. O texto na
+    // tela vem de i18n.t(COLOR_NAME_KEYS[cor]), que existe em todos os idiomas (ver Pilar 7/CLAUDE.md).
     COLOR_PALETTES: Object.freeze([
         null,
         { name: 'VERMELHO', bg: ['#4a0f0f', '#721616ff', '#370606', '#680202ff'] },
@@ -68,6 +70,8 @@ export const CONFIG = Object.freeze({
         // Rainbow: bg é fallback-only; as cores reais são sempre calculadas dinamicamente por Hud._rainbowBg()
         { name: 'QUALQUER COR!', bg: ['#1e0f61', '#153366', '#156620', '#666615'] }
     ]),
+    // Chave de i18n por cor (mesmos índices de COLOR_PALETTES) — usar sempre isto, nunca .name, pra texto na tela.
+    COLOR_NAME_KEYS: Object.freeze([null, 'COLOR_RED', 'COLOR_BLUE', 'COLOR_GREEN', 'COLOR_YELLOW', null, 'COLOR_RAINBOW']),
     DEFAULT_BACKGROUND: Object.freeze(['#1e0f61', '#152066', '#37064a', '#2e1060']),
 
     CARD_TYPES,
@@ -179,8 +183,20 @@ export const CONFIG = Object.freeze({
         LOCAL_CPU_LATENCY_MS: 150,
         MAX_CLIENT_BACKLOG: 40,
         PENDING_INPUT_TIMEOUT_MS: 5000,
-        // Servidores TURN opcionais (formato Trystero turnConfig) para NATs muito restritivos
-        TURN_SERVERS: Object.freeze([])
+        /*
+         * TURN de fallback (formato Trystero turnConfig) para quando os dois pares não conseguem
+         * abrir um caminho P2P direto (NAT simétrico, rede corporativa, algumas redes móveis) — sem
+         * isso, a sala falha com "could not connect to peer ... after exchanging SDP". Aconteceu de
+         * repente numa rede específica, sem nenhuma mudança de código: é exatamente esse cenário.
+         * Open Relay Project (metered.ca), grátis, 20GB/mês, sem conta — mais que suficiente pra um
+         * jogo de cartas 2P (dados, não vídeo). Credencial pública e compartilhada (não é segredo).
+         */
+        TURN_SERVERS: Object.freeze([
+            Object.freeze({ urls: 'stun:openrelay.metered.ca:80' }),
+            Object.freeze({ urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }),
+            Object.freeze({ urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }),
+            Object.freeze({ urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' })
+        ])
     }),
 
     AUDIO: Object.freeze({

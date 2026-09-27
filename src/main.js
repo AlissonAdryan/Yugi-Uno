@@ -9,6 +9,7 @@ import { Hud } from './ui/hud.js';
 import { SettingsPanel } from './ui/settings-panel.js';
 import { Viewport } from './core/viewport.js';
 import { AudioEngine } from './audio/audio-engine.js';
+import { i18n } from './i18n/index.js';
 
 const TOKEN_KEY_PREFIX = 'yugi-uno:token:';
 const LAST_NAME_KEY = 'yugi-uno:last-name';
@@ -85,6 +86,7 @@ class App {
     }
 
     init() {
+        i18n.updateDOM();
         console.log('[App] Inicializando menu principal.');
         this.audio.init();
         this.hud.bindMenu({

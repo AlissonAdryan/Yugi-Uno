@@ -12,7 +12,7 @@
     <!-- Aviso para celular em pé (o jogo é jogado na horizontal) -->
     <div id="rotate-overlay">
         <div class="rotate-icon">⟳</div>
-        <p>GIRE O CELULAR PARA A HORIZONTAL</p>
+        <p data-i18n="ROTATE_PHONE">GIRE O CELULAR PARA A HORIZONTAL</p>
     </div>
 
     <!-- Configurações de áudio: visível no menu e durante a partida -->
@@ -21,25 +21,30 @@
     </button>
     <div id="settings-panel" class="settings-panel" hidden>
         <div class="settings-content">
-            <h2 class="settings-title">CONFIGURAÇÕES</h2>
+            <h2 class="settings-title" data-i18n="SETTINGS">CONFIGURAÇÕES</h2>
 
             <div class="settings-row">
-                <label for="volume-master">GERAL</label>
+                <label for="language-select" data-i18n="LANGUAGE">IDIOMA</label>
+                <select id="language-select" class="settings-select"></select>
+            </div>
+            
+            <div class="settings-row">
+                <label for="volume-master" data-i18n="GENERAL">GERAL</label>
                 <input type="range" id="volume-master" min="0" max="100" value="100" step="1">
                 <span id="volume-master-value" class="settings-value">100%</span>
             </div>
             <div class="settings-row">
-                <label for="volume-music">MÚSICA</label>
+                <label for="volume-music" data-i18n="MUSIC">MÚSICA</label>
                 <input type="range" id="volume-music" min="0" max="100" value="100" step="1">
                 <span id="volume-music-value" class="settings-value">100%</span>
             </div>
             <div class="settings-row">
-                <label for="volume-sfx">EFEITOS SONOROS</label>
+                <label for="volume-sfx" data-i18n="SFX">EFEITOS SONOROS</label>
                 <input type="range" id="volume-sfx" min="0" max="100" value="100" step="1">
                 <span id="volume-sfx-value" class="settings-value">100%</span>
             </div>
 
-            <button id="settings-close" class="menu-btn secondary">FECHAR</button>
+            <button id="settings-close" class="menu-btn secondary" data-i18n="CLOSE">FECHAR</button>
         </div>
     </div>
 
@@ -53,35 +58,35 @@
         <div class="menu-content">
             <h1 class="game-title">YUGI-UNO!</h1>
             <div class="menu-buttons">
-                <button id="btn-play-cpu" class="menu-btn primary">PLAYER VS CPU</button>
-                <button id="btn-create-room" class="menu-btn secondary">CRIAR SALA</button>
+                <button id="btn-play-cpu" class="menu-btn primary" data-i18n="PVE">PLAYER VS CPU</button>
+                <button id="btn-create-room" class="menu-btn secondary" data-i18n="CREATE_ROOM">CRIAR SALA</button>
             </div>
         </div>
     </div>
 
     <!-- Modal de Sala -->
     <div id="room-modal" class="room-modal" hidden>
-        <h2 id="room-title" class="room-title">CRIANDO SALA...</h2>
+        <h2 id="room-title" class="room-title" data-i18n="ROOM_CREATING">CRIANDO SALA...</h2>
         <div id="room-info" class="room-info" hidden>
-            <p class="room-label">Código da Sala:</p>
+            <p class="room-label" data-i18n="ROOM_CODE">Código da Sala:</p>
             <h1 id="room-code-display" class="room-code">---</h1>
-            <button id="btn-copy-link" class="room-copy-btn">COPIAR LINK</button>
-            <p id="room-warning" class="room-warning" hidden>
+            <button id="btn-copy-link" class="room-copy-btn" data-i18n="COPY_LINK">COPIAR LINK</button>
+            <p id="room-warning" class="room-warning" hidden data-i18n="LOCALHOST_WARNING">
                 Você abriu o jogo por localhost: esse link só funciona nesta máquina.
                 Abra o jogo pela URL pública do túnel (ex.: localtunnel) antes de criar a sala.
             </p>
-            <p class="room-waiting">Aguardando outro jogador...</p>
+            <p class="room-waiting" data-i18n="WAITING_PLAYER">Aguardando outro jogador...</p>
         </div>
         <p id="room-status" class="room-status"></p>
-        <button id="btn-cancel-room" class="room-cancel">Voltar</button>
+        <button id="btn-cancel-room" class="room-cancel" data-i18n="BACK">Voltar</button>
     </div>
 
     <!-- Nome do jogador (pedido assim que a conexão é estabelecida) -->
     <div id="name-modal" class="room-modal" hidden>
-        <h2 class="room-title">QUAL É O SEU NOME?</h2>
+        <h2 class="room-title" data-i18n="WHAT_IS_YOUR_NAME">QUAL É O SEU NOME?</h2>
         <form id="name-form" class="name-form">
-            <input id="name-input" class="name-input" type="text" autocomplete="nickname" placeholder="Seu nome" required>
-            <button type="submit" class="menu-btn primary">CONFIRMAR</button>
+            <input id="name-input" class="name-input" type="text" autocomplete="nickname" placeholder="Seu nome" required data-i18n="YOUR_NAME" data-i18n-attr="placeholder">
+            <button type="submit" class="menu-btn primary" data-i18n="CONFIRM">CONFIRMAR</button>
         </form>
     </div>
 
@@ -104,16 +109,16 @@
 
         <div id="ui-layer">
             <div id="opponent-hp-container" class="hp-container">
-                <span id="opponent-name" class="player-name">OPONENTE</span>
+                <span id="opponent-name" class="player-name" data-i18n="OPPONENT">OPONENTE</span>
                 <span id="opponent-hp" class="hp-value">30</span>
             </div>
 
             <div id="self-hp-container" class="hp-container">
-                <span id="self-name" class="player-name">VOCÊ</span>
+                <span id="self-name" class="player-name" data-i18n="YOU">VOCÊ</span>
                 <span id="self-hp" class="hp-value">30</span>
             </div>
 
-            <button id="end-turn-btn" hidden disabled>FINALIZAR TURNO</button>
+            <button id="end-turn-btn" hidden disabled data-i18n="END_TURN">FINALIZAR TURNO</button>
 
             <div id="damage-vignette"></div>
             <div id="damage-text-container"></div>
@@ -123,7 +128,7 @@
             <!-- Escolha de cor do perdedor da rodada: uma "carta Trocar Cor" gigante; fatias montadas em color-picker.js -->
             <div id="color-picker" class="color-picker" hidden>
                 <div class="color-picker-float">
-                    <p class="color-picker-title">ESCOLHA A PRÓXIMA COR</p>
+                    <p class="color-picker-title" data-i18n="CHOOSE_COLOR">ESCOLHA A PRÓXIMA COR</p>
                     <div class="color-picker-card">
                         <div id="color-wheel" class="color-wheel"></div>
                         <div class="color-picker-timer"><div class="color-picker-timer-bar"></div></div>
@@ -135,20 +140,20 @@
 
             <div id="connection-banner" class="connection-banner" hidden>
                 <span id="connection-text"></span>
-                <button id="connection-menu-btn" class="banner-btn" hidden>VOLTAR AO MENU</button>
+                <button id="connection-menu-btn" class="banner-btn" hidden data-i18n="BACK_TO_MENU">VOLTAR AO MENU</button>
             </div>
 
             <div id="victory-screen" class="game-over-screen" hidden>
-                <h1>VITÓRIA!</h1>
+                <h1 data-i18n="VICTORY">VITÓRIA!</h1>
                 <p id="victory-reason" class="game-over-reason"></p>
-                <button class="menu-btn primary rematch-btn">REVANCHE</button>
-                <button class="menu-btn secondary back-to-menu">VOLTAR AO MENU</button>
+                <button class="menu-btn primary rematch-btn" data-i18n="REMATCH">REVANCHE</button>
+                <button class="menu-btn secondary back-to-menu" data-i18n="BACK_TO_MENU">VOLTAR AO MENU</button>
             </div>
             <div id="defeat-screen" class="game-over-screen" hidden>
-                <h1>DERROTA!</h1>
+                <h1 data-i18n="DEFEAT">DERROTA!</h1>
                 <p id="defeat-reason" class="game-over-reason"></p>
-                <button class="menu-btn primary rematch-btn">REVANCHE</button>
-                <button class="menu-btn secondary back-to-menu">VOLTAR AO MENU</button>
+                <button class="menu-btn primary rematch-btn" data-i18n="REMATCH">REVANCHE</button>
+                <button class="menu-btn secondary back-to-menu" data-i18n="BACK_TO_MENU">VOLTAR AO MENU</button>
             </div>
 
             <div id="rematch-notice" class="rematch-notice" hidden></div>

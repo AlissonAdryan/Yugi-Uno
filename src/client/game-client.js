@@ -16,6 +16,7 @@ import {
     EVENT, INPUT, MSG, SNAPSHOT_FLAGS, SnapshotView, decodeSnapshot, isBinaryMessage, isSeqAfter
 } from '../network/protocol.js';
 import { NET_EVENT } from '../network/network-system.js';
+import { i18n } from '../i18n/index.js';
 
 const { GAME_STATES, CARD_DIMENSIONS, ANIM } = CONFIG;
 const HALF_W = CARD_DIMENSIONS.WIDTH / 2;
@@ -378,24 +379,24 @@ export class GameClient {
         let message = null;
         let selectable = -1;
         if (phase === GAME_STATES.PLAYING) {
-            if (selfReady && !oppReady) message = 'AGUARDANDO O OPONENTE...';
-            else if (!selfReady && v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED)) message = 'SUA DEFESA ESTÁ BLOQUEADA NESTA RODADA!';
+            if (selfReady && !oppReady) message = i18n.t('WAITING_OPPONENT');
+            else if (!selfReady && v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED)) message = i18n.t('DEFENSE_LOCKED');
         } else if (phase === GAME_STATES.DISCARDING) {
             if (discardsLeft > 0) {
-                message = `LIMITE DE MÃO! DOE ${discardsLeft} CARTA(S) AO OPONENTE`;
+                message = i18n.t('HAND_LIMIT', { n: discardsLeft });
                 selectable = ZONE.SELF_HAND;
             } else if (v.oppDiscards > 0) {
-                message = 'O OPONENTE ESTÁ DESCARTANDO...';
+                message = i18n.t('OPPONENT_DISCARDING');
             }
         } else if (phase === GAME_STATES.FORCED_DISCARDING) {
             if (discardsLeft > 0) {
-                message = `SEM COR EM COMUM! DESCARTE ${discardsLeft} CARTA(S)`;
+                message = i18n.t('NO_COLOR_DISCARD', { n: discardsLeft });
                 selectable = ZONE.SELF_HAND;
             } else if (v.oppDiscards > 0) {
-                message = 'O OPONENTE ESTÁ DESCARTANDO...';
+                message = i18n.t('OPPONENT_DISCARDING');
             }
         } else if (phase === GAME_STATES.CHOOSING_COLOR && v.hasFlag(SNAPSHOT_FLAGS.OPP_CHOOSING_COLOR)) {
-            message = 'O OPONENTE ESTÁ ESCOLHENDO A COR...';
+            message = i18n.t('OPPONENT_CHOOSING_COLOR');
         }
         this.hud.setPhaseMessage(message);
         this.scene.selectableZone = selectable;
@@ -566,7 +567,7 @@ export class GameClient {
         console.log(`[Client] Enviando nome: ${name}`);
         this.network.sendInput({ k: MSG.INPUT, t: INPUT.SET_NAME, name });
         this.hud.setNames(name, null);
-        if (!this.hasSnapshot) this.hud.setPhaseMessage('AGUARDANDO O OPONENTE...');
+        if (!this.hasSnapshot) this.hud.setPhaseMessage(i18n.t('WAITING_OPPONENT'));
     }
 
     toggleReady() {

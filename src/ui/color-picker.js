@@ -1,6 +1,7 @@
 import { CONFIG } from '../config/constants.js';
 import { SFX } from '../config/sound-presets.js';
 import { colorBit } from '../systems/rules.js';
+import { i18n } from '../i18n/index.js';
 
 const { COLOR } = CONFIG;
 const CLOSE_MS = 260;
@@ -40,7 +41,6 @@ export class ColorPicker {
         btn.type = 'button';
         btn.className = `wheel-slice wheel-slice--${corner}`;
         btn.style.setProperty('--slice-color', CONFIG.COLOR_HEX[color]);
-        btn.setAttribute('aria-label', CONFIG.COLOR_PALETTES[color].name);
         btn.addEventListener('pointerenter', (e) => {
             if (e.pointerType === 'mouse' && !btn.disabled && !this.locked) this.audio.play(SFX.HOVER);
         });
@@ -65,6 +65,8 @@ export class ColorPicker {
         for (const { color, btn } of this.slices) {
             btn.disabled = (mask & colorBit(color)) === 0;
             btn.classList.remove('chosen');
+            // Reaplica a cada abertura (não só na criação): pega a troca de idioma feita nas configurações
+            btn.setAttribute('aria-label', i18n.t(CONFIG.COLOR_NAME_KEYS[color]));
         }
 
         // Voltar de display:none reinicia as animações de entrada (virar a carta e o cronômetro)
