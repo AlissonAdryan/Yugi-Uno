@@ -1,0 +1,94 @@
+import { CONFIG } from '../config/constants.js';
+
+/**
+ * CardPool (cliente) - visão renderizável das cartas, indexada pelo id que vem do servidor.
+ * Capacidade fixa pré-alocada + SoA/TypedArrays: nenhum objeto é criado por carta ou por frame.
+ */
+export class CardPool {
+    constructor(capacity = CONFIG.DECK_SIZE) {
+        this.maxCards = capacity;
+
+        this.active = new Uint8Array(capacity);
+        this.spawned = new Uint8Array(capacity);
+        // 1 = jogável agora (contorno animado); preenchido pelo PlayableSystem
+        this.outlined = new Uint8Array(capacity);
+
+        // Face e posição lógica (zona relativa) como o jogador local as conhece
+        this.zone = new Uint8Array(capacity);
+        this.order = new Uint8Array(capacity);
+        this.type = new Uint8Array(capacity);
+        this.color = new Uint8Array(capacity);
+        this.power = new Int16Array(capacity);
+
+        // Transformações de renderização (animadas pelo Animator)
+        this.x = new Float32Array(capacity);
+        this.y = new Float32Array(capacity);
+        this.targetX = new Float32Array(capacity);
+        this.targetY = new Float32Array(capacity);
+        this.scale = new Float32Array(capacity).fill(1);
+        this.rotation = new Float32Array(capacity);
+        this.hoverOffsetY = new Float32Array(capacity);
+        this.homeX = new Float32Array(capacity);
+        this.homeY = new Float32Array(capacity);
+        this.zIndex = new Int16Array(capacity);
+
+        this.drawOrder = new Uint16Array(capacity);
+        this.drawCount = 0;
+    }
+
+    isValid(id) {
+        return Number.isInteger(id) && id >= 0 && id < this.maxCards;
+    }
+
+    isActive(id) {
+        return this.isValid(id) && this.active[id] === 1;
+    }
+
+    isFaceUp(id) {
+        return this.type[id] !== CONFIG.CARD_TYPES.HIDDEN;
+    }
+
+    /** Ativa a carta nascendo na posição informada (normalmente o baralho). */
+    activate(id, x, y) {
+        this.active[id] = 1;
+        this.spawned[id] = 1;
+        this.outlined[id] = 0;
+        this.x[id] = x;
+        this.y[id] = y;
+        this.targetX[id] = x;
+        this.targetY[id] = y;
+        this.scale[id] = 1;
+        this.rotation[id] = 0;
+        this.hoverOffsetY[id] = 0;
+        this.homeX[id] = x;
+        this.homeY[id] = y;
+        this.zIndex[id] = 0;
+    }
+
+    deactivate(id) {
+        this.active[id] = 0;
+        this.spawned[id] = 0;
+        this.outlined[id] = 0;
+    }
+
+    /** Ordena os ids ativos por zIndex (insertion sort estável, sem alocação; dados quase ordenados). */
+    sortDrawOrder() {
+        const order = this.drawOrder;
+        const z = this.zIndex;
+        let count = 0;
+        for (let i = 0; i < this.maxCards; i++) {
+            if (this.active[i] === 1) order[count++] = i;
+        }
+        for (let i = 1; i < count; i++) {
+            const id = order[i];
+            const key = z[id];
+            let j = i - 1;
+            while (j >= 0 && z[order[j]] > key) {
+                order[j + 1] = order[j];
+                j--;
+            }
+            order[j + 1] = id;
+        }
+        this.drawCount = count;
+    }
+}

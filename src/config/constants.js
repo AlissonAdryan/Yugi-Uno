@@ -1,0 +1,221 @@
+const COLOR = Object.freeze({
+    NONE: 0,
+    RED: 1,
+    BLUE: 2,
+    GREEN: 3,
+    YELLOW: 4,
+    BLACK: 5,
+    RAINBOW: 6
+});
+
+const CARD_TYPES = Object.freeze({
+    NUMBER: 0,
+    PLUS2: 1,
+    PLUS4: 2,
+    BLOCK: 3,
+    REVERSE: 4,
+    CHANGE_COLOR: 5,
+    HIDDEN: 255
+});
+
+export const CONFIG = Object.freeze({
+    CANVAS_ID: 'game-canvas',
+    PHYSICS_TIMESTEP: 1000 / 60,
+
+    DECK_SIZE: 255,
+    INITIAL_HAND_SIZE: 9,
+    MAX_HAND_SIZE: 15,
+    STARTING_HP: 30,
+    NAME_MAX_LENGTH: 16,
+    FORCED_DISCARD_COUNT: 2,
+    ROUND_DRAWS: Object.freeze({ WINNER: 2, LOSER: 1, TIE: 1 }),
+    NUMBER_RANGE: Object.freeze({ MIN: 1, MAX: 9 }),
+    REVERSE_COMPENSATION_POWER: 1,
+    // Trava de segurança contra loops de combate (cadeias de +2/+4 são finitas, mas nunca confiamos cegamente)
+    COMBAT_MAX_STEPS: 200,
+
+    // Resolução virtual de referência: altura mínima para mãos + tabuleiro com respiro (~870px ocupados)
+    // Mantém a proporção 20:13 de 1600x1040; reduzida ~6,25% para escalar tudo (canvas + HUD) levemente para cima.
+    VIEW: Object.freeze({
+        DESIGN_WIDTH: 1425,
+        DESIGN_HEIGHT: 926,
+        MAX_DPR: 2,
+        UI_SCALE_MIN: 0.6,
+        UI_SCALE_MAX: 1.25
+    }),
+
+    CARD_DIMENSIONS: Object.freeze({
+        WIDTH: 100,
+        HEIGHT: 150,
+        RADIUS: 10
+    }),
+    HAND_SCALE: 0.9,
+    HAND_MARGIN_X: 170,
+    HAND_STEP_RATIO: 0.72,
+    STACK_OFFSET: Object.freeze({ X: -2, Y: -4 }),
+
+    COLOR,
+    BASIC_COLORS: Object.freeze([COLOR.RED, COLOR.BLUE, COLOR.GREEN, COLOR.YELLOW]),
+    COLOR_HEX: Object.freeze(['#2c3e50', '#e74c3c', '#3498db', '#2ecc71', '#ffcc00', '#111111', '#ffffff']),
+    COLOR_PALETTES: Object.freeze([
+        null,
+        { name: 'VERMELHO', bg: ['#4a0f0f', '#661515', '#370606'] },
+        { name: 'AZUL', bg: ['#0f204a', '#153366', '#061337'] },
+        { name: 'VERDE', bg: ['#0f4a15', '#156620', '#06370f'] },
+        { name: 'AMARELO', bg: ['#4a4a0f', '#666615', '#373706'] },
+        null,
+        { name: 'QUALQUER COR!', bg: ['#661515', '#153366', '#156620'] }
+    ]),
+    DEFAULT_BACKGROUND: Object.freeze(['#290f61', '#152066', '#37064a']),
+
+    CARD_TYPES,
+
+    // Contorno animado (sentido horário) nas cartas da mão que podem ser jogadas agora. Só visual e só local.
+    PLAYABLE_OUTLINE: Object.freeze({
+        // Tipos que nunca recebem o contorno, mesmo quando jogáveis
+        EXCLUDED_TYPES: Object.freeze([CARD_TYPES.CHANGE_COLOR]),
+        COLOR: '#7df9ff',
+        GLOW_COLOR: 'rgba(0, 229, 255, 0.35)',
+        LINE_WIDTH: 3,
+        GLOW_WIDTH: 9,
+        PADDING: 3,
+        DASH_COUNT: 4,
+        DASH_FILL: 0.5,
+        SPEED: 140
+    }),
+
+    // O código normaliza pelo total, então os pesos não precisam somar 100
+    CARD_SPAWN_WEIGHTS: Object.freeze({
+        NUMBER: 70,
+        SPECIAL_BASE: 30,
+        SPECIALS: Object.freeze({
+            PLUS2: 10,
+            PLUS4: 5,
+            BLOCK: 8,
+            REVERSE: 7,
+            CHANGE_COLOR: 8
+        })
+    }),
+
+    GAME_STATES: Object.freeze({
+        INIT: 0,
+        MENU: 1,
+        PLAYING: 2,
+        COMBAT_RESOLUTION: 3,
+        DISCARDING: 4,
+        FORCED_DISCARDING: 5,
+        GAME_OVER: 6
+    }),
+
+    // Pausas do servidor (ms). Cada pausa é >= à animação correspondente no cliente,
+    // assim os dois jogadores nunca acumulam atraso em relação ao host.
+    TIMINGS: Object.freeze({
+        REVEAL: 450,
+        PROMOTE: 650,
+        SUMMON_BASE: 900,
+        SUMMON_PER_CARD: 180,
+        CLASH: 1150,
+        TIE: 950,
+        TIE_DEFENSE_DELAY: 1500,
+        BLOCK_SMASH: 1000,
+        REVERSE: 1000,
+        DIRECT_HIT: 1400,
+        DESTROY: 350,
+        ROUND_END_PAUSE: 700,
+        NEXT_ROUND_DELAY: 600,
+        FORCED_REDRAW_DELAY: 700,
+        GAME_OVER_SEQUENCE: 3000
+    }),
+
+    ANIM: Object.freeze({
+        LIFT: 250,
+        DASH: 180,
+        RETURN: 300,
+        FLIP_HALF: 150,
+        SHAKE_STEP: 50,
+        HAND_MOVE: 450,
+        BOARD_MOVE: 350,
+        SPAWN_MOVE: 400,
+        SPAWN_STAGGER: 90,
+        HOVER: 200,
+        // Tempos próprios do consumível (não reaproveitam SPAWN_MOVE/LIFT: mudar isso não afeta
+        // choque/empate/bloqueio nem a distribuição de cartas). Consumo total ~640ms (era ~1000ms).
+        CONSUMABLE_MOVE: 280,
+        CONSUMABLE_HOLD: 200,
+        CONSUMABLE_LIFT: 160,
+        HOVER_LIFT: -20,
+        DIRECT_LIFT: 300,
+        DIRECT_RECOIL: 200,
+        DIRECT_DASH: 150,
+        DIRECT_RETURN: 400,
+        SAFETY_MARGIN: 150,
+        RENDER_SMOOTHING: 0.6
+    }),
+
+    AI: Object.freeze({
+        THINK_MS: 900,
+        ACTION_GAP_MS: 700,
+        DEFENSE_CHANCE: 0.5,
+        CONSUMABLE_CHANCE: 0.7,
+        MAX_REJECTIONS: 3
+    }),
+
+    NETWORK: Object.freeze({
+        APP_ID: 'yugi-uno-p2p',
+        TRYSTERO_URL: 'https://esm.run/@trystero-p2p/mqtt@0.25.4',
+        ACTION_NAME: 'msg',
+        ROOM_CODE_LENGTH: 5,
+        ROOM_CODE_ALPHABET: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789',
+        HEARTBEAT_INTERVAL_MS: 2000,
+        HEARTBEAT_TIMEOUT_MS: 4000,
+        UNSTABLE_AFTER_MISSES: 2,
+        RECONNECT_GRACE_MS: 120000,
+        JOIN_SLOW_WARNING_MS: 15000,
+        LOCAL_CPU_LATENCY_MS: 150,
+        MAX_CLIENT_BACKLOG: 40,
+        PENDING_INPUT_TIMEOUT_MS: 5000,
+        // Servidores TURN opcionais (formato Trystero turnConfig) para NATs muito restritivos
+        TURN_SERVERS: Object.freeze([])
+    }),
+
+    AUDIO: Object.freeze({
+        BUS: Object.freeze({ MASTER: 'master', MUSIC: 'music', SFX: 'sfx', UI: 'ui' }),
+        // Volumes iniciais por barramento (0..1). O master passa por um limitador antes da saída.
+        VOLUME: Object.freeze({ MASTER: 0.9, MUSIC: 0.55, SFX: 0.5, UI: 0.6 }),
+        // Teto de sons sintetizados simultâneos; acima disso o mais antigo é cortado com fade curto
+        MAX_VOICES: 24,
+        // Escala de tempo por "comprimento" pedido em play(..., { length })
+        LENGTH_SCALE: Object.freeze({ SHORT: 0.6, MEDIUM: 1, LONG: 1.8 }),
+        START_LOOKAHEAD_S: 0.005,
+        STEAL_FADE_S: 0.015,
+        DEFAULT_FADE_S: 0.8,
+        NOISE_BUFFER_S: 2,
+        MAX_ECHO_TAIL_S: 3,
+        // Pausa a música e suspende o AudioContext com a aba escondida (economia de bateria no celular)
+        SUSPEND_WHEN_HIDDEN: true,
+        // 'ambient' respeita a chave de silencioso do iPhone e mistura com outros apps (Audio Session API)
+        SESSION_TYPE: 'ambient',
+        DEBUG_LOG: false,
+        // Faixas de música: `sources` em ordem de preferência (a 1ª que o navegador suportar é usada;
+        // adicione .m4a para iOS < 18.4), `volume` própria da faixa (0..1, multiplica com o barramento MUSIC).
+        MUSIC: Object.freeze({
+            MAIN_THEME: Object.freeze({
+                sources: Object.freeze(['assets/audio/music/main_theme.ogg']),
+                volume: 0.1 // -90% do volume original da faixa
+            })
+        }),
+        // Efeitos gravados (arquivo curto, decodificado inteiro em memória): `sources` + `volume` padrão
+        // do sample (0..1, multiplica com o barramento SFX; playSample(..., { volume }) sobrescreve por disparo).
+        SAMPLES: Object.freeze({
+            CARD_HOVER: Object.freeze({
+                sources: Object.freeze(['assets/audio/sfx/card_hover.ogg']),
+                volume: 0.3 // -30% do volume original do arquivo
+            })
+        })
+    }),
+
+    WORKER_MESSAGES: Object.freeze({
+        INIT: 'INIT',
+        CALCULATE_BATTLE: 'CALCULATE_BATTLE'
+    })
+});

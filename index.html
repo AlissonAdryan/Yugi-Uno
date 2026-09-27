@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Yugi-Uno!</title>
+    <link rel="icon" href="data:,">
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" rel="stylesheet">
+</head>
+<body>
+    <!-- Aviso para celular em pé (o jogo é jogado na horizontal) -->
+    <div id="rotate-overlay">
+        <div class="rotate-icon">⟳</div>
+        <p>GIRE O CELULAR PARA A HORIZONTAL</p>
+    </div>
+
+    <!-- Configurações de áudio: visível no menu e durante a partida -->
+    <button id="settings-btn" class="settings-btn" aria-label="Configurações">
+        <img src="assets/icons/config.png" alt="">
+    </button>
+    <div id="settings-panel" class="settings-panel" hidden>
+        <div class="settings-content">
+            <h2 class="settings-title">CONFIGURAÇÕES</h2>
+
+            <div class="settings-row">
+                <label for="volume-master">GERAL</label>
+                <input type="range" id="volume-master" min="0" max="100" value="100" step="1">
+                <span id="volume-master-value" class="settings-value">100%</span>
+            </div>
+            <div class="settings-row">
+                <label for="volume-music">MÚSICA</label>
+                <input type="range" id="volume-music" min="0" max="100" value="100" step="1">
+                <span id="volume-music-value" class="settings-value">100%</span>
+            </div>
+            <div class="settings-row">
+                <label for="volume-sfx">EFEITOS SONOROS</label>
+                <input type="range" id="volume-sfx" min="0" max="100" value="100" step="1">
+                <span id="volume-sfx-value" class="settings-value">100%</span>
+            </div>
+
+            <button id="settings-close" class="menu-btn secondary">FECHAR</button>
+        </div>
+    </div>
+
+    <!-- Menu Principal -->
+    <div id="main-menu">
+        <div class="menu-bg"></div>
+        <div class="menu-content">
+            <h1 class="game-title">YUGI-UNO!</h1>
+            <div class="menu-buttons">
+                <button id="btn-play-cpu" class="menu-btn primary">PLAYER VS CPU</button>
+                <button id="btn-create-room" class="menu-btn secondary">CRIAR SALA</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Sala -->
+    <div id="room-modal" class="room-modal" hidden>
+        <h2 id="room-title" class="room-title">CRIANDO SALA...</h2>
+        <div id="room-info" class="room-info" hidden>
+            <p class="room-label">Código da Sala:</p>
+            <h1 id="room-code-display" class="room-code">---</h1>
+            <button id="btn-copy-link" class="room-copy-btn">COPIAR LINK</button>
+            <p id="room-warning" class="room-warning" hidden>
+                Você abriu o jogo por localhost: esse link só funciona nesta máquina.
+                Abra o jogo pela URL pública do túnel (ex.: localtunnel) antes de criar a sala.
+            </p>
+            <p class="room-waiting">Aguardando outro jogador...</p>
+        </div>
+        <p id="room-status" class="room-status"></p>
+        <button id="btn-cancel-room" class="room-cancel">Voltar</button>
+    </div>
+
+    <!-- Nome do jogador (pedido assim que a conexão é estabelecida) -->
+    <div id="name-modal" class="room-modal" hidden>
+        <h2 class="room-title">QUAL É O SEU NOME?</h2>
+        <form id="name-form" class="name-form">
+            <input id="name-input" class="name-input" type="text" autocomplete="nickname" placeholder="Seu nome" required>
+            <button type="submit" class="menu-btn primary">CONFIRMAR</button>
+        </form>
+    </div>
+
+    <div id="game-container" hidden>
+        <div class="plasma-bg plasma-bg--base"></div>
+        <div id="plasma-bg-incoming" class="plasma-bg plasma-bg--incoming"></div>
+        <canvas id="game-canvas"></canvas>
+
+        <div id="ui-layer">
+            <div id="opponent-hp-container" class="hp-container">
+                <span id="opponent-name" class="player-name">OPONENTE</span>
+                <span id="opponent-hp" class="hp-value">30</span>
+            </div>
+
+            <div id="self-hp-container" class="hp-container">
+                <span id="self-name" class="player-name">VOCÊ</span>
+                <span id="self-hp" class="hp-value">30</span>
+            </div>
+
+            <button id="end-turn-btn" hidden disabled>FINALIZAR TURNO</button>
+
+            <div id="damage-vignette"></div>
+            <div id="damage-text-container"></div>
+
+            <div id="color-alert"></div>
+
+            <div id="phase-message" hidden></div>
+
+            <div id="connection-banner" class="connection-banner" hidden>
+                <span id="connection-text"></span>
+                <button id="connection-menu-btn" class="banner-btn" hidden>VOLTAR AO MENU</button>
+            </div>
+
+            <div id="victory-screen" class="game-over-screen" hidden>
+                <h1>VITÓRIA!</h1>
+                <p id="victory-reason" class="game-over-reason"></p>
+                <button class="menu-btn primary rematch-btn">REVANCHE</button>
+                <button class="menu-btn secondary back-to-menu">VOLTAR AO MENU</button>
+            </div>
+            <div id="defeat-screen" class="game-over-screen" hidden>
+                <h1>DERROTA!</h1>
+                <p id="defeat-reason" class="game-over-reason"></p>
+                <button class="menu-btn primary rematch-btn">REVANCHE</button>
+                <button class="menu-btn secondary back-to-menu">VOLTAR AO MENU</button>
+            </div>
+
+            <div id="rematch-notice" class="rematch-notice" hidden></div>
+        </div>
+    </div>
+
+    <script>
+        // Overlay de erros para depuração rápida (textContent evita injeção de HTML vindo de mensagens de rede)
+        (function () {
+            function showOverlay(text, position, background) {
+                var el = document.createElement('div');
+                el.style.cssText = 'position:fixed;left:0;' + position + ':0;background:' + background +
+                    ';color:#000;z-index:9999;padding:10px;max-width:100vw;font:12px monospace;white-space:pre-wrap;';
+                el.textContent = text;
+                document.body.appendChild(el);
+            }
+            window.onerror = function (msg, url, lineNo, columnNo) {
+                showOverlay('ERROR: ' + msg + ' @ ' + url + ':' + lineNo + ':' + columnNo, 'top', '#ff6b6b');
+                return false;
+            };
+            // Queda de par WebRTC (ex.: oponente recarregou a página) é esperada e já tratada pela reconexão
+            var BENIGN_ERRORS = /User-Initiated Abort|Close called/;
+            var originalError = console.error;
+            console.error = function () {
+                originalError.apply(console, arguments);
+                var parts = [];
+                for (var i = 0; i < arguments.length; i++) {
+                    var a = arguments[i];
+                    parts.push(a instanceof Error ? a.message : String(a));
+                }
+                var text = parts.join(' ');
+                if (BENIGN_ERRORS.test(text)) return;
+                showOverlay('CONSOLE.ERROR: ' + text, 'bottom', 'orange');
+            };
+        })();
+    </script>
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

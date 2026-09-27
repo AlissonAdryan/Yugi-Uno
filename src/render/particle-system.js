@@ -1,0 +1,258 @@
+/**
+ * Tipos de Partículas para o Canvas
+ */
+export const PARTICLE_TYPES = {
+    CIRCLE: 0,
+    SQUARE: 1,
+    SPARK: 2,  // Linha em movimento
+    STAR: 3    // Polígono estrela (magia/invocação)
+};
+
+/**
+ * ParticleSystem - Motor de Efeitos Visuais (Pilar 1 e 2)
+ * Tolerância Zero ao GC: Pré-aloca milhares de partículas em TypedArrays.
+ */
+export class ParticleSystem {
+    constructor(maxParticles = 2000) {
+        this.maxParticles = maxParticles;
+        
+        // TypedArrays (SoA)
+        this.active = new Uint8Array(maxParticles);
+        this.x = new Float32Array(maxParticles);
+        this.y = new Float32Array(maxParticles);
+        this.vx = new Float32Array(maxParticles);
+        this.vy = new Float32Array(maxParticles);
+        this.life = new Float32Array(maxParticles);
+        this.maxLife = new Float32Array(maxParticles);
+        this.size = new Float32Array(maxParticles);
+        this.type = new Uint8Array(maxParticles);
+        
+        // Cores precisam ser armazenadas (rgba string ou canais separados)
+        // Para máxima performance, salvaremos os canais R, G, B em Float32Array (0-255)
+        // para facilitar interpolação de cor no futuro, mas por enquanto:
+        this.r = new Uint8Array(maxParticles);
+        this.g = new Uint8Array(maxParticles);
+        this.b = new Uint8Array(maxParticles);
+
+        this.freeIndexes = [];
+        for (let i = maxParticles - 1; i >= 0; i--) {
+            this.freeIndexes.push(i);
+        }
+
+        // Área visível em coordenadas virtuais (atualizada pelo GameClient no resize)
+        this.boundsWidth = 0;
+        this.boundsHeight = 0;
+    }
+
+    setBounds(width, height) {
+        this.boundsWidth = width;
+        this.boundsHeight = height;
+    }
+
+    /**
+     * Emite uma única partícula
+     */
+    emit(x, y, vx, vy, life, size, type, r, g, b) {
+        if (this.freeIndexes.length === 0) return; // Pool cheio (drop silêncioso para não estourar memória)
+
+        const idx = this.freeIndexes.pop();
+        this.active[idx] = 1;
+        this.x[idx] = x;
+        this.y[idx] = y;
+        this.vx[idx] = vx;
+        this.vy[idx] = vy;
+        this.life[idx] = life;
+        this.maxLife[idx] = life;
+        this.size[idx] = size;
+        this.type[idx] = type;
+        this.r[idx] = r;
+        this.g[idx] = g;
+        this.b[idx] = b;
+    }
+
+    /**
+     * Utilitário para explodir uma onda de magia ou impacto
+     * @param {number} x 
+     * @param {number} y 
+     * @param {string} hexColor Cor em hex (ex: '#ff0000')
+     * @param {number} count Quantidade
+     * @param {number} speed Velocidade base
+     * @param {number} type Tipo PARTICLE_TYPES
+     */
+    emitBurst(x, y, hexColor, count = 50, speed = 200, type = PARTICLE_TYPES.CIRCLE) {
+        // Converte hex para RGB puro matematicamente
+        const r = parseInt(hexColor.slice(1, 3), 16) || 255;
+        const g = parseInt(hexColor.slice(3, 5), 16) || 255;
+        const b = parseInt(hexColor.slice(5, 7), 16) || 255;
+
+        for (let i = 0; i < count; i++) {
+            // Distribuição circular aleatória
+            const angle = Math.random() * Math.PI * 2;
+            const velocity = (Math.random() * speed) + (speed * 0.2); // variação de velocidade
+            const vx = Math.cos(angle) * velocity;
+            const vy = Math.sin(angle) * velocity;
+            
+            const life = (Math.random() * 0.5) + 0.5; // Duração: 0.5s a 1.0s
+            const size = (Math.random() * 6) + 2; // Tamanho: 2 a 8px
+
+            this.emit(x, y, vx, vy, life, size, type, r, g, b);
+        }
+    }
+
+    /**
+     * Utilitário para Efeito de Dano em Massa (Onda de Sangue/Impacto da borda da tela)
+     */
+    emitDamageWave(isPlayerTakingDamage, hexColor, count = 150, type = PARTICLE_TYPES.SQUARE) {
+        const r = parseInt(hexColor.slice(1, 3), 16) || 255;
+        const g = parseInt(hexColor.slice(3, 5), 16) || 255;
+        const b = parseInt(hexColor.slice(5, 7), 16) || 255;
+
+        const w = this.boundsWidth;
+        const h = this.boundsHeight;
+
+        for (let i = 0; i < count; i++) {
+            // Espalha a origem no eixo X em 60% da área da tela (centralizado)
+            const spreadX = (w * 0.2) + (Math.random() * w * 0.6);
+            
+            let y, vy;
+            if (isPlayerTakingDamage) {
+                // Jogador toma dano: vem da parte de baixo e sobe pro centro
+                y = h + 20; // Começa um pouco fora da tela embaixo
+                vy = -((Math.random() * 600) + 300); // Força pra cima
+            } else {
+                // CPU toma dano: vem da parte de cima e desce pro centro
+                y = -20; // Começa um pouco fora da tela em cima
+                vy = (Math.random() * 600) + 300; // Força pra baixo
+            }
+            
+            // Leve dispersão lateral
+            const vx = (Math.random() - 0.5) * 300; 
+            
+            const life = (Math.random() * 0.8) + 0.6; // Vive até 1.4s
+            const size = (Math.random() * 12) + 6; // Partículas brutas e grandes
+
+            this.emit(spreadX, y, vx, vy, life, size, type, r, g, b);
+        }
+    }
+
+    /**
+     * Utilitário: Magia direcional (ex: ataque de uma carta para outra)
+     */
+    emitTrail(startX, startY, endX, endY, hexColor, count = 20) {
+        const dx = endX - startX;
+        const dy = endY - startY;
+        const dist = Math.hypot(dx, dy);
+        
+        const r = parseInt(hexColor.slice(1, 3), 16) || 255;
+        const g = parseInt(hexColor.slice(3, 5), 16) || 255;
+        const b = parseInt(hexColor.slice(5, 7), 16) || 255;
+
+        for (let i = 0; i < count; i++) {
+            const spreadX = (Math.random() - 0.5) * 50;
+            const spreadY = (Math.random() - 0.5) * 50;
+            const vx = (dx / dist) * 300 + spreadX;
+            const vy = (dy / dist) * 300 + spreadY;
+            
+            const life = Math.random() * 0.3 + 0.2;
+            this.emit(startX, startY, vx, vy, life, 3, PARTICLE_TYPES.SPARK, r, g, b);
+        }
+    }
+
+    /**
+     * Atualiza a física de todas as partículas
+     * @param {number} dt Delta time em segundos (ex: 0.016 para 60fps)
+     */
+    update(dt) {
+        const max = this.maxParticles;
+        const friction = 0.95; // Arrasto atmosférico
+        
+        for (let i = 0; i < max; i++) {
+            if (this.active[i] === 1) {
+                // Atualiza vida
+                this.life[i] -= dt;
+                
+                if (this.life[i] <= 0) {
+                    this.active[i] = 0;
+                    this.freeIndexes.push(i);
+                    continue;
+                }
+
+                // Física básica (Integrador de Euler)
+                this.x[i] += this.vx[i] * dt;
+                this.y[i] += this.vy[i] * dt;
+                
+                // Aplica atrito para desacelerar partículas com o tempo
+                this.vx[i] *= friction;
+                this.vy[i] *= friction;
+            }
+        }
+    }
+
+    /**
+     * Desenha as partículas. Chama diretamente do Renderer.
+     * @param {CanvasRenderingContext2D} ctx 
+     */
+    draw(ctx) {
+        // Efeito de brilho aditivo (Overlap de cores gera branco incandescente)
+        ctx.globalCompositeOperation = 'lighter';
+
+        const max = this.maxParticles;
+
+        for (let i = 0; i < max; i++) {
+            if (this.active[i] === 1) {
+                const x = this.x[i];
+                const y = this.y[i];
+                const size = this.size[i];
+                const type = this.type[i];
+                
+                // Fade out baseado na vida
+                const alpha = Math.max(0, this.life[i] / this.maxLife[i]);
+                ctx.fillStyle = `rgba(${this.r[i]}, ${this.g[i]}, ${this.b[i]}, ${alpha})`;
+                
+                ctx.beginPath();
+                
+                if (type === PARTICLE_TYPES.CIRCLE) {
+                    ctx.arc(x, y, size * alpha, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (type === PARTICLE_TYPES.SQUARE) {
+                    const s = size * alpha;
+                    ctx.fillRect(x - s/2, y - s/2, s, s);
+                } else if (type === PARTICLE_TYPES.SPARK) {
+                    // Desenha uma linha na direção do movimento
+                    ctx.strokeStyle = ctx.fillStyle;
+                    ctx.lineWidth = size * alpha;
+                    ctx.moveTo(x, y);
+                    // Rastro baseado na velocidade
+                    ctx.lineTo(x - this.vx[i] * 0.05, y - this.vy[i] * 0.05);
+                    ctx.stroke();
+                } else if (type === PARTICLE_TYPES.STAR) {
+                    // Geometria procedural da Estrela
+                    const spikes = 4;
+                    const outerRadius = size * alpha;
+                    const innerRadius = outerRadius * 0.3;
+                    let rot = Math.PI / 2 * 3;
+                    let cx = x, cy = y;
+                    let step = Math.PI / spikes;
+
+                    ctx.moveTo(cx, cy - outerRadius);
+                    for(let k=0; k<spikes; k++){
+                        cx = x + Math.cos(rot) * outerRadius;
+                        cy = y + Math.sin(rot) * outerRadius;
+                        ctx.lineTo(cx, cy);
+                        rot += step;
+
+                        cx = x + Math.cos(rot) * innerRadius;
+                        cy = y + Math.sin(rot) * innerRadius;
+                        ctx.lineTo(cx, cy);
+                        rot += step;
+                    }
+                    ctx.lineTo(x, y - outerRadius);
+                    ctx.fill();
+                }
+            }
+        }
+        
+        // Restaura composição normal para o resto do jogo não ficar aditivo
+        ctx.globalCompositeOperation = 'source-over';
+    }
+}

@@ -1,0 +1,824 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+:root {
+    /* Camada assentada (base) */
+    --bg-1: #290f61;
+    --bg-2: #152066;
+    --bg-3: #37064a;
+    /* Camada de entrada (cross-fade): começa igual à base para o 1º fade não "piscar" */
+    --bg-1-next: #290f61;
+    --bg-2-next: #152066;
+    --bg-3-next: #37064a;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden; /* Prevent scrolling */
+    touch-action: none; /* Prevent default touch actions like zoom on mobile */
+    font-family: 'Righteous', sans-serif;
+    color: white;
+    background-color: #050510;
+}
+
+/*
+ * Plasma Background
+ * Pilar 2: animando apenas "transform" (rotação) e "opacity" (troca de cor), 100% compositor/GPU.
+ * A troca de cor da rodada NUNCA interpola o gradiente em si (isso forçaria Recalculate Style + Paint
+ * da tela inteira a cada frame) — em vez disso, duas camadas idênticas se sobrepõem e a de cima
+ * (com a cor nova já pronta) sobe de opacity 0 a 1. Ver Hud.crossfadeBackground().
+ */
+.plasma-bg {
+    position: fixed;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    animation: plasmaRotate 30s linear infinite;
+    z-index: -1;
+}
+.plasma-bg--base {
+    background: radial-gradient(circle at 50% 50%, var(--bg-1), transparent 40%),
+                radial-gradient(circle at 30% 70%, var(--bg-2), transparent 40%),
+                radial-gradient(circle at 70% 30%, var(--bg-3), transparent 40%);
+}
+.plasma-bg--incoming {
+    background: radial-gradient(circle at 50% 50%, var(--bg-1-next), transparent 40%),
+                radial-gradient(circle at 30% 70%, var(--bg-2-next), transparent 40%),
+                radial-gradient(circle at 70% 30%, var(--bg-3-next), transparent 40%);
+    opacity: 0;
+    transition: opacity 1.5s ease-in-out;
+}
+
+@keyframes plasmaRotate {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.1); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+/* Fixed + inset 0 acompanha a área visível real (inclusive barras do navegador no celular) */
+#game-container {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+}
+
+/* Tamanho em px definido pelo Canvas2DRenderer a partir do Viewport (backbuffer em pixels físicos) */
+#game-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    display: block;
+    contain: layout paint;
+    background-color: transparent; /* Permite que o plasma apareça */
+    touch-action: none;
+}
+
+/* UI Layer */
+#ui-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none; /* Deixa os cliques passarem pro canvas */
+}
+
+/*
+ * HUD acompanha a escala do jogo (--ui-scale vem do Viewport).
+ * `zoom` escala tamanho, fontes e distâncias fixas juntos; percentuais de centralização continuam válidos.
+ */
+.hp-container,
+#end-turn-btn,
+#phase-message,
+#color-alert,
+.damage-text,
+.connection-banner,
+.game-over-screen > *,
+.menu-content,
+.room-modal > *,
+.settings-btn,
+.settings-content,
+.rematch-notice {
+    zoom: var(--ui-scale, 1);
+}
+
+/* Celular em pé: pede para girar (o jogo é pensado na horizontal) */
+#rotate-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 5000;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 16px;
+    background: #050510;
+    color: #fff;
+    font-size: 22px;
+    text-align: center;
+}
+
+.rotate-icon {
+    font-size: 64px;
+    animation: rotateHint 2s ease-in-out infinite;
+}
+
+@keyframes rotateHint {
+    0%, 20% { transform: rotate(0deg); }
+    60%, 100% { transform: rotate(90deg); }
+}
+
+@media (orientation: portrait) and (pointer: coarse) {
+    #rotate-overlay {
+        display: flex;
+    }
+}
+
+.hp-container {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.6);
+    border: 2px solid #4a00e0;
+    border-radius: 10px;
+    padding: 10px 20px;
+    box-shadow: 0 0 15px rgba(74, 0, 224, 0.5);
+}
+
+#opponent-hp-container {
+    top: 20px;
+    left: 20px;
+    border-color: #e74c3c;
+    box-shadow: 0 0 15px rgba(231, 76, 60, 0.5);
+}
+
+#self-hp-container {
+    bottom: 20px;
+    right: 20px;
+    border-color: #2ecc71;
+    box-shadow: 0 0 15px rgba(46, 204, 113, 0.5);
+}
+
+.player-name {
+    font-size: 14px;
+    color: #ccc;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.hp-value {
+    font-size: 32px;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+}
+
+#end-turn-btn {
+    position: absolute;
+    top: 50%;
+    left: 20px;
+    transform: translateY(-50%);
+    padding: 15px 40px;
+    font-family: 'Righteous', sans-serif;
+    font-size: 20px;
+    color: white;
+    background: linear-gradient(45deg, #4a00e0, #8e2de2);
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    pointer-events: auto; /* Reativa o clique pro botão */
+    box-shadow: 0 0 20px rgba(142, 45, 226, 0.6);
+    transition: all 0.3s ease;
+}
+
+#end-turn-btn:hover:not(:disabled) {
+    transform: translateY(-50%) scale(1.05);
+    box-shadow: 0 0 30px rgba(142, 45, 226, 0.9);
+}
+
+#end-turn-btn:disabled {
+    background: #555;
+    color: #999;
+    box-shadow: none;
+    cursor: not-allowed;
+}
+
+/* Efeito Vinheta de Sangue (Dano) */
+#damage-vignette {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    box-shadow: inset 0 0 150px rgba(255, 0, 0, 0);
+    transition: box-shadow 0.2s ease-in;
+    z-index: 50;
+}
+#damage-vignette.active {
+    box-shadow: inset 0 0 200px rgba(255, 0, 0, 0.9);
+    transition: box-shadow 1.5s ease-out; /* Fade out longo como jogos antigos */
+}
+
+/* Container de Texto de Dano Flutuante */
+#damage-text-container {
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 60;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.damage-text {
+    position: absolute;
+    font-family: 'Righteous', sans-serif;
+    font-size: 120px;
+    color: #ff3333;
+    text-shadow: 0 0 20px #000, 0 0 40px #ff0000;
+    opacity: 0;
+    transform: scale(0.5);
+    animation: damagePop 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes damagePop {
+    0% { opacity: 0; transform: scale(0.1) translateY(50px); }
+    20% { opacity: 1; transform: scale(1.2) translateY(0); }
+    30% { transform: scale(1.0); }
+    80% { opacity: 1; transform: scale(1.0) translateY(-20px); }
+    100% { opacity: 0; transform: scale(0.8) translateY(-50px); }
+}
+
+/* Mensagem de Fase (descarte, aguardando oponente...) */
+#phase-message {
+    position: absolute;
+    top: 60%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Righteous', sans-serif;
+    font-size: 40px;
+    color: #ff3333;
+    text-shadow: 0 0 20px #000, 0 0 10px #ff0000;
+    pointer-events: none;
+    z-index: 100;
+    animation: pulseDiscard 1s infinite alternate;
+}
+
+@keyframes pulseDiscard {
+    from { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+    to { opacity: 1.0; transform: translate(-50%, -50%) scale(1.1); }
+}
+
+/* Alerta de Cor Central */
+#color-alert {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Righteous', sans-serif;
+    font-size: 80px;
+    font-weight: bold;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px rgba(255,255,255,0.5), 0 0 40px currentColor;
+    pointer-events: none;
+    z-index: 150;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out, transform 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+#color-alert.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* Telas de Fim de Jogo */
+.game-over-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 200;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1s ease-in-out;
+}
+
+.game-over-screen {
+    flex-direction: column;
+    gap: 30px;
+}
+
+.game-over-screen.active {
+    opacity: 1;
+}
+
+.game-over-reason {
+    font-size: 24px;
+    color: #eee;
+    text-shadow: 0 0 10px #000;
+}
+
+.game-over-screen .back-to-menu,
+.game-over-screen .rematch-btn {
+    pointer-events: auto;
+    width: 300px;
+}
+
+/* Pedido já enviado: aguardando o oponente */
+.game-over-screen .rematch-btn:disabled {
+    cursor: default;
+    opacity: 0.6;
+    font-size: 18px;
+}
+
+/* Aviso de revanche no canto (acima das telas de fim de jogo; abaixo do ícone de configurações) */
+.rematch-notice {
+    position: absolute;
+    top: 84px;
+    right: 20px;
+    z-index: 250;
+    max-width: calc(100vw - 40px);
+    padding: 14px 22px;
+    background: rgba(0, 0, 0, 0.85);
+    border: 2px solid #2ecc71;
+    border-radius: 12px;
+    font-family: 'Righteous', sans-serif;
+    font-size: 22px;
+    color: #fff;
+    text-shadow: 0 0 10px #000;
+    pointer-events: none;
+    animation: rematchNoticeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.rematch-notice.incoming {
+    border-color: #f1c40f;
+    animation: rematchNoticeIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), rematchNoticePulse 1s 0.4s infinite alternate;
+}
+
+@keyframes rematchNoticeIn {
+    from { opacity: 0; transform: translateX(40px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes rematchNoticePulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.05); }
+}
+
+/* =========================================
+   CONFIGURAÇÕES (ícone + painel de volume)
+   ========================================= */
+.settings-btn {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    z-index: 1150;
+    width: 64px;
+    height: 64px;
+    padding: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.55);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    border-radius: 50%;
+    cursor: pointer;
+    /* Só transform: rotação de hover é de graça pro compositor (Pilar 2) */
+    transition: transform 0.3s ease, border-color 0.3s ease;
+}
+
+.settings-btn:hover {
+    transform: rotate(45deg);
+    border-color: #8e2de2;
+}
+
+.settings-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    pointer-events: none;
+}
+
+.settings-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    background: rgba(0, 0, 0, 0.75);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.settings-panel.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.settings-content {
+    width: min(440px, 100%);
+    background: #12081f;
+    border: 2px solid #8e2de2;
+    border-radius: 16px;
+    padding: 30px;
+    box-shadow: 0 0 40px rgba(142, 45, 226, 0.5);
+    color: white;
+    text-align: center;
+}
+
+.settings-title {
+    font-family: 'Righteous', sans-serif;
+    font-size: 28px;
+    margin-bottom: 26px;
+    text-transform: uppercase;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+    text-align: left;
+}
+
+.settings-row label {
+    width: 130px;
+    flex-shrink: 0;
+    font-family: 'Righteous', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1px;
+    color: #ccc;
+    text-transform: uppercase;
+}
+
+.settings-row input[type="range"] {
+    flex: 1;
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    min-width: 0;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.15);
+    outline: none;
+}
+
+.settings-row input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #4a00e0, #8e2de2);
+    box-shadow: 0 0 10px rgba(142, 45, 226, 0.8);
+    cursor: pointer;
+}
+
+.settings-row input[type="range"]::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: linear-gradient(45deg, #4a00e0, #8e2de2);
+    box-shadow: 0 0 10px rgba(142, 45, 226, 0.8);
+    cursor: pointer;
+}
+
+.settings-value {
+    width: 44px;
+    flex-shrink: 0;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    color: #fff;
+}
+
+.settings-content .menu-btn {
+    margin-top: 10px;
+    width: 100%;
+}
+
+/* =========================================
+   SALA (CRIAR / ENTRAR)
+   ========================================= */
+.room-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1100;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 16px;
+    color: white;
+    text-align: center;
+    font-family: 'Righteous', sans-serif;
+}
+
+.room-title {
+    font-size: 32px;
+    margin-bottom: 20px;
+}
+
+.room-label {
+    font-size: 20px;
+    color: #ccc;
+}
+
+.room-code {
+    font-size: 48px;
+    color: #f1c40f;
+    letter-spacing: 5px;
+    margin: 10px 0;
+}
+
+.room-copy-btn {
+    margin-top: 15px;
+    padding: 10px 20px;
+    font-family: inherit;
+    font-size: 16px;
+    background: #3498db;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.room-warning {
+    margin: 15px auto 0;
+    max-width: 480px;
+    font-size: 14px;
+    color: #f39c12;
+}
+
+.room-waiting {
+    margin-top: 20px;
+    font-size: 18px;
+    animation: blink 1.5s infinite;
+}
+
+.room-status {
+    margin-top: 20px;
+    color: #bbb;
+}
+
+.room-status.error {
+    color: #e74c3c;
+}
+
+.room-cancel {
+    margin-top: 30px;
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    text-decoration: underline;
+    font-family: inherit;
+}
+
+.name-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: min(320px, 100%);
+}
+
+.name-input {
+    padding: 14px 16px;
+    font-family: inherit;
+    font-size: 22px;
+    text-align: center;
+    color: white;
+    background: rgba(255, 255, 255, 0.08);
+    border: 2px solid #8e2de2;
+    border-radius: 10px;
+    outline: none;
+}
+
+.name-input:focus {
+    border-color: #ff007f;
+    box-shadow: 0 0 15px rgba(255, 0, 127, 0.5);
+}
+
+@keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+}
+
+/* Banner de estado da conexão (instável, reconectando, perdida) */
+.connection-banner {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    max-width: calc(100vw - 32px);
+    padding: 10px 20px;
+    background: rgba(0, 0, 0, 0.8);
+    border: 2px solid #f39c12;
+    border-radius: 10px;
+    color: #f1c40f;
+    font-size: 16px;
+    z-index: 300;
+    pointer-events: none;
+}
+
+.connection-banner.error {
+    border-color: #e74c3c;
+    color: #ff6b6b;
+}
+
+.banner-btn {
+    pointer-events: auto;
+    padding: 6px 14px;
+    font-family: inherit;
+    background: #e74c3c;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+#victory-screen {
+    background: rgba(0, 20, 0, 0.4);
+    animation: flashVictory 2s infinite alternate;
+}
+
+#victory-screen h1 {
+    font-family: 'Righteous', sans-serif;
+    font-size: 100px;
+    color: #2ecc71;
+    text-shadow: 0 0 30px #2ecc71, 0 0 50px #f1c40f, 0 0 100px #f1c40f;
+    animation: scalePulse 1.5s infinite alternate;
+}
+
+#defeat-screen {
+    background: rgba(40, 0, 0, 0.8);
+}
+
+#defeat-screen h1 {
+    font-family: 'Righteous', sans-serif;
+    font-size: 100px;
+    color: #e74c3c;
+    text-shadow: 0 0 30px #c0392b, 0 0 50px #000, 0 0 100px #000;
+    animation: shudder 0.5s infinite;
+}
+
+@keyframes flashVictory {
+    from { background: rgba(0, 50, 0, 0.3); }
+    to { background: rgba(0, 100, 0, 0.6); }
+}
+
+@keyframes scalePulse {
+    from { transform: scale(1); }
+    to { transform: scale(1.1); }
+}
+
+@keyframes shudder {
+    0% { transform: translate(2px, 1px) rotate(0deg); }
+    10% { transform: translate(-1px, -2px) rotate(-1deg); }
+    20% { transform: translate(-3px, 0px) rotate(1deg); }
+    30% { transform: translate(0px, 2px) rotate(0deg); }
+    40% { transform: translate(1px, -1px) rotate(1deg); }
+    50% { transform: translate(-1px, 2px) rotate(-1deg); }
+    60% { transform: translate(-3px, 1px) rotate(0deg); }
+    70% { transform: translate(2px, 1px) rotate(-1deg); }
+    80% { transform: translate(-1px, -1px) rotate(1deg); }
+    90% { transform: translate(2px, 2px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+}
+
+/* =========================================
+   MAIN MENU STYLES
+   ========================================= */
+#main-menu {
+    position: fixed;
+    inset: 0;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    background-color: #050510;
+}
+
+.menu-bg {
+    position: absolute;
+    top: -50%; left: -50%; width: 200%; height: 200%;
+    background: radial-gradient(circle at 20% 30%, #4a00e0, transparent 40%),
+                radial-gradient(circle at 80% 70%, #8e2de2, transparent 40%),
+                radial-gradient(circle at 50% 50%, #150030, transparent 50%);
+    animation: menuBgRotate 20s linear infinite;
+    z-index: 1;
+}
+
+@keyframes menuBgRotate {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.2); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+.menu-content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 50px;
+}
+
+.game-title {
+    font-size: 100px;
+    font-weight: 900;
+    color: #fff;
+    text-transform: uppercase;
+    letter-spacing: 5px;
+    text-shadow: 0 0 10px #8e2de2, 0 0 20px #8e2de2, 0 0 40px #4a00e0, 0 0 80px #4a00e0;
+    animation: titleGlow 2s ease-in-out infinite alternate, titleFloat 4s ease-in-out infinite;
+}
+
+@keyframes titleGlow {
+    from { text-shadow: 0 0 10px #8e2de2, 0 0 20px #8e2de2, 0 0 30px #4a00e0; }
+    to { text-shadow: 0 0 20px #8e2de2, 0 0 40px #8e2de2, 0 0 60px #4a00e0, 0 0 100px #4a00e0, 0 0 150px #fff; }
+}
+
+@keyframes titleFloat {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+}
+
+.menu-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 300px;
+}
+
+.menu-btn {
+    padding: 20px;
+    font-family: 'Righteous', sans-serif;
+    font-size: 24px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    color: white;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+}
+
+.menu-btn::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%; width: 100%; height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s ease;
+}
+
+.menu-btn:hover:not(:disabled)::before {
+    left: 100%;
+}
+
+.menu-btn.primary {
+    background: linear-gradient(45deg, #ff007f, #7928ca);
+    border: 2px solid #ff007f;
+}
+
+.menu-btn.primary:hover {
+    transform: scale(1.1);
+    box-shadow: 0 15px 30px rgba(255, 0, 127, 0.6);
+}
+
+.menu-btn.secondary {
+    background: linear-gradient(45deg, #1f1c2c, #928dab);
+    border: 2px solid #555;
+}
+
+.menu-btn.secondary:hover:not(:disabled) {
+    transform: scale(1.05);
+}
+
+.menu-btn:disabled {
+    background: #222;
+    color: #666;
+    border-color: #333;
+    cursor: not-allowed;
+    box-shadow: none;
+}
