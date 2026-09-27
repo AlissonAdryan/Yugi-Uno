@@ -2,6 +2,10 @@ node_modules/
 não/
 npm-debug.log*
 
+# Instruções de projeto p/ assistentes de IA: ficam só localmente, fora do repositório
+CLAUDE.md
+GEMINI.md
+
 # SO / editor
 .DS_Store
 Thumbs.db
