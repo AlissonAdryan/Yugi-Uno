@@ -17,6 +17,20 @@
     --bg-1-next: #290f61;
     --bg-2-next: #152066;
     --bg-3-next: #37064a;
+
+    /*
+     * Configuração do plasma de fundo (ver bloco "Plasma Background" abaixo). Ajuste livremente:
+     * - RAIO: tamanho de cada círculo (não precisa cobrir a tela sozinho — o fundo sólido já cobre).
+     * - VIAGEM: o quanto cada círculo se desloca pela tela durante a animação (o alcance do passeio).
+     * - VELOCIDADE: duração de um ciclo completo, um valor por círculo (diferentes = não sincronizam).
+     * - OPACIDADE: intensidade do tom mais claro/escuro sobre o fundo — baixo de propósito (bem sutil).
+     */
+    --plasma-blob-radius: 26vmax;
+    --plasma-travel: 32vmax;
+    --plasma-speed-light: 24s;
+    --plasma-speed-dark: 30s;
+    --plasma-light-opacity: 1;
+    --plasma-dark-opacity: 1;
 }
 
 body {
@@ -26,42 +40,82 @@ body {
     touch-action: none; /* Prevent default touch actions like zoom on mobile */
     font-family: 'Righteous', sans-serif;
     color: white;
-    background-color: #050510;
+    background-color: #19196b;
 }
 
 /*
- * Plasma Background
- * Pilar 2: animando apenas "transform" (rotação) e "opacity" (troca de cor), 100% compositor/GPU.
- * A troca de cor da rodada NUNCA interpola o gradiente em si (isso forçaria Recalculate Style + Paint
- * da tela inteira a cada frame) — em vez disso, duas camadas idênticas se sobrepõem e a de cima
- * (com a cor nova já pronta) sobe de opacity 0 a 1. Ver Hud.crossfadeBackground().
+ * Plasma Background — fundo sólido (cobertura garantida, em qualquer proporção de tela, sem exceção)
+ * + 2 círculos suaves passeando por cima, um tom mais claro e um mais escuro que o fundo, pra dar
+ * impressão de movimento. As cores vêm da mesma paleta da cor da rodada (--bg-1/2/3 já existentes:
+ * --bg-2 é a variação mais clara, --bg-3 a mais escura — ver CONFIG.COLOR_PALETTES), então o efeito
+ * já acompanha a cor certa sozinho. Baixa opacidade (--plasma-*-opacity) deixa o tom bem sutil.
+ *
+ * Troca de cor da rodada: mesmo mecanismo de sempre — duas camadas idênticas (.plasma-layer--base/
+ * --incoming) se sobrepõem e a de cima sobe de opacity 0 a 1 (só opacity muda, nunca a cor em si,
+ * então nunca força Recalculate Style/repaint). Ver Hud.crossfadeBackground().
  */
 .plasma-bg {
     position: fixed;
-    top: -50%;
-    left: -50%;
-    width: 200%;
-    height: 200%;
-    animation: plasmaRotate 30s linear infinite;
+    inset: 0;
+    overflow: hidden;
     z-index: -1;
+    background-color: #050510; /* rede de segurança: mesma cor do body, redundante com .plasma-base */
 }
-.plasma-bg--base {
-    background: radial-gradient(circle at 50% 50%, var(--bg-1), transparent 40%),
-                radial-gradient(circle at 30% 70%, var(--bg-2), transparent 40%),
-                radial-gradient(circle at 70% 30%, var(--bg-3), transparent 40%);
+
+.plasma-layer {
+    position: absolute;
+    inset: 0;
 }
-.plasma-bg--incoming {
-    background: radial-gradient(circle at 50% 50%, var(--bg-1-next), transparent 40%),
-                radial-gradient(circle at 30% 70%, var(--bg-2-next), transparent 40%),
-                radial-gradient(circle at 70% 30%, var(--bg-3-next), transparent 40%);
+
+.plasma-layer--incoming {
     opacity: 0;
     transition: opacity 1.5s ease-in-out;
 }
 
-@keyframes plasmaRotate {
-    0% { transform: rotate(0deg) scale(1); }
-    50% { transform: rotate(180deg) scale(1.1); }
-    100% { transform: rotate(360deg) scale(1); }
+/* Preenchimento sólido: cobre 100% da tela sempre, em qualquer proporção — sem gradiente, sem "canto". */
+.plasma-base {
+    position: absolute;
+    inset: 0;
+}
+.plasma-layer--base .plasma-base { background-color: var(--bg-1); }
+.plasma-layer--incoming .plasma-base { background-color: var(--bg-1-next); }
+
+.plasma-blob {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: calc(var(--plasma-blob-radius) * 2);
+    height: calc(var(--plasma-blob-radius) * 2);
+    margin-left: calc(var(--plasma-blob-radius) * -1);
+    margin-top: calc(var(--plasma-blob-radius) * -1);
+    will-change: transform;
+}
+
+.plasma-blob--light { animation: plasmaTravelLight var(--plasma-speed-light) ease-in-out infinite; }
+.plasma-blob--dark { animation: plasmaTravelDark var(--plasma-speed-dark) ease-in-out infinite; }
+
+.plasma-layer--base .plasma-blob--light { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-2), transparent); opacity: var(--plasma-light-opacity); }
+.plasma-layer--base .plasma-blob--dark { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-3), transparent); opacity: var(--plasma-dark-opacity); }
+.plasma-layer--incoming .plasma-blob--light { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-2-next), transparent); opacity: var(--plasma-light-opacity); }
+.plasma-layer--incoming .plasma-blob--dark { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-3-next), transparent); opacity: var(--plasma-dark-opacity); }
+
+/*
+ * Cada círculo passeia por 4 pontos (±--plasma-travel) formando um caminho meio circular/irregular.
+ * SEM translate(-50%,-50%) aqui: a centralização já é feita pela margem negativa em .plasma-blob.
+ */
+@keyframes plasmaTravelLight {
+    0%   { transform: translate(calc(var(--plasma-travel) * -0.9), calc(var(--plasma-travel) * -0.55)) scale(1); }
+    25%  { transform: translate(calc(var(--plasma-travel) * 0.85), calc(var(--plasma-travel) * -0.75)) scale(1.08); }
+    50%  { transform: translate(var(--plasma-travel), calc(var(--plasma-travel) * 0.65)) scale(0.94); }
+    75%  { transform: translate(calc(var(--plasma-travel) * -0.75), var(--plasma-travel)) scale(1.05); }
+    100% { transform: translate(calc(var(--plasma-travel) * -0.9), calc(var(--plasma-travel) * -0.55)) scale(1); }
+}
+@keyframes plasmaTravelDark {
+    0%   { transform: translate(calc(var(--plasma-travel) * 0.8), calc(var(--plasma-travel) * 0.6)) scale(1); }
+    25%  { transform: translate(calc(var(--plasma-travel) * -0.9), calc(var(--plasma-travel) * 0.5)) scale(0.92); }
+    50%  { transform: translate(calc(var(--plasma-travel) * -0.65), calc(var(--plasma-travel) * -0.8)) scale(1.07); }
+    75%  { transform: translate(var(--plasma-travel), calc(var(--plasma-travel) * -0.45)) scale(0.97); }
+    100% { transform: translate(calc(var(--plasma-travel) * 0.8), calc(var(--plasma-travel) * 0.6)) scale(1); }
 }
 
 /* Fixed + inset 0 acompanha a área visível real (inclusive barras do navegador no celular) */
@@ -104,7 +158,8 @@ body {
 .room-modal > *,
 .settings-btn,
 .settings-content,
-.rematch-notice {
+.rematch-notice,
+.color-picker-float {
     zoom: var(--ui-scale, 1);
 }
 
@@ -294,6 +349,213 @@ body {
 #color-alert.show {
     opacity: 1;
     transform: translate(-50%, -50%) scale(1.2);
+}
+
+/* =========================================
+   ESCOLHA DE COR (perdedor da rodada)
+   Uma "carta Trocar Cor" gigante: mesmo fundo preto, mesmo círculo de 4 cores nas mesmas posições.
+   Só transform/opacity animam (Pilar 2); o brilho de cada fatia é um pseudo-elemento que só muda opacity.
+   ========================================= */
+.color-picker {
+    position: absolute;
+    inset: 0;
+    z-index: 170;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: auto;
+    animation: pickerFadeIn 0.3s ease-out;
+}
+
+.color-picker.closing {
+    animation: pickerFadeOut 0.26s ease-in forwards;
+}
+
+.color-picker-float {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    animation: pickerFloat 3s ease-in-out 0.6s infinite alternate;
+}
+
+.color-picker-title {
+    font-family: 'Righteous', sans-serif;
+    font-size: 30px;
+    letter-spacing: 2px;
+    color: #fff;
+    text-shadow: 0 0 12px rgba(255, 255, 255, 0.6), 0 0 26px #8e2de2;
+    animation: pickerTitleIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+/* Mesma proporção 2:3 das cartas do jogo */
+.color-picker-card {
+    position: relative;
+    width: 220px;
+    height: 330px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #111111;
+    border: 3px solid #fff;
+    border-radius: 22px;
+    box-shadow: 0 0 40px rgba(142, 45, 226, 0.55), 0 20px 40px rgba(0, 0, 0, 0.6);
+    animation: pickerCardFlip 0.55s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
+}
+
+.color-picker.closing .color-picker-card {
+    animation: pickerCardOut 0.26s ease-in forwards;
+}
+
+.color-wheel {
+    position: relative;
+    display: grid;
+    grid-template-columns: repeat(2, 84px);
+    grid-template-rows: repeat(2, 84px);
+    gap: 5px;
+}
+
+/* Anel branco em volta do círculo, igual ao da carta */
+.color-wheel::after {
+    content: '';
+    position: absolute;
+    inset: -7px;
+    border: 3px solid #fff;
+    border-radius: 50%;
+    pointer-events: none;
+}
+
+.wheel-slice {
+    --out-x: 0;
+    --out-y: 0;
+    position: relative;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: var(--slice-color);
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease;
+}
+
+/* Cada fatia é um quadrado com o canto de fora arredondado 100%: juntas formam o círculo */
+.wheel-slice--tl { border-top-left-radius: 100%; --out-x: -1; --out-y: -1; }
+.wheel-slice--tr { border-top-right-radius: 100%; --out-x: 1; --out-y: -1; }
+.wheel-slice--bl { border-bottom-left-radius: 100%; --out-x: -1; --out-y: 1; }
+.wheel-slice--br { border-bottom-right-radius: 100%; --out-x: 1; --out-y: 1; }
+
+.wheel-slice::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 22px 4px var(--slice-color), inset 0 0 0 3px rgba(255, 255, 255, 0.9);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+}
+
+/* Cor que não é comum aos dois jogadores: cinza escuro, sem destaque, não clicável */
+.wheel-slice:disabled {
+    background: #2b2b30;
+    cursor: not-allowed;
+}
+
+/* A fatia em destaque "salta" para fora e para cima; as outras recuam um pouco */
+@media (hover: hover) {
+    .wheel-slice:not(:disabled):hover {
+        z-index: 1;
+        transform: translate(calc(var(--out-x) * 7px), calc(var(--out-y) * 7px - 8px)) scale(1.12);
+    }
+    .wheel-slice:not(:disabled):hover::after {
+        opacity: 1;
+    }
+    .color-wheel:has(.wheel-slice:not(:disabled):hover) .wheel-slice:not(:hover) {
+        opacity: 0.55;
+    }
+}
+
+.wheel-slice:not(:disabled):focus-visible {
+    z-index: 1;
+    outline: none;
+    transform: translate(calc(var(--out-x) * 7px), calc(var(--out-y) * 7px - 8px)) scale(1.12);
+}
+
+.wheel-slice:not(:disabled):focus-visible::after {
+    opacity: 1;
+}
+
+.wheel-slice.chosen {
+    z-index: 1;
+    transform: translate(calc(var(--out-x) * 10px), calc(var(--out-y) * 10px - 12px)) scale(1.22);
+}
+
+.wheel-slice.chosen::after {
+    opacity: 1;
+}
+
+.color-wheel.locked {
+    pointer-events: none;
+}
+
+.color-wheel.locked .wheel-slice:not(.chosen) {
+    opacity: 0.25;
+}
+
+/* Tempo restante para escolher (depois disso o servidor sorteia) */
+.color-picker-timer {
+    position: absolute;
+    left: 22px;
+    right: 22px;
+    bottom: 20px;
+    height: 5px;
+    overflow: hidden;
+    border-radius: 3px;
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.color-picker-timer-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #ff007f, #8e2de2);
+    transform-origin: left center;
+    animation: pickerTimer var(--choice-ms, 20s) linear forwards;
+}
+
+@keyframes pickerFadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes pickerFadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes pickerCardFlip {
+    from { opacity: 0; transform: perspective(900px) rotateY(95deg) scale(0.7); }
+    60% { opacity: 1; }
+    to { opacity: 1; transform: perspective(900px) rotateY(0deg) scale(1); }
+}
+
+@keyframes pickerCardOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.85); }
+}
+
+@keyframes pickerTitleIn {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pickerFloat {
+    from { transform: translateY(0); }
+    to { transform: translateY(-6px); }
+}
+
+@keyframes pickerTimer {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
 }
 
 /* Telas de Fim de Jogo */
@@ -713,24 +975,26 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 1000;
-    background-color: #050510;
+    /* Roxo intermediário entre o claro (#8e2de2) e o escuro (#150030) dos círculos — mesma
+       relação que --bg-1 tem com --bg-2/--bg-3 no fundo da partida (mesmo DEFAULT_BACKGROUND). */
+    background-color: #2e197c;
 }
 
+/*
+ * Mesma abordagem do fundo da partida (ver bloco "Plasma Background" no topo do arquivo): a cor
+ * sólida do #main-menu já cobre 100% da tela sozinha, em qualquer proporção — os 2 círculos
+ * (.plasma-blob, reaproveitados) só passeiam por cima, dando a impressão de movimento. Sem crossfade
+ * aqui porque o menu não tem "cor da rodada" pra trocar; as cores ficam fixas no tema roxo do menu.
+ */
 .menu-bg {
     position: absolute;
-    top: -50%; left: -50%; width: 200%; height: 200%;
-    background: radial-gradient(circle at 20% 30%, #4a00e0, transparent 40%),
-                radial-gradient(circle at 80% 70%, #8e2de2, transparent 40%),
-                radial-gradient(circle at 50% 50%, #150030, transparent 50%);
-    animation: menuBgRotate 20s linear infinite;
+    inset: 0;
+    overflow: hidden;
     z-index: 1;
 }
 
-@keyframes menuBgRotate {
-    0% { transform: rotate(0deg) scale(1); }
-    50% { transform: rotate(180deg) scale(1.2); }
-    100% { transform: rotate(360deg) scale(1); }
-}
+.menu-bg .plasma-blob--light { background: radial-gradient(circle var(--plasma-blob-radius) at center, #5421b4, transparent); opacity: var(--plasma-light-opacity); }
+.menu-bg .plasma-blob--dark { background: radial-gradient(circle var(--plasma-blob-radius) at center, #250055, transparent); opacity: var(--plasma-dark-opacity); }
 
 .menu-content {
     position: relative;
@@ -807,7 +1071,7 @@ body {
 }
 
 .menu-btn.secondary {
-    background: linear-gradient(45deg, #1f1c2c, #928dab);
+    background: linear-gradient(45deg, #0b0038, #227ed4);
     border: 2px solid #555;
 }
 

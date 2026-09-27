@@ -21,7 +21,7 @@ import { ZONE, ZONE_COUNT, mirrorZone, zoneSeat } from '../utils/zones.js';
  * o que garante que eventos e snapshots cheguem na mesma ordem em que o host os gerou.
  */
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const MSG = Object.freeze({
     SNAPSHOT: 1,
@@ -39,7 +39,8 @@ export const INPUT = Object.freeze({
     READY: 4,
     DISCARD: 5,
     SET_NAME: 6,         // { name }  (aceito em qualquer fase, sem seq)
-    REMATCH: 7           // {}  (só na fase GAME_OVER; com os dois pedidos, uma nova partida começa)
+    REMATCH: 7,          // {}  (só na fase GAME_OVER; com os dois pedidos, uma nova partida começa)
+    CHOOSE_COLOR: 8      // { color }  (só na fase CHOOSING_COLOR, só de quem escolhe, só cor em comum)
 });
 
 export const EVENT = Object.freeze({
@@ -71,7 +72,9 @@ export const SNAPSHOT_FLAGS = Object.freeze({
     SELF_DEFENSE_LOCKED: 4,
     OPP_DEFENSE_LOCKED: 8,
     SELF_REMATCH: 16,
-    OPP_REMATCH: 32
+    OPP_REMATCH: 32,
+    SELF_CHOOSING_COLOR: 64,
+    OPP_CHOOSING_COLOR: 128
 });
 
 /**
@@ -106,10 +109,12 @@ export function localizeEvent(event, viewerSeat) {
 //  7 i16 HP próprio | 9 i16 HP oponente | 11 u8 cor ativa própria | 12 u8 flags
 // 13 u8 descartes próprios | 14 u8 descartes do oponente | 15 u8 resultado
 // 16 u16 cartas no baralho | 18 u16 quantidade de cartas | 20 u16 último input processado (ack)
+// 22 u8 cores que podem ser escolhidas (máscara de colorBit; só chega para quem está escolhendo)
 // Carta (7 bytes): u16 id | u8 zona relativa | u8 ordem na zona | u8 tipo | u8 cor | i8 poder
-// A cor ativa do oponente NÃO é enviada (o uso de Trocar Cor é secreto).
+// A cor ativa do oponente NÃO é enviada (o uso de Trocar Cor é secreto), nem as cores em comum para
+// quem não está escolhendo (elas revelam um pouco da mão do oponente).
 
-const HEADER_BYTES = 22;
+const HEADER_BYTES = 23;
 const CARD_BYTES = 7;
 const SEQ_OFFSET = 2;
 export const SNAPSHOT_MAX_BYTES = HEADER_BYTES + CARD_BYTES * CONFIG.DECK_SIZE;
@@ -131,6 +136,7 @@ export class SnapshotView {
         this.deckCount = 0;
         this.cardCount = 0;
         this.ackSeq = 0;
+        this.colorChoices = 0;
         this.ids = new Uint16Array(capacity);
         this.zone = new Uint8Array(capacity);
         this.order = new Uint8Array(capacity);
@@ -194,6 +200,11 @@ export function encodeSnapshot(state, viewerSeat, seq, ackSeq, scratch) {
     if (state.rematch[viewerSeat]) flags |= SNAPSHOT_FLAGS.SELF_REMATCH;
     if (state.rematch[oppSeat]) flags |= SNAPSHOT_FLAGS.OPP_REMATCH;
 
+    const choosing = state.phase === CONFIG.GAME_STATES.CHOOSING_COLOR;
+    const viewerChooses = choosing && state.colorChooser === viewerSeat;
+    if (viewerChooses) flags |= SNAPSHOT_FLAGS.SELF_CHOOSING_COLOR;
+    if (choosing && state.colorChooser === oppSeat) flags |= SNAPSHOT_FLAGS.OPP_CHOOSING_COLOR;
+
     let result = GAME_RESULT.NONE;
     if (state.winner >= 0) result = state.winner === viewerSeat ? GAME_RESULT.VICTORY : GAME_RESULT.DEFEAT;
 
@@ -212,6 +223,7 @@ export function encodeSnapshot(state, viewerSeat, seq, ackSeq, scratch) {
     scratch.setUint16(16, state.zones[ZONE.DECK].length);
     scratch.setUint16(18, count);
     scratch.setUint16(20, ackSeq);
+    scratch.setUint8(22, viewerChooses ? state.colorChoices : 0);
 
     return new Uint8Array(scratch.buffer.slice(0, offset));
 }
@@ -264,6 +276,7 @@ export function decodeSnapshot(data, view) {
     view.deckCount = dv.getUint16(16);
     view.cardCount = count;
     view.ackSeq = dv.getUint16(20);
+    view.colorChoices = dv.getUint8(22);
 
     let offset = HEADER_BYTES;
     for (let i = 0; i < count; i++) {

@@ -5,7 +5,7 @@ import { SFX } from '../config/sound-presets.js';
 
 const COLOR_ALERT_MS = 1500;
 const FLOATING_TEXT_MS = 1500;
-// Deve bater com a duração de `transition: opacity` de .plasma-bg--incoming em style.css
+// Deve bater com a duração de `transition: opacity` de .plasma-layer--incoming em style.css
 const BG_FADE_MS = 1500;
 
 const CONNECTION_TEXT = {

@@ -76,7 +76,7 @@ export const SOUND_PRESETS = Object.freeze({
         sequence: { step: 0.045, semitones: [0, 2, -1, 3, 1, 4, 0, 5, 2, 6] }
     },
     REVEAL: {
-        duration: 0.5, volume: 0.05,
+        duration: 0.5, volume: 0.03,
         envelope: { attack: 0.005, decay: 0.2, sustain: 0.3, release: 0.25 },
         layers: [
             { kind: 'fm', freq: 'E6', modRatio: 3.5, modIndex: 2.5, modIndexEnd: 0.2 },

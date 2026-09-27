@@ -45,7 +45,10 @@
 
     <!-- Menu Principal -->
     <div id="main-menu">
-        <div class="menu-bg"></div>
+        <div class="menu-bg">
+            <div class="plasma-blob plasma-blob--light"></div>
+            <div class="plasma-blob plasma-blob--dark"></div>
+        </div>
         <div class="menu-content">
             <h1 class="game-title">YUGI-UNO!</h1>
             <div class="menu-buttons">
@@ -82,8 +85,18 @@
     </div>
 
     <div id="game-container" hidden>
-        <div class="plasma-bg plasma-bg--base"></div>
-        <div id="plasma-bg-incoming" class="plasma-bg plasma-bg--incoming"></div>
+        <div class="plasma-bg">
+            <div class="plasma-layer plasma-layer--base">
+                <div class="plasma-base"></div>
+                <div class="plasma-blob plasma-blob--light"></div>
+                <div class="plasma-blob plasma-blob--dark"></div>
+            </div>
+            <div id="plasma-bg-incoming" class="plasma-layer plasma-layer--incoming">
+                <div class="plasma-base"></div>
+                <div class="plasma-blob plasma-blob--light"></div>
+                <div class="plasma-blob plasma-blob--dark"></div>
+            </div>
+        </div>
         <canvas id="game-canvas"></canvas>
 
         <div id="ui-layer">
@@ -103,6 +116,17 @@
             <div id="damage-text-container"></div>
 
             <div id="color-alert"></div>
+
+            <!-- Escolha de cor do perdedor da rodada: uma "carta Trocar Cor" gigante; fatias montadas em color-picker.js -->
+            <div id="color-picker" class="color-picker" hidden>
+                <div class="color-picker-float">
+                    <p class="color-picker-title">ESCOLHA A PRÓXIMA COR</p>
+                    <div class="color-picker-card">
+                        <div id="color-wheel" class="color-wheel"></div>
+                        <div class="color-picker-timer"><div class="color-picker-timer-bar"></div></div>
+                    </div>
+                </div>
+            </div>
 
             <div id="phase-message" hidden></div>
 

@@ -66,7 +66,7 @@ export const CONFIG = Object.freeze({
         null,
         { name: 'QUALQUER COR!', bg: ['#661515', '#153366', '#156620'] }
     ]),
-    DEFAULT_BACKGROUND: Object.freeze(['#290f61', '#152066', '#37064a']),
+    DEFAULT_BACKGROUND: Object.freeze(['#1e0f61', '#152066', '#37064a']),
 
     CARD_TYPES,
 
@@ -104,7 +104,9 @@ export const CONFIG = Object.freeze({
         COMBAT_RESOLUTION: 3,
         DISCARDING: 4,
         FORCED_DISCARDING: 5,
-        GAME_OVER: 6
+        GAME_OVER: 6,
+        // Perdedor da rodada (que levou dano) escolhe a próxima cor entre as cores em comum
+        CHOOSING_COLOR: 7
     }),
 
     // Pausas do servidor (ms). Cada pausa é >= à animação correspondente no cliente,
@@ -124,7 +126,8 @@ export const CONFIG = Object.freeze({
         ROUND_END_PAUSE: 700,
         NEXT_ROUND_DELAY: 600,
         FORCED_REDRAW_DELAY: 700,
-        GAME_OVER_SEQUENCE: 3000
+        GAME_OVER_SEQUENCE: 3000,
+        COLOR_CHOICE_TIMEOUT: 10000
     }),
 
     ANIM: Object.freeze({

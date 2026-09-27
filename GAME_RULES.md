@@ -49,7 +49,15 @@ O combate termina quando pelo menos um dos lados ficar sem vida ou sem cartas.
 
 ## 5. Sorteio de Cor e Descarte Forçado
 - **Seleção de Cor:** No início de cada rodada (antes da fase de preparação), o jogo faz uma verificação das cores disponíveis na mão de ambos os jogadores. Uma cor que seja comum a ambos é sorteada aleatoriamente.
-- **Mudança de Fundo:** O fundo do cenário muda para refletir a cor sorteada e o nome da cor pisca no centro da tela.
+- **Escolha do Perdedor:** Se na rodada anterior um jogador perdeu levando **pelo menos 1 de dano na vida (-X ♥)**, é ele quem escolhe a cor da nova rodada, em vez do sorteio.
+  - Aparece no centro da tela uma carta de "Trocar Cor" com as 4 cores nas mesmas posições da carta. Só as cores **comuns aos dois jogadores** ficam acesas e podem ser escolhidas; as demais ficam em cinza escuro e não reagem.
+  - Enquanto isso, o oponente vê o aviso de que a cor está sendo escolhida.
+  - Block e Reverso atingindo a vida não causam dano numérico, então não dão direito à escolha. Sem dano na rodada, a cor é sorteada.
+  - Quando a vez de escolher é da CPU, ela escolhe ao acaso entre as cores disponíveis.
+  - Se houver só uma cor em comum, ela é usada direto (não há o que escolher).
+  - O jogador tem 20 segundos para escolher; depois disso a cor é sorteada entre as disponíveis.
+  - Se não houver nenhuma cor em comum, acontece o Descarte Forçado normalmente e o direito à escolha continua valendo para o próximo sorteio.
+- **Mudança de Fundo:** O fundo do cenário muda para refletir a cor sorteada (ou escolhida) e o nome da cor pisca no centro da tela.
 - **Restrição de Jogada:** Durante aquele turno, os jogadores SÓ podem posicionar cartas no tabuleiro que sejam da cor sorteada (tentar jogar outra cor faz a carta tremer e voltar para a mão).
 - **Cartas Especiais (Sem Cor):** Cartas Especiais (como Coringa ou +4) não possuem cor vinculada, portanto podem ser jogadas sobre qualquer cor escolhida na rodada. No entanto, elas não contam como "Cores em comum" durante o sorteio do sistema.
 - **Espelho de Defesa (Mesma Carta, Outra Cor):** Se a carta posicionada no Slot de Ataque possuir cor, o Slot de Defesa passa a aceitar também a **mesma carta em qualquer outra cor**, mesmo fora da cor sorteada.

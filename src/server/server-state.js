@@ -31,6 +31,9 @@ export class ServerState {
         this.phase = CONFIG.GAME_STATES.INIT;
         this.round = 0;
         this.winner = -1;
+        // Assento que escolhe a próxima cor (-1 = sorteio) e as cores que ele pode escolher (máscara)
+        this.colorChooser = -1;
+        this.colorChoices = 0;
 
         this.reset();
     }
@@ -53,6 +56,8 @@ export class ServerState {
         this.phase = CONFIG.GAME_STATES.INIT;
         this.round = 0;
         this.winner = -1;
+        this.colorChooser = -1;
+        this.colorChoices = 0;
     }
 
     isValidCard(id) {

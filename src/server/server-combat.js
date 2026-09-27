@@ -24,6 +24,8 @@ export class ServerCombat {
         this.engine = engine;
         this.roundWinner = -1;
         this.gameWinner = -1;
+        // Dano numérico (-X ♥) que cada assento levou na rodada; Block/Reverso na vida não contam
+        this.damageTaken = new Int16Array(2);
     }
 
     /**
@@ -33,6 +35,7 @@ export class ServerCombat {
         const s = this.state;
         this.roundWinner = -1;
         this.gameWinner = -1;
+        this.damageTaken.fill(0);
 
         await this.revealCards([...s.zone(SEAT.P1, ATTACK), ...s.zone(SEAT.P2, ATTACK)], TIMINGS.REVEAL);
 
@@ -279,6 +282,7 @@ export class ServerCombat {
                 console.log(`[ServerCombat] Dano direto de P${attacker + 1}: -${damage} HP em P${target + 1}`);
                 this.engine.emit(EVENT.DIRECT_HIT, { cardId, seat: attacker, damage, effect: HIT_EFFECT.NONE });
                 s.hp[target] = Math.max(0, s.hp[target] - damage);
+                this.damageTaken[target] += damage;
                 s.moveCard(cardId, seatZone(attacker, HAND));
             }
 

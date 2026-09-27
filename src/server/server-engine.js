@@ -3,7 +3,7 @@ import { ServerState } from './server-state.js';
 import { ServerCombat } from './server-combat.js';
 import { DeckSystem } from '../systems/deck-system.js';
 import {
-    canPlayOnCombatSlot, colorBit, handLimitExcess, isConsumable, pickColorFromMask, roundDrawsFor
+    canPlayOnCombatSlot, colorBit, colorCount, handLimitExcess, isConsumable, pickColorFromMask, roundDrawsFor
 } from '../systems/rules.js';
 import {
     SEAT, ZONE_OFFSET, isCombatOffset, isValidZone, mirrorZone, seatZone, zoneOffset, zoneSeat
@@ -44,6 +44,8 @@ export class ServerEngine {
         this.timers = new Set();
         this.names = ['', ''];
         this.startRequested = false;
+        // Invalida timeouts de escolha de cor antigos (cada abertura da escolha gera um novo token)
+        this.colorChoiceToken = 0;
 
         this._flushMicrotask = () => {
             if (!this.flushPending) return;
@@ -94,16 +96,14 @@ export class ServerEngine {
 
         const common = s.handColorMask(SEAT.P1, colorBit) & s.handColorMask(SEAT.P2, colorBit);
         if (common !== 0) {
+            // Só abre a escolha se houver o que escolher; com uma única cor em comum, ela já é a cor
+            if (s.colorChooser >= 0 && colorCount(common) > 1) {
+                this.openColorChoice(common);
+                return;
+            }
             const color = pickColorFromMask(common);
             console.log(`[Server] Rodada ${s.round + 1}: cor sorteada ${CONFIG.COLOR_PALETTES[color].name}`);
-            this.emit(EVENT.COLOR_CHOSEN, { color });
-            s.activeColor[SEAT.P1] = color;
-            s.activeColor[SEAT.P2] = color;
-            s.ready.fill(0);
-            s.discardsNeeded.fill(0);
-            s.round++;
-            s.phase = GAME_STATES.PLAYING;
-            this.markDirty();
+            this.commitColor(color);
             return;
         }
 
@@ -115,6 +115,40 @@ export class ServerEngine {
             s.discardsNeeded[seat] = count;
             s.drawsOwed[seat] = count;
         }
+        this.markDirty();
+    }
+
+    /** O perdedor da rodada escolhe a cor entre as cores em comum (as demais ficam indisponíveis). */
+    openColorChoice(common) {
+        const s = this.state;
+        const seat = s.colorChooser;
+        console.log(`[Server] Rodada ${s.round + 1}: P${seat + 1} escolhe a cor (máscara ${common.toString(2)}).`);
+        s.colorChoices = common;
+        s.phase = GAME_STATES.CHOOSING_COLOR;
+        this.markDirty();
+
+        const token = ++this.colorChoiceToken;
+        this.schedule(() => {
+            if (s.phase !== GAME_STATES.CHOOSING_COLOR || token !== this.colorChoiceToken) return;
+            const color = pickColorFromMask(s.colorChoices);
+            console.warn(`[Server] P${seat + 1} não escolheu a tempo. Cor sorteada: ${CONFIG.COLOR_PALETTES[color].name}`);
+            this.commitColor(color);
+        }, TIMINGS.COLOR_CHOICE_TIMEOUT);
+    }
+
+    /** Define a cor da rodada (sorteada ou escolhida) e abre a fase de preparação. */
+    commitColor(color) {
+        const s = this.state;
+        this.emit(EVENT.COLOR_CHOSEN, { color });
+        s.activeColor[SEAT.P1] = color;
+        s.activeColor[SEAT.P2] = color;
+        s.ready.fill(0);
+        s.discardsNeeded.fill(0);
+        s.colorChooser = -1;
+        s.colorChoices = 0;
+        this.colorChoiceToken++;
+        s.round++;
+        s.phase = GAME_STATES.PLAYING;
         this.markDirty();
     }
 
@@ -134,6 +168,11 @@ export class ServerEngine {
             this.finishGame(outcome.gameWinner, END_REASON.HP);
             return;
         }
+
+        // Quem perdeu a rodada levando dano (-X ♥) escolhe a próxima cor; sem dano, a cor é sorteada
+        const loser = outcome.roundWinner >= 0 ? 1 - outcome.roundWinner : -1;
+        s.colorChooser = loser >= 0 && this.combat.damageTaken[loser] > 0 ? loser : -1;
+        if (s.colorChooser >= 0) console.log(`[Server] P${loser + 1} levou dano: vai escolher a próxima cor.`);
 
         await this.sleep(TIMINGS.ROUND_END_PAUSE);
         if (this.isGameOver()) return;
@@ -248,6 +287,7 @@ export class ServerEngine {
             case INPUT.DISCARD: reason = this.discardCard(seat, msg.cardId); break;
             case INPUT.SET_NAME: reason = this.setName(seat, msg.name); break;
             case INPUT.REMATCH: reason = this.requestRematch(seat); break;
+            case INPUT.CHOOSE_COLOR: reason = this.chooseColor(seat, msg.color); break;
             default: reason = 'UNKNOWN_INPUT';
         }
 
@@ -260,6 +300,17 @@ export class ServerEngine {
                 reason
             });
         }
+    }
+
+    chooseColor(seat, color) {
+        const s = this.state;
+        if (s.phase !== GAME_STATES.CHOOSING_COLOR) return 'WRONG_PHASE';
+        if (s.colorChooser !== seat) return 'NOT_YOUR_CHOICE';
+        if (!Number.isInteger(color) || (s.colorChoices & colorBit(color)) === 0) return 'COLOR_NOT_AVAILABLE';
+
+        console.log(`[Server] P${seat + 1} escolheu a cor ${CONFIG.COLOR_PALETTES[color].name}.`);
+        this.commitColor(color);
+        return null;
     }
 
     setName(seat, raw) {

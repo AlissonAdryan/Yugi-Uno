@@ -1,5 +1,5 @@
 import { CONFIG } from '../config/constants.js';
-import { canPlayColor, canPlayOnCombatSlot, isConsumable } from './rules.js';
+import { canPlayColor, canPlayOnCombatSlot, isConsumable, pickColorFromMask } from './rules.js';
 import { ZONE } from '../utils/zones.js';
 import {
     EVENT, INPUT, MSG, SNAPSHOT_FLAGS, SnapshotView, decodeSnapshot, isBinaryMessage, isSeqAfter
@@ -61,6 +61,7 @@ export class AISystem {
         if (v.phase === GAME_STATES.PLAYING) return !v.hasFlag(SNAPSHOT_FLAGS.SELF_READY);
         if (v.phase === GAME_STATES.DISCARDING || v.phase === GAME_STATES.FORCED_DISCARDING) return v.selfDiscards > 0;
         if (v.phase === GAME_STATES.GAME_OVER) return !v.hasFlag(SNAPSHOT_FLAGS.SELF_REMATCH);
+        if (v.phase === GAME_STATES.CHOOSING_COLOR) return v.hasFlag(SNAPSHOT_FLAGS.SELF_CHOOSING_COLOR);
         return false;
     }
 
@@ -114,6 +115,12 @@ export class AISystem {
             this.plan.round = -1;
             console.log(`[AISystem:${this.label}] Pedindo revanche.`);
             return { t: INPUT.REMATCH };
+        }
+        if (v.phase === GAME_STATES.CHOOSING_COLOR) {
+            // A CPU escolhe ao acaso entre as cores disponíveis (mesmo input de um jogador humano)
+            const color = pickColorFromMask(v.colorChoices);
+            console.log(`[AISystem:${this.label}] Escolhendo a cor ${CONFIG.COLOR_PALETTES[color].name}.`);
+            return { t: INPUT.CHOOSE_COLOR, color };
         }
         this.collectHand();
 

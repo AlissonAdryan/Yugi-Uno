@@ -10,6 +10,7 @@ import { InputSystem } from '../systems/input-system.js';
 import { LayoutSystem } from '../systems/layout-system.js';
 import { PlayableSystem } from '../systems/playable-system.js';
 import { SAMPLES, SFX } from '../config/sound-presets.js';
+import { ColorPicker } from '../ui/color-picker.js';
 import { ZONE } from '../utils/zones.js';
 import {
     EVENT, INPUT, MSG, SNAPSHOT_FLAGS, SnapshotView, decodeSnapshot, isBinaryMessage, isSeqAfter
@@ -56,6 +57,7 @@ export class GameClient {
             pool: this.pool, animator: this.animator, particles: this.particles, hud: this.hud, board: this.board,
             viewport: this.viewport, audio: this.audio
         });
+        this.colorPicker = new ColorPicker(audio);
 
         this.canvas = document.getElementById(CONFIG.CANVAS_ID);
         this.renderer = null;
@@ -133,6 +135,7 @@ export class GameClient {
         if (evt.t === EVENT.REJECTED) {
             console.warn(`[Client] Jogada recusada pelo servidor: ${evt.reason}`);
             this.pendingInputs = this.pendingInputs.filter((p) => p.seq !== evt.seq);
+            if (evt.input === INPUT.CHOOSE_COLOR) this.colorPicker.unlock();
             this.restoreFromView();
             if (this.cinematics.gameOverShown) this.syncRematch();
             return;
@@ -148,6 +151,8 @@ export class GameClient {
 
         // A partir daqui o tabuleiro é da cinemática final; snapshots não recriam cartas explodidas
         if (evt.t === EVENT.GAME_OVER) this.boardFrozen = true;
+        // O seletor some antes do alerta da cor escolhida (ou da tela de fim de jogo) aparecer
+        if (evt.t === EVENT.COLOR_CHOSEN || evt.t === EVENT.GAME_OVER) this.colorPicker.hide();
 
         // Aba escondida (rAF parado) ou fila muito atrasada: aplica o resultado sem animar
         const skipAnimation = document.hidden || this.queue.length > CONFIG.NETWORK.MAX_CLIENT_BACKLOG;
@@ -271,6 +276,7 @@ export class GameClient {
         this.boardFrozen = false;
         this.cinematics.reset();
         this.hud.hideGameOver();
+        this.colorPicker.hide();
         this.input.cancelDrag();
         this.board.highlightZone = -1;
         this.hoveredCard = -1;
@@ -328,12 +334,14 @@ export class GameClient {
      * @param {number} predictedZone zona prevista (-1 = sem mudança visual)
      * @param {number} predictedOrder
      * @param {number} [zone] zona alvo enviada ao servidor
+     * @param {object} [extra] campos adicionais do input (ex.: { color })
      */
-    sendInput(type, id, predictedZone = -1, predictedOrder = 0, zone = undefined) {
+    sendInput(type, id, predictedZone = -1, predictedOrder = 0, zone = undefined, extra = null) {
         this.inputSeq = (this.inputSeq + 1) & 0xffff;
         const msg = { k: MSG.INPUT, t: type, seq: this.inputSeq };
         if (id >= 0) msg.cardId = id;
         if (zone !== undefined) msg.zone = zone;
+        if (extra) Object.assign(msg, extra);
 
         this.pendingInputs.push({
             seq: this.inputSeq, t: type, id, zone: predictedZone, order: predictedOrder, sentAt: performance.now()
@@ -382,9 +390,24 @@ export class GameClient {
             } else if (v.oppDiscards > 0) {
                 message = 'O OPONENTE ESTÁ DESCARTANDO...';
             }
+        } else if (phase === GAME_STATES.CHOOSING_COLOR && v.hasFlag(SNAPSHOT_FLAGS.OPP_CHOOSING_COLOR)) {
+            message = 'O OPONENTE ESTÁ ESCOLHENDO A COR...';
         }
         this.hud.setPhaseMessage(message);
         this.scene.selectableZone = selectable;
+
+        if (phase === GAME_STATES.CHOOSING_COLOR && v.hasFlag(SNAPSHOT_FLAGS.SELF_CHOOSING_COLOR)) {
+            this.colorPicker.show(v.colorChoices, (color) => this.chooseColor(color));
+        } else {
+            this.colorPicker.hide();
+        }
+    }
+
+    /** Perdedor da rodada (com dano) escolhe a próxima cor; o servidor valida se ela é comum aos dois. */
+    chooseColor(color) {
+        if (this.view.phase !== GAME_STATES.CHOOSING_COLOR || this.hasPending(INPUT.CHOOSE_COLOR)) return;
+        console.log(`[Client] Escolhendo a cor ${CONFIG.COLOR_PALETTES[color].name}.`);
+        this.sendInput(INPUT.CHOOSE_COLOR, -1, -1, 0, undefined, { color });
     }
 
     // --- Input -------------------------------------------------------------
@@ -433,9 +456,21 @@ export class GameClient {
         return -1;
     }
 
+    /** Baixa a carta atualmente em hover (se houver) e limpa o rastreio. Idempotente. */
+    lowerHover() {
+        if (this.hoveredCard === -1) return;
+        if (this.pool.isActive(this.hoveredCard)) {
+            this.animator.to(this.hoveredCard, { hoverOffsetY: 0 }, ANIM.HOVER, Easing.QuadOut, null, null, this.pool);
+        }
+        this.hoveredCard = -1;
+    }
+
     onCardPress(id) {
         const pool = this.pool;
         const zone = pool.zone[id];
+        // Toque em tela não tem "mousemove" contínuo: sem isso, uma carta tocada antes fica
+        // presa levantada pra sempre quando o jogador toca em outra (só existe em celular/tablet).
+        this.lowerHover();
 
         if (this.isDiscarding()) {
             if (zone !== ZONE.SELF_HAND) return false;
@@ -461,7 +496,6 @@ export class GameClient {
         this.animator.cancel(id, pool);
         pool.hoverOffsetY[id] = 0;
         pool.zIndex[id] = DRAG_Z_INDEX;
-        this.hoveredCard = -1;
         this.animator.to(id, { scale: 1.0 }, 150, Easing.QuadOut, null, null, pool);
         return true;
     }
@@ -542,9 +576,7 @@ export class GameClient {
         if (current !== -1 && pool.zone[current] !== ZONE.SELF_HAND) current = -1;
         if (current === this.hoveredCard) return;
 
-        if (this.hoveredCard !== -1 && pool.isActive(this.hoveredCard)) {
-            this.animator.to(this.hoveredCard, { hoverOffsetY: 0 }, ANIM.HOVER, Easing.QuadOut, null, null, pool);
-        }
+        this.lowerHover();
         if (current !== -1) {
             this.audio.play(SFX.HOVER);
             this.animator.to(current, { hoverOffsetY: ANIM.HOVER_LIFT }, ANIM.HOVER, Easing.QuadOut, null, null, pool);

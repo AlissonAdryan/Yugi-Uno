@@ -111,6 +111,16 @@ export function classifyClash(typeA, typeB) {
     return typeB === CARD_TYPES.BLOCK ? CLASH_KIND.B_BLOCKS : CLASH_KIND.B_REVERSES;
 }
 
+/** Quantas cores básicas estão presentes na máscara (ver colorBit). */
+export function colorCount(mask) {
+    const colors = CONFIG.BASIC_COLORS;
+    let count = 0;
+    for (let i = 0; i < colors.length; i++) {
+        if (mask & (1 << colors[i])) count++;
+    }
+    return count;
+}
+
 /**
  * Sorteia uma cor entre as presentes na máscara.
  * @param {number} mask
