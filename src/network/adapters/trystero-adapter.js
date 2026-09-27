@@ -18,7 +18,10 @@ export class TrysteroAdapter extends NetworkAdapter {
         const { joinRoom } = await import(CONFIG.NETWORK.TRYSTERO_URL);
 
         const roomConfig = { appId: CONFIG.NETWORK.APP_ID };
-        if (CONFIG.NETWORK.TURN_SERVERS.length > 0) roomConfig.turnConfig = CONFIG.NETWORK.TURN_SERVERS;
+        // Camada 1 (Open Relay, sempre) + Camada 2 (TURN próprio, se preenchido em TURN_SERVERS_OWN) —
+        // ambas são listas estáticas, sem fetch nenhum: nunca atrasa nem bloqueia o joinRoom().
+        const turnServers = [...CONFIG.NETWORK.TURN_SERVERS, ...CONFIG.NETWORK.TURN_SERVERS_OWN];
+        if (turnServers.length > 0) roomConfig.turnConfig = turnServers;
 
         this.room = joinRoom(roomConfig, roomId, {
             onJoinError: (details) => {

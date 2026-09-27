@@ -20,8 +20,13 @@ export const FR = {
     "COPIED": "COPIÉ !",
     "PROMPT_COPY": "Copiez le lien de la salle :",
     "LOCALHOST_WARNING": "Vous avez ouvert le jeu via localhost : ce lien ne fonctionne que sur cette machine. Ouvrez le jeu via l'URL publique du tunnel avant de créer la salle.",
-    "WAITING_PLAYER": "En attente d'un autre joueur...",
-    "SEARCHING_HOST": "Recherche de l'hôte... (la connexion P2P peut prendre jusqu'à 10s)",
+    "WAITING_PLAYER": "Salle ouverte. Dès que le joueur 2 rejoint, la connexion s'établit automatiquement.",
+    "SEARCHING_HOST": "Établissement d'une connexion directe avec l'hôte... (peut prendre jusqu'à ~10s)",
+    "CONNECTION_RETRY": "Une tentative de connexion a échoué. Nouvelle tentative de connexion en cours...",
+    "TRYING_ALT_CONNECTION": "Échec de la connexion directe. Tentative d'une autre voie...",
+    "ROOM_FULL_ERROR": "Cette salle est déjà complète.",
+    "NETWORK_ERROR_ROOM": "Erreur de connexion au réseau P2P. Veuillez réessayer.",
+    "JOIN_SLOW_HINT": "Recherche de l'hôte toujours en cours... Vérifiez que sa salle est ouverte et que le code est correct.",
     "BACK": "Retour",
 
     // Name Prompt

@@ -180,23 +180,62 @@ export const CONFIG = Object.freeze({
         UNSTABLE_AFTER_MISSES: 2,
         RECONNECT_GRACE_MS: 120000,
         JOIN_SLOW_WARNING_MS: 15000,
+        /*
+         * Antes de qualquer par de verdade conectar, uma tentativa de handshake WebRTC pode falhar
+         * (SDP/ICE) sem que a sala em si esteja quebrada — é só aquela tentativa específica. Em vez
+         * de matar a sessão (o host tendo que gerar um link novo), o FallbackAdapter espera esse
+         * intervalo e tenta de novo, ciclando pelos transportes disponíveis indefinidamente até um
+         * par conectar de verdade ou o jogador sair manualmente da sala.
+         */
+        CONNECTION_RETRY_DELAY_MS: 3000,
         LOCAL_CPU_LATENCY_MS: 150,
         MAX_CLIENT_BACKLOG: 40,
         PENDING_INPUT_TIMEOUT_MS: 5000,
         /*
-         * TURN de fallback (formato Trystero turnConfig) para quando os dois pares não conseguem
-         * abrir um caminho P2P direto (NAT simétrico, rede corporativa, algumas redes móveis) — sem
-         * isso, a sala falha com "could not connect to peer ... after exchanging SDP". Aconteceu de
-         * repente numa rede específica, sem nenhuma mudança de código: é exatamente esse cenário.
-         * Open Relay Project (metered.ca), grátis, 20GB/mês, sem conta — mais que suficiente pra um
-         * jogo de cartas 2P (dados, não vídeo). Credencial pública e compartilhada (não é segredo).
+         * Camada 1 (sempre ativa, zero configuração): TURN de fallback (formato Trystero turnConfig)
+         * para quando os dois pares não conseguem abrir um caminho P2P direto (NAT simétrico, rede
+         * corporativa, algumas redes móveis) — sem isso, a sala falha com "could not connect to peer
+         * ... after exchanging SDP". Open Relay Project (metered.ca), grátis, sem conta, sem cartão.
+         * Credencial pública e COMPARTILHADA com o mundo inteiro (não é segredo) — por isso existe a
+         * Camada 2 abaixo, com cota própria em vez de dividida com todo mundo que usa essa lib.
          */
         TURN_SERVERS: Object.freeze([
             Object.freeze({ urls: 'stun:openrelay.metered.ca:80' }),
             Object.freeze({ urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }),
             Object.freeze({ urls: 'turn:openrelay.metered.ca:443', username: 'openrelayproject', credential: 'openrelayproject' }),
-            Object.freeze({ urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' })
-        ])
+            Object.freeze({ urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' }),
+            // turns: (TURN sobre TLS) é o que de fato atravessa firewall corporativo com inspeção
+            // profunda de pacote (DPI): o tráfego fica indistinguível de HTTPS normal na porta 443.
+            Object.freeze({ urls: 'turns:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' })
+        ]),
+
+        /*
+         * Camada 2 (opcional, sem cartão): TURN dedicado — mesmo provedor (Metered), mas uma conta
+         * SUA e gratuita (dashboard.metered.ca/signup, sem cartão), com cota própria em vez de
+         * dividida com o mundo inteiro como a Camada 1. Protege contra o Open Relay público ficar
+         * sobrecarregado/instável sob uso pesado global. Gere 1 credencial no dashboard (TURN Server ->
+         * Add Credential) e cole as 4 URLs + usuário/senha aqui — são estáticas (o plano free não
+         * expira nem exige rotação). Deixe a lista vazia pra desativar: cai só na Camada 1, sem quebrar
+         * nada. Como qualquer credencial que precisa estar no bundle do cliente (o jogo não tem
+         * backend), ela é visível pra quem inspecionar o código — o risco é alguém consumir sua cota
+         * gratuita, nunca cobrança (é plano free, sem cartão cadastrado).
+         */
+        TURN_SERVERS_OWN: Object.freeze([
+            Object.freeze({ urls: 'stun:stun.relay.metered.ca:80' }),
+            Object.freeze({ urls: 'turn:global.relay.metered.ca:80', username: 'a2a93d0668e9a1036aab9fe5', credential: 'VStgKko94AHd7QhV' }),
+            Object.freeze({ urls: 'turn:global.relay.metered.ca:80?transport=tcp', username: 'a2a93d0668e9a1036aab9fe5', credential: 'VStgKko94AHd7QhV' }),
+            Object.freeze({ urls: 'turns:global.relay.metered.ca:443?transport=tcp', username: 'a2a93d0668e9a1036aab9fe5', credential: 'VStgKko94AHd7QhV' })
+        ]),
+
+        /*
+         * Camada 3 (opcional, sem cartão): relay via WebSocket — não é mais WebRTC, é só um túnel de
+         * mensagens (ver /relay-server/). Único fallback que atravessa até as redes mais hostis
+         * (WebSocket na porta 443 é indistinguível de HTTPS comum). Só é tentado se o WebRTC (Trystero)
+         * falhar antes de qualquer par conectar, e mesmo assim o FallbackAdapter continua ciclando
+         * indefinidamente (ver fallback-adapter.js) — essa camada nunca é obrigatória pro jogo rodar.
+         * Hospede /relay-server/ grátis no Render (sem cartão) e cole a URL wss:// aqui. Vazio desativa.
+         */
+        RELAY_WS_ENDPOINT: ''
     }),
 
     AUDIO: Object.freeze({

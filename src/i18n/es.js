@@ -20,8 +20,13 @@ export const ES = {
     "COPIED": "¡COPIADO!",
     "PROMPT_COPY": "Copia el enlace de la sala:",
     "LOCALHOST_WARNING": "Abriste el juego en localhost: este enlace solo funciona en esta máquina.",
-    "WAITING_PLAYER": "Esperando a otro jugador...",
-    "SEARCHING_HOST": "Buscando al host... (la conexión P2P puede tardar hasta 10s)",
+    "WAITING_PLAYER": "Sala abierta. En cuanto el jugador 2 entre, la conexión se establece automáticamente.",
+    "SEARCHING_HOST": "Estableciendo conexión directa con el host... (puede tardar hasta ~10s)",
+    "CONNECTION_RETRY": "Un intento de conexión falló. Intentando establecer la conexión de nuevo...",
+    "TRYING_ALT_CONNECTION": "La conexión directa falló. Probando una ruta alternativa...",
+    "ROOM_FULL_ERROR": "Esta sala ya está llena.",
+    "NETWORK_ERROR_ROOM": "Error al conectar con la red P2P. Inténtalo de nuevo.",
+    "JOIN_SLOW_HINT": "Aún buscando al host... Comprueba que su sala esté abierta y que el código sea correcto.",
     "BACK": "Volver",
     
     // Name Prompt

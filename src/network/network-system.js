@@ -47,6 +47,10 @@ export class NetworkSystem {
         this.seatToken = null;
         this.clientToken = null;
         this.hasJoined = false;
+        // Nunca volta a false: distingue "ainda não conectou nenhuma vez" (erro de handshake é
+        // só ruído, o adapter tenta de novo sozinho) de "conexão real quebrou depois de existir"
+        // (erro de verdade, precisa virar status terminal).
+        this.everConnected = false;
 
         this.listeners = {};
         for (const key in NET_EVENT) this.listeners[NET_EVENT[key]] = [];
@@ -122,6 +126,12 @@ export class NetworkSystem {
         adapter.onPeerLeave = (peerId) => this.handlePeerLeave(peerId);
         adapter.onMessage = (msg, peerId) => this.handleMessage(msg, peerId);
         adapter.onError = (err) => {
+            if (!this.everConnected) {
+                // Nenhum par conectou ainda nessa sessão: uma falha de handshake não derruba a sala,
+                // o adapter (FallbackAdapter/Trystero) já está tentando de novo por conta própria.
+                console.warn('[NetworkSystem] Tentativa de conexão falhou (sala segue aberta, tentando de novo):', err);
+                return;
+            }
             console.error('[NetworkSystem] Erro no transporte:', err);
             this.setStatus(NET_STATUS.ERROR);
         };
@@ -215,6 +225,7 @@ export class NetworkSystem {
         const isFirst = this.seatToken === null;
         this.seatToken = token;
         this.remotePeer = peerId;
+        this.everConnected = true;
         this.clearGrace();
         console.log(`[NetworkSystem] Jogador 2 ${isFirst ? 'entrou' : 'reconectou'} (${peerId}).`);
         this.adapter.send({ k: MSG.WELCOME, seat: REMOTE_SEAT }, peerId);
@@ -233,6 +244,7 @@ export class NetworkSystem {
         switch (message.k) {
             case MSG.WELCOME:
                 this.remotePeer = peerId;
+                this.everConnected = true;
                 this.clearGrace();
                 this.setStatus(NET_STATUS.CONNECTED);
                 this.startHeartbeat();

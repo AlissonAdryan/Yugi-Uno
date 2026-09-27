@@ -20,8 +20,13 @@ export const IT = {
     "COPIED": "COPIATO!",
     "PROMPT_COPY": "Copia il link della stanza:",
     "LOCALHOST_WARNING": "Hai aperto il gioco tramite localhost: questo link funziona solo su questa macchina. Apri il gioco tramite l'URL pubblico del tunnel prima di creare la stanza.",
-    "WAITING_PLAYER": "In attesa di un altro giocatore...",
-    "SEARCHING_HOST": "Ricerca dell'host in corso... (la connessione P2P può richiedere fino a 10s)",
+    "WAITING_PLAYER": "Stanza aperta. Non appena il giocatore 2 entra, la connessione viene stabilita automaticamente.",
+    "SEARCHING_HOST": "Stabilendo una connessione diretta con l'host... (può richiedere fino a ~10s)",
+    "CONNECTION_RETRY": "Un tentativo di connessione è fallito. Nuovo tentativo di connessione in corso...",
+    "TRYING_ALT_CONNECTION": "Connessione diretta fallita. Tentativo di una rotta alternativa...",
+    "ROOM_FULL_ERROR": "Questa stanza è già piena.",
+    "NETWORK_ERROR_ROOM": "Errore di connessione alla rete P2P. Riprova.",
+    "JOIN_SLOW_HINT": "Ancora alla ricerca dell'host... Controlla che la sua stanza sia aperta e che il codice sia corretto.",
     "BACK": "Indietro",
 
     // Name Prompt

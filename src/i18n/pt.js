@@ -20,8 +20,13 @@ export const PT_BR = {
     "COPIED": "COPIADO!",
     "PROMPT_COPY": "Copie o link da sala:",
     "LOCALHOST_WARNING": "Você abriu o jogo por localhost: esse link só funciona nesta máquina. Abra o jogo pela URL pública do túnel (ex.: localtunnel) antes de criar a sala.",
-    "WAITING_PLAYER": "Aguardando outro jogador...",
-    "SEARCHING_HOST": "Procurando o host... (a conexão P2P pode levar até ~10s)",
+    "WAITING_PLAYER": "Sala aberta. Assim que o jogador 2 entrar, a conexão é estabelecida automaticamente.",
+    "SEARCHING_HOST": "Estabelecendo conexão direta com o host... (pode levar até ~10s)",
+    "CONNECTION_RETRY": "Uma tentativa de conexão falhou. Tentando estabelecer a conexão novamente...",
+    "TRYING_ALT_CONNECTION": "Conexão direta falhou. Tentando uma rota alternativa...",
+    "ROOM_FULL_ERROR": "Esta sala já está cheia.",
+    "NETWORK_ERROR_ROOM": "Erro ao conectar na rede P2P. Tente novamente.",
+    "JOIN_SLOW_HINT": "Ainda procurando o host... Confira se ele está com a sala aberta e se o código está correto.",
     "BACK": "Voltar",
     
     // Name Prompt

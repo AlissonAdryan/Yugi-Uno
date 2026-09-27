@@ -5,6 +5,8 @@ import { AISystem } from './systems/ai-system.js';
 import { NetworkSystem, NET_EVENT, NET_STATUS } from './network/network-system.js';
 import { LocalCPUAdapter } from './network/adapters/local-cpu-adapter.js';
 import { TrysteroAdapter } from './network/adapters/trystero-adapter.js';
+import { WebSocketAdapter } from './network/adapters/websocket-adapter.js';
+import { FallbackAdapter } from './network/adapters/fallback-adapter.js';
 import { Hud } from './ui/hud.js';
 import { SettingsPanel } from './ui/settings-panel.js';
 import { Viewport } from './core/viewport.js';
@@ -82,6 +84,7 @@ class App {
         this.onlineMatch = false;
         this.matchStarted = false;
         this.leaving = false;
+        this.roomCode = null;
         this.params = new URLSearchParams(window.location.search);
     }
 
@@ -141,11 +144,29 @@ class App {
         this.network.startHost(adapter, 'local-cpu');
     }
 
+    /**
+     * WebRTC (Trystero) primeiro; se uma tentativa falhar antes de um par conectar (o erro clássico de
+     * SDP/ICE das redes mais hostis), o FallbackAdapter tenta de novo sozinho — cai pro relay WebSocket
+     * (Camada 3, se configurado) e depois volta a ciclar pelos transportes indefinidamente. A sala NUNCA
+     * morre sozinha por causa de uma tentativa que falhou: só o jogador saindo manualmente encerra.
+     */
+    createOnlineAdapter() {
+        const adapters = [new TrysteroAdapter()];
+        if (CONFIG.NETWORK.RELAY_WS_ENDPOINT) adapters.push(new WebSocketAdapter());
+
+        return new FallbackAdapter(adapters, {
+            onRetry: (attempt, switchedTransport) => {
+                this.hud.setRoomStatus(i18n.t(switchedTransport ? 'TRYING_ALT_CONNECTION' : 'CONNECTION_RETRY'));
+            }
+        });
+    }
+
     createRoom() {
         const code = randomRoomCode();
         const link = `${window.location.origin}${window.location.pathname}?room=${code}`;
         console.log(`[App] Criando sala ${code}. Link: ${link}`);
 
+        this.roomCode = code;
         this.onlineMatch = true;
         this.hud.showRoomHosting(code, link, isLocalOrigin());
         this.createSession('OPONENTE');
@@ -155,12 +176,13 @@ class App {
             if (isFirst) this.beginHostedMatch();
         });
         this.network.on(NET_EVENT.STATUS, (status) => this.onNetworkStatus(status));
-        this.network.startHost(new TrysteroAdapter(), code);
+        this.network.startHost(this.createOnlineAdapter(), code);
     }
 
     joinRoom(code) {
         if (!code) return;
         console.log(`[App] Entrando na sala ${code}.`);
+        this.roomCode = code;
         this.onlineMatch = true;
         this.hud.showRoomJoining(code);
         this.createSession('OPONENTE');
@@ -171,11 +193,11 @@ class App {
             this.startLocalPlayer();
         });
         this.network.on(NET_EVENT.STATUS, (status) => this.onNetworkStatus(status));
-        this.network.startClient(new TrysteroAdapter(), code, loadOrCreateToken(code));
+        this.network.startClient(this.createOnlineAdapter(), code, loadOrCreateToken(code));
 
         setTimeout(() => {
             if (!this.matchStarted && this.network.status === NET_STATUS.CONNECTING) {
-                this.hud.setRoomStatus('Ainda procurando o host... Confira se o host está com a sala aberta e se o código está correto.');
+                this.hud.setRoomStatus(i18n.t('JOIN_SLOW_HINT'));
             }
         }, CONFIG.NETWORK.JOIN_SLOW_WARNING_MS);
     }
@@ -210,14 +232,24 @@ class App {
             this.hud.setConnectionStatus(status);
             return;
         }
-        if (status === NET_STATUS.ROOM_FULL) this.hud.setRoomStatus('Esta sala já está cheia.', true);
-        else if (status === NET_STATUS.ERROR) this.hud.setRoomStatus('Erro ao conectar na rede P2P. Tente novamente.', true);
+        if (status === NET_STATUS.ROOM_FULL) this.hud.setRoomStatus(i18n.t('ROOM_FULL_ERROR'), true);
+        else if (status === NET_STATUS.ERROR) this.hud.setRoomStatus(i18n.t('NETWORK_ERROR_ROOM'), true);
     }
 
+    /**
+     * Recarrega pro link puro (sem `?room=CODIGO`) usando replace() em vez de href=: isso troca a
+     * entrada atual do histórico em vez de empilhar uma nova. Sem isso, o botão "voltar" do navegador
+     * levava de volta pra URL com o código — reabrindo `init()` -> `joinRoom()` automaticamente pra uma
+     * sala cuja partida já acabou, com um token de assento antigo ainda em sessionStorage: exatamente o
+     * "P2 bugado" reportado. Limpa esse token junto, já que a sala não serve mais pra nada.
+     */
     backToMenu() {
         this.leaving = true;
         if (this.network) this.network.shutdown();
-        window.location.href = window.location.pathname;
+        if (this.roomCode) {
+            try { sessionStorage.removeItem(TOKEN_KEY_PREFIX + this.roomCode); } catch (err) { /* armazenamento indisponível */ }
+        }
+        window.location.replace(window.location.pathname);
     }
 }
 

@@ -20,8 +20,13 @@ export const DE = {
     "COPIED": "KOPIERT!",
     "PROMPT_COPY": "Raum-Link kopieren:",
     "LOCALHOST_WARNING": "Du hast das Spiel über localhost geöffnet: Dieser Link funktioniert nur auf diesem Rechner. Öffne das Spiel über die öffentliche Tunnel-URL, bevor du den Raum erstellst.",
-    "WAITING_PLAYER": "Warte auf einen weiteren Spieler...",
-    "SEARCHING_HOST": "Suche nach dem Host... (P2P-Verbindung kann bis zu 10s dauern)",
+    "WAITING_PLAYER": "Raum offen. Sobald Spieler 2 beitritt, wird die Verbindung automatisch hergestellt.",
+    "SEARCHING_HOST": "Direkte Verbindung zum Host wird hergestellt... (kann bis zu ~10s dauern)",
+    "CONNECTION_RETRY": "Ein Verbindungsversuch ist fehlgeschlagen. Verbindung wird erneut hergestellt...",
+    "TRYING_ALT_CONNECTION": "Direkte Verbindung fehlgeschlagen. Versuche einen alternativen Weg...",
+    "ROOM_FULL_ERROR": "Dieser Raum ist bereits voll.",
+    "NETWORK_ERROR_ROOM": "Fehler beim Verbinden mit dem P2P-Netzwerk. Bitte erneut versuchen.",
+    "JOIN_SLOW_HINT": "Suche weiterhin nach dem Host... Prüfe, ob dessen Raum offen ist und der Code stimmt.",
     "BACK": "Zurück",
 
     // Name Prompt

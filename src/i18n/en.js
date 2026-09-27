@@ -20,8 +20,13 @@ export const EN = {
     "COPIED": "COPIED!",
     "PROMPT_COPY": "Copy room link:",
     "LOCALHOST_WARNING": "You opened the game via localhost: this link only works on this machine. Open via public tunnel URL before creating.",
-    "WAITING_PLAYER": "Waiting for another player...",
-    "SEARCHING_HOST": "Searching for host... (P2P connection may take up to 10s)",
+    "WAITING_PLAYER": "Room open. As soon as player 2 joins, the connection is set up automatically.",
+    "SEARCHING_HOST": "Establishing a direct connection to the host... (can take up to ~10s)",
+    "CONNECTION_RETRY": "A connection attempt failed. Trying to establish the connection again...",
+    "TRYING_ALT_CONNECTION": "Direct connection failed. Trying an alternate route...",
+    "ROOM_FULL_ERROR": "This room is already full.",
+    "NETWORK_ERROR_ROOM": "Error connecting to the P2P network. Please try again.",
+    "JOIN_SLOW_HINT": "Still searching for the host... Make sure their room is open and the code is correct.",
     "BACK": "Back",
     
     // Name Prompt
