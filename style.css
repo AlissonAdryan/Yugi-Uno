@@ -169,7 +169,7 @@ body {
 .connection-banner,
 .game-over-screen > *,
 .menu-content,
-.room-modal > *,
+.room-card,
 .settings-btn,
 .settings-content,
 .rematch-notice,
@@ -845,10 +845,9 @@ body {
 .room-modal {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.85);
+    background: rgba(0, 0, 0, 0.75);
     z-index: 1100;
     display: flex;
-    flex-direction: column;
     justify-content: center;
     align-items: center;
     padding: 16px;
@@ -857,65 +856,81 @@ body {
     font-family: 'Righteous', sans-serif;
 }
 
+/* Mesmo cartão roxo neon do painel de configurações (Pilar 7: reaproveitar o estilo já
+   estabelecido em vez de inventar um novo) — sem isso o conteúdo flutuava direto sobre o overlay
+   escurecido e deixava o menu principal "vazando" por trás, visualmente poluído. */
+.room-card {
+    width: min(440px, 100%);
+    background: #12081f;
+    border: 2px solid #8e2de2;
+    border-radius: 16px;
+    padding: 34px 30px;
+    box-shadow: 0 0 40px rgba(142, 45, 226, 0.5);
+    animation: roomCardIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes roomCardIn {
+    from { opacity: 0; transform: scale(0.92) translateY(12px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 .room-title {
-    font-size: 32px;
+    font-size: 28px;
     margin-bottom: 20px;
+    text-transform: uppercase;
 }
 
 .room-label {
-    font-size: 20px;
+    font-size: 16px;
     color: #ccc;
+    letter-spacing: 0.5px;
 }
 
 .room-code {
-    font-size: 48px;
+    font-size: 44px;
     color: #f1c40f;
     letter-spacing: 5px;
     margin: 10px 0;
+    text-shadow: 0 0 20px rgba(241, 196, 15, 0.5);
+}
+
+.room-card .menu-btn {
+    width: 100%;
+    margin-top: 10px;
 }
 
 .room-copy-btn {
-    margin-top: 15px;
-    padding: 10px 20px;
-    font-family: inherit;
-    font-size: 16px;
-    background: #3498db;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
+    font-size: 18px;
+    padding: 14px;
 }
 
 .room-warning {
-    margin: 15px auto 0;
+    margin: 18px auto 0;
     max-width: 480px;
-    font-size: 14px;
+    font-size: 13px;
     color: #f39c12;
 }
 
 .room-waiting {
     margin-top: 20px;
-    font-size: 18px;
+    font-size: 15px;
+    color: #ddd;
     animation: blink 1.5s infinite;
 }
 
 .room-status {
-    margin-top: 20px;
+    margin-top: 18px;
+    font-size: 14px;
     color: #bbb;
+    min-height: 1.2em;
 }
 
 .room-status.error {
-    color: #e74c3c;
+    color: #ff6b6b;
 }
 
 .room-cancel {
-    margin-top: 30px;
-    background: none;
-    border: none;
-    color: #999;
-    cursor: pointer;
-    text-decoration: underline;
-    font-family: inherit;
+    margin-top: 24px;
 }
 
 .name-form {
@@ -923,6 +938,7 @@ body {
     flex-direction: column;
     gap: 20px;
     width: min(320px, 100%);
+    margin: 0 auto;
 }
 
 .name-input {

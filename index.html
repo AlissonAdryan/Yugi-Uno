@@ -66,28 +66,32 @@
 
     <!-- Modal de Sala -->
     <div id="room-modal" class="room-modal" hidden>
-        <h2 id="room-title" class="room-title" data-i18n="ROOM_CREATING">CRIANDO SALA...</h2>
-        <div id="room-info" class="room-info" hidden>
-            <p class="room-label" data-i18n="ROOM_CODE">Código da Sala:</p>
-            <h1 id="room-code-display" class="room-code">---</h1>
-            <button id="btn-copy-link" class="room-copy-btn" data-i18n="COPY_LINK">COPIAR LINK</button>
-            <p id="room-warning" class="room-warning" hidden data-i18n="LOCALHOST_WARNING">
-                Você abriu o jogo por localhost: esse link só funciona nesta máquina.
-                Abra o jogo pela URL pública do túnel (ex.: localtunnel) antes de criar a sala.
-            </p>
-            <p class="room-waiting" data-i18n="WAITING_PLAYER">Aguardando outro jogador...</p>
+        <div class="room-card">
+            <h2 id="room-title" class="room-title" data-i18n="ROOM_CREATING">CRIANDO SALA...</h2>
+            <div id="room-info" class="room-info" hidden>
+                <p class="room-label" data-i18n="ROOM_CODE">Código da Sala:</p>
+                <h1 id="room-code-display" class="room-code">---</h1>
+                <button id="btn-copy-link" class="menu-btn primary room-copy-btn" data-i18n="COPY_LINK">COPIAR LINK</button>
+                <p id="room-warning" class="room-warning" hidden data-i18n="LOCALHOST_WARNING">
+                    Você abriu o jogo por localhost: esse link só funciona nesta máquina.
+                    Abra o jogo pela URL pública do túnel (ex.: localtunnel) antes de criar a sala.
+                </p>
+                <p class="room-waiting" data-i18n="WAITING_PLAYER">Aguardando outro jogador...</p>
+            </div>
+            <p id="room-status" class="room-status"></p>
+            <button id="btn-cancel-room" class="menu-btn secondary room-cancel" data-i18n="BACK">Voltar</button>
         </div>
-        <p id="room-status" class="room-status"></p>
-        <button id="btn-cancel-room" class="room-cancel" data-i18n="BACK">Voltar</button>
     </div>
 
     <!-- Nome do jogador (pedido assim que a conexão é estabelecida) -->
     <div id="name-modal" class="room-modal" hidden>
-        <h2 class="room-title" data-i18n="WHAT_IS_YOUR_NAME">QUAL É O SEU NOME?</h2>
-        <form id="name-form" class="name-form">
-            <input id="name-input" class="name-input" type="text" autocomplete="nickname" placeholder="Seu nome" required data-i18n="YOUR_NAME" data-i18n-attr="placeholder">
-            <button type="submit" class="menu-btn primary" data-i18n="CONFIRM">CONFIRMAR</button>
-        </form>
+        <div class="room-card">
+            <h2 class="room-title" data-i18n="WHAT_IS_YOUR_NAME">QUAL É O SEU NOME?</h2>
+            <form id="name-form" class="name-form">
+                <input id="name-input" class="name-input" type="text" autocomplete="nickname" placeholder="Seu nome" required data-i18n="YOUR_NAME" data-i18n-attr="placeholder">
+                <button type="submit" class="menu-btn primary" data-i18n="CONFIRM">CONFIRMAR</button>
+            </form>
+        </div>
     </div>
 
     <div id="game-container" hidden>

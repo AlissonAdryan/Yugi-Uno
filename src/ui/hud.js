@@ -152,6 +152,11 @@ export class Hud {
 
     showRoomHosting(code, link, isLocalOrigin) {
         this.roomLink = link;
+        // O menu principal segue "por baixo" (é pra onde volta se a sala for cancelada), mas
+        // esconder evita ele vazar através do backdrop semi-transparente do modal quando o cartão
+        // não cobre a tela inteira. Sempre volta via reload completo da página (backToMenu), então
+        // não precisa de um "unhide" correspondente aqui.
+        this.el.mainMenu.hidden = true;
         this.el.roomModal.hidden = false;
         this.el.roomTitle.textContent = i18n.t('ROOM_CREATED');
         this.el.roomInfo.hidden = false;
@@ -161,6 +166,7 @@ export class Hud {
     }
 
     showRoomJoining(code) {
+        this.el.mainMenu.hidden = true;
         this.el.roomModal.hidden = false;
         this.el.roomTitle.textContent = i18n.t('ROOM_JOINING', { code });
         this.el.roomInfo.hidden = true;
