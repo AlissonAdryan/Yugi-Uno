@@ -33,9 +33,10 @@ export const CONFIG = Object.freeze({
     REVERSE_COMPENSATION_POWER: 1,
     // Trava de segurança contra loops de combate (cadeias de +2/+4 são finitas, mas nunca confiamos cegamente)
     COMBAT_MAX_STEPS: 200,
+    COMBO_MAX_STACK: 3,
 
     // Resolução virtual de referência: altura mínima para mãos + tabuleiro com respiro (~870px ocupados)
-    // Mantém a proporção 20:13 de 1600x1040; reduzida ~6,25% para escalar tudo (canvas + HUD) levemente para cima.
+    // Mantém a proporção 20:13 de 1425x926; (canvas + HUD) levemente para cima.
     VIEW: Object.freeze({
         DESIGN_WIDTH: 1425,
         DESIGN_HEIGHT: 926,
@@ -59,14 +60,15 @@ export const CONFIG = Object.freeze({
     COLOR_HEX: Object.freeze(['#2c3e50', '#e74c3c', '#3498db', '#2ecc71', '#ffcc00', '#111111', '#ffffff']),
     COLOR_PALETTES: Object.freeze([
         null,
-        { name: 'VERMELHO', bg: ['#4a0f0f', '#661515', '#370606'] },
-        { name: 'AZUL', bg: ['#0f204a', '#153366', '#061337'] },
-        { name: 'VERDE', bg: ['#0f4a15', '#156620', '#06370f'] },
-        { name: 'AMARELO', bg: ['#4a4a0f', '#666615', '#373706'] },
+        { name: 'VERMELHO', bg: ['#4a0f0f', '#721616ff', '#370606', '#680202ff'] },
+        { name: 'AZUL', bg: ['#0f204a', '#153366', '#061337', '#0c2b49ff'] },
+        { name: 'VERDE', bg: ['#0f4a15', '#156620', '#06370f', '#265500ff'] },
+        { name: 'AMARELO', bg: ['#4a4a0f', '#666615', '#373706', '#474417ff'] },
         null,
-        { name: 'QUALQUER COR!', bg: ['#661515', '#153366', '#156620'] }
+        // Rainbow: bg é fallback-only; as cores reais são sempre calculadas dinamicamente por Hud._rainbowBg()
+        { name: 'QUALQUER COR!', bg: ['#1e0f61', '#153366', '#156620', '#666615'] }
     ]),
-    DEFAULT_BACKGROUND: Object.freeze(['#1e0f61', '#152066', '#37064a']),
+    DEFAULT_BACKGROUND: Object.freeze(['#1e0f61', '#152066', '#37064a', '#2e1060']),
 
     CARD_TYPES,
 

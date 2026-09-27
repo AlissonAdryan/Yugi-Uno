@@ -75,6 +75,15 @@ export function canPlayOnCombatSlot(store, cardIdx, activeColor, attackIdx) {
     return canPlayColor(store.color[cardIdx], activeColor) || isMirrorDefense(store, attackIdx, cardIdx);
 }
 
+/**
+ * Combo de cartas idênticas no mesmo slot.
+ * Exige mesma cor, mesmo tipo e mesmo poder. Exceto +4 que não pode combar.
+ */
+export function isValidCombo(store, topIdx, cardIdx) {
+    if (store.type[cardIdx] === CONFIG.CARD_TYPES.PLUS4) return false;
+    return isSameCardIgnoringColor(store, topIdx, cardIdx) && store.color[topIdx] === store.color[cardIdx];
+}
+
 export function isSummon(type) {
     return type === CARD_TYPES.PLUS2 || type === CARD_TYPES.PLUS4;
 }

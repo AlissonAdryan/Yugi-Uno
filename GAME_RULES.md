@@ -74,6 +74,14 @@ O combate termina quando pelo menos um dos lados ficar sem vida ou sem cartas.
   5. Após ambos finalizarem o descarte, o sistema devolve o valor equivalente (quem descartou 2 compra 2; quem descartou 1 compra 1).
   6. Um novo sorteio de cor é feito. Esse processo se repete até que uma cor comum seja encontrada.
 
+### 5.1 Combos (Empilhamento de Cartas Idênticas)
+- É possível empilhar múltiplas cartas no mesmo slot de combate (Ataque ou Defesa), formando um Combo.
+- Para empilhar, as cartas devem ser **exatamente idênticas**: mesma cor, mesmo tipo e mesmo valor. A única exceção é a carta "+4", que **não pode** ser empilhada em combos.
+- O limite máximo de empilhamento é de **3 cartas por slot**.
+- **Ocultação de Combo:** Durante a Fase de Preparação, o servidor oculta a informação de combo. O oponente vê apenas 1 carta posicionada no slot, e não vê as cartas adicionais saindo da mão do jogador.
+- **Revelação:** Assim que o combate se inicia, a real quantidade da pilha é revelada para todos e as cartas são mostradas normalmente.
+- Durante a resolução do combate, a pilha luta em série (do topo até a base), enfrentando a defesa oponente ou atacando diretamente a vida de forma sucessiva.
+
 ## 6. Cartas Especiais e Interações
 Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o fluxo do combate e da rodada. As cartas especiais (+2, +4, Reverso e Block) possuem comportamentos distintos dependendo da situação (Combate de Mesa ou Dano Direto na Vida).
 

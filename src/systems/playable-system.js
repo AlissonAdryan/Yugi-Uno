@@ -1,5 +1,5 @@
 import { CONFIG } from '../config/constants.js';
-import { canPlayOnCombatSlot, isConsumable } from './rules.js';
+import { canPlayOnCombatSlot, isConsumable, isValidCombo } from './rules.js';
 import { ZONE } from '../utils/zones.js';
 
 /**
@@ -30,14 +30,24 @@ export class PlayableSystem {
         }
         if (zone !== ZONE.SELF_ATTACK && zone !== ZONE.SELF_DEFENSE) return false;
         if (isConsumable(type)) return false;
-        if (this.layout.stack(zone).length > 0) return false;
-        if (zone === ZONE.SELF_DEFENSE && this.board.locked[ZONE.SELF_DEFENSE]) return false;
+        
+        const stack = this.layout.stack(zone);
+        if (stack.length > 0) {
+            if (stack.length >= CONFIG.COMBO_MAX_STACK) return false;
+            if (!isValidCombo(this.pool, stack[0], id)) return false;
+        }
+        
+        if (zone === ZONE.SELF_DEFENSE && this.board.locked[ZONE.SELF_DEFENSE] && stack.length === 0) return false;
         return true;
     }
 
     /** Regras de cor do slot (inclui o Espelho de Defesa). O slot USE não tem restrição de cor. */
     colorAllows(id, zone, activeColor) {
         if (zone === ZONE.SELF_USE) return true;
+        
+        const stack = this.layout.stack(zone);
+        if (stack.length > 0) return true; // Se tem combo, slotAccepts já validou a cor/tipo
+
         let attackId = -1;
         if (zone === ZONE.SELF_DEFENSE) {
             const attack = this.layout.stack(ZONE.SELF_ATTACK);

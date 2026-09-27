@@ -3,7 +3,7 @@ import { ServerState } from './server-state.js';
 import { ServerCombat } from './server-combat.js';
 import { DeckSystem } from '../systems/deck-system.js';
 import {
-    canPlayOnCombatSlot, colorBit, colorCount, handLimitExcess, isConsumable, pickColorFromMask, roundDrawsFor
+    canPlayOnCombatSlot, colorBit, colorCount, handLimitExcess, isConsumable, pickColorFromMask, roundDrawsFor, isValidCombo
 } from '../systems/rules.js';
 import {
     SEAT, ZONE_OFFSET, isCombatOffset, isValidZone, mirrorZone, seatZone, zoneOffset, zoneSeat
@@ -284,6 +284,7 @@ export class ServerEngine {
             case INPUT.RECALL_CARD: reason = this.recallCard(seat, msg.cardId); break;
             case INPUT.PLAY_CONSUMABLE: reason = this.playConsumable(seat, msg.cardId); break;
             case INPUT.READY: reason = this.setReady(seat); break;
+            case INPUT.CANCEL_READY: reason = this.cancelReady(seat); break;
             case INPUT.DISCARD: reason = this.discardCard(seat, msg.cardId); break;
             case INPUT.SET_NAME: reason = this.setName(seat, msg.name); break;
             case INPUT.REMATCH: reason = this.requestRematch(seat); break;
@@ -349,13 +350,20 @@ export class ServerEngine {
         const zone = mirrorZone(relZone, seat);
         const offset = zoneOffset(zone);
         if (zoneSeat(zone) !== seat || !isCombatOffset(offset)) return 'INVALID_ZONE';
-        if (s.zones[zone].length > 0) return 'SLOT_OCCUPIED';
-        if (offset === ZONE_OFFSET.DEFENSE && s.defenseLock[seat] > 0) return 'DEFENSE_LOCKED';
-        if (isConsumable(s.type[cardId])) return 'CONSUMABLE_ONLY_IN_USE_SLOT';
+        
+        const stack = s.zones[zone];
         const attackId = offset === ZONE_OFFSET.DEFENSE ? s.top(seat, ZONE_OFFSET.ATTACK) : -1;
-        if (!canPlayOnCombatSlot(s, cardId, s.activeColor[seat], attackId)) return 'WRONG_COLOR';
 
-        if (attackId >= 0 && !canPlayOnCombatSlot(s, cardId, s.activeColor[seat], -1)) {
+        if (stack.length > 0) {
+            if (stack.length >= CONFIG.COMBO_MAX_STACK) return 'STACK_FULL';
+            if (!isValidCombo(s, stack[0], cardId)) return 'COMBO_MISMATCH';
+        } else {
+            if (offset === ZONE_OFFSET.DEFENSE && s.defenseLock[seat] > 0) return 'DEFENSE_LOCKED';
+            if (isConsumable(s.type[cardId])) return 'CONSUMABLE_ONLY_IN_USE_SLOT';
+            if (!canPlayOnCombatSlot(s, cardId, s.activeColor[seat], attackId)) return 'WRONG_COLOR';
+        }
+
+        if (offset === ZONE_OFFSET.DEFENSE && stack.length === 0 && attackId >= 0 && !canPlayOnCombatSlot(s, cardId, s.activeColor[seat], -1)) {
             console.log(`[Server] P${seat + 1} usou o Espelho de Defesa com a carta ${cardId}.`);
         }
         s.moveCard(cardId, zone);
@@ -381,11 +389,16 @@ export class ServerEngine {
     /** Uma Defesa espelhada depende do Ataque: sem ele, volta para a mão se a cor não permitir. */
     revalidateDefense(seat) {
         const s = this.state;
-        const defenseId = s.top(seat, ZONE_OFFSET.DEFENSE);
-        if (defenseId < 0) return;
+        const defStack = s.zones[seatZone(seat, ZONE_OFFSET.DEFENSE)];
+        if (defStack.length === 0) return;
+        const defenseId = defStack[0];
         if (canPlayOnCombatSlot(s, defenseId, s.activeColor[seat], s.top(seat, ZONE_OFFSET.ATTACK))) return;
-        console.log(`[Server] Ataque de P${seat + 1} retirado: Defesa espelhada ${defenseId} volta para a mão.`);
-        s.moveCard(defenseId, seatZone(seat, ZONE_OFFSET.HAND));
+        console.log(`[Server] Ataque de P${seat + 1} retirado: Defesa espelhada volta para a mão.`);
+        
+        const ids = [...defStack];
+        for (let i = 0; i < ids.length; i++) {
+            s.moveCard(ids[i], seatZone(seat, ZONE_OFFSET.HAND));
+        }
     }
 
     playConsumable(seat, cardId) {
@@ -418,6 +431,16 @@ export class ServerEngine {
         if (s.ready[SEAT.P1] && s.ready[SEAT.P2]) {
             this.runCombat().catch((err) => console.error('[Server] Erro no combate:', err));
         }
+        return null;
+    }
+
+    cancelReady(seat) {
+        const s = this.state;
+        if (s.phase !== GAME_STATES.PLAYING) return 'WRONG_PHASE';
+        if (!s.ready[seat]) return 'NOT_READY';
+
+        s.ready[seat] = 0;
+        this.markDirty();
         return null;
     }
 

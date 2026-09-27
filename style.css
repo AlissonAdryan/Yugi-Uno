@@ -13,10 +13,12 @@
     --bg-1: #290f61;
     --bg-2: #152066;
     --bg-3: #37064a;
+    --bg-4: #2e1060;
     /* Camada de entrada (cross-fade): começa igual à base para o 1º fade não "piscar" */
     --bg-1-next: #290f61;
     --bg-2-next: #152066;
     --bg-3-next: #37064a;
+    --bg-4-next: #2e1060;
 
     /*
      * Configuração do plasma de fundo (ver bloco "Plasma Background" abaixo). Ajuste livremente:
@@ -29,8 +31,10 @@
     --plasma-travel: 32vmax;
     --plasma-speed-light: 24s;
     --plasma-speed-dark: 30s;
+    --plasma-speed-accent: 19s;
     --plasma-light-opacity: 1;
     --plasma-dark-opacity: 1;
+    --plasma-accent-opacity: 1;
 }
 
 body {
@@ -93,11 +97,14 @@ body {
 
 .plasma-blob--light { animation: plasmaTravelLight var(--plasma-speed-light) ease-in-out infinite; }
 .plasma-blob--dark { animation: plasmaTravelDark var(--plasma-speed-dark) ease-in-out infinite; }
+.plasma-blob--accent { animation: plasmaTravelAccent var(--plasma-speed-accent) ease-in-out infinite; }
 
 .plasma-layer--base .plasma-blob--light { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-2), transparent); opacity: var(--plasma-light-opacity); }
 .plasma-layer--base .plasma-blob--dark { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-3), transparent); opacity: var(--plasma-dark-opacity); }
+.plasma-layer--base .plasma-blob--accent { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-4), transparent); opacity: var(--plasma-accent-opacity); }
 .plasma-layer--incoming .plasma-blob--light { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-2-next), transparent); opacity: var(--plasma-light-opacity); }
 .plasma-layer--incoming .plasma-blob--dark { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-3-next), transparent); opacity: var(--plasma-dark-opacity); }
+.plasma-layer--incoming .plasma-blob--accent { background: radial-gradient(circle var(--plasma-blob-radius) at center, var(--bg-4-next), transparent); opacity: var(--plasma-accent-opacity); }
 
 /*
  * Cada círculo passeia por 4 pontos (±--plasma-travel) formando um caminho meio circular/irregular.
@@ -116,6 +123,13 @@ body {
     50%  { transform: translate(calc(var(--plasma-travel) * -0.65), calc(var(--plasma-travel) * -0.8)) scale(1.07); }
     75%  { transform: translate(var(--plasma-travel), calc(var(--plasma-travel) * -0.45)) scale(0.97); }
     100% { transform: translate(calc(var(--plasma-travel) * 0.8), calc(var(--plasma-travel) * 0.6)) scale(1); }
+}
+/* Terceiro blob: caminho diagonal cruzado para nunca coincidir com os outros dois */
+@keyframes plasmaTravelAccent {
+    0%   { transform: translate(calc(var(--plasma-travel) * 0.3), calc(var(--plasma-travel) * -0.9)) scale(1.02); }
+    33%  { transform: translate(calc(var(--plasma-travel) * -0.8), calc(var(--plasma-travel) * 0.3)) scale(0.96); }
+    66%  { transform: translate(calc(var(--plasma-travel) * 0.55), calc(var(--plasma-travel) * 0.85)) scale(1.06); }
+    100% { transform: translate(calc(var(--plasma-travel) * 0.3), calc(var(--plasma-travel) * -0.9)) scale(1.02); }
 }
 
 /* Fixed + inset 0 acompanha a área visível real (inclusive barras do navegador no celular) */
@@ -257,6 +271,15 @@ body {
 #end-turn-btn:hover:not(:disabled) {
     transform: translateY(-50%) scale(1.05);
     box-shadow: 0 0 30px rgba(142, 45, 226, 0.9);
+}
+
+#end-turn-btn.cancel-mode {
+    background: linear-gradient(45deg, #e0003b, #e22d64);
+    box-shadow: 0 0 20px rgba(226, 45, 100, 0.6);
+}
+
+#end-turn-btn.cancel-mode:hover:not(:disabled) {
+    box-shadow: 0 0 30px rgba(226, 45, 100, 0.9);
 }
 
 #end-turn-btn:disabled {

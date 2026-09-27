@@ -1,5 +1,5 @@
 import { CONFIG } from '../config/constants.js';
-import { ZONE, ZONE_COUNT, mirrorZone, zoneSeat } from '../utils/zones.js';
+import { ZONE, ZONE_COUNT, ZONE_OFFSET, mirrorZone, zoneSeat, seatZone } from '../utils/zones.js';
 
 /**
  * Contrato de rede entre Host (servidor autoritativo) e clientes.
@@ -40,7 +40,8 @@ export const INPUT = Object.freeze({
     DISCARD: 5,
     SET_NAME: 6,         // { name }  (aceito em qualquer fase, sem seq)
     REMATCH: 7,          // {}  (só na fase GAME_OVER; com os dois pedidos, uma nova partida começa)
-    CHOOSE_COLOR: 8      // { color }  (só na fase CHOOSING_COLOR, só de quem escolhe, só cor em comum)
+    CHOOSE_COLOR: 8,     // { color }  (só na fase CHOOSING_COLOR, só de quem escolhe, só cor em comum)
+    CANCEL_READY: 9      // {}
 });
 
 export const EVENT = Object.freeze({
@@ -172,14 +173,46 @@ export function encodeSnapshot(state, viewerSeat, seq, ackSeq, scratch) {
     let offset = HEADER_BYTES;
     let count = 0;
 
+    const isPrep = state.phase === CONFIG.GAME_STATES.PLAYING;
+    const oppHandZone = seatZone(oppSeat, ZONE_OFFSET.HAND);
+    const oppAttackZone = seatZone(oppSeat, ZONE_OFFSET.ATTACK);
+    const oppDefenseZone = seatZone(oppSeat, ZONE_OFFSET.DEFENSE);
+
     for (let zone = ZONE.SELF_HAND; zone < ZONE_COUNT; zone++) {
-        const cards = state.zones[zone];
-        if (cards.length === 0) continue;
+        let cards = state.zones[zone];
+        
+        // Garante processar oppHandZone mesmo se vazia, caso haja cartas extras nos stacks
+        if (cards.length === 0 && !(isPrep && zone === oppHandZone)) continue;
+
+        let spoofedCards = cards;
+        if (zone === oppHandZone) {
+            spoofedCards = [...cards];
+            if (isPrep) {
+                const extraAttack = state.zones[oppAttackZone].slice(1);
+                const extraDefense = state.zones[oppDefenseZone].slice(1);
+                if (extraAttack.length > 0 || extraDefense.length > 0) {
+                    spoofedCards.push(...extraAttack, ...extraDefense);
+                }
+            }
+            // Sort by ID to ensure a stable visual order in the opponent's hand.
+            // When a combo card is moved to the stack and we spoof it back to the hand,
+            // it will fall into the exact same relative position, preventing UI shuffling.
+            spoofedCards.sort((a, b) => a - b);
+        } else if (isPrep && zoneSeat(zone) === oppSeat) {
+            if (zone === oppAttackZone || zone === oppDefenseZone) {
+                if (cards.length > 1) {
+                    spoofedCards = cards.slice(0, 1);
+                }
+            }
+        }
+
+        if (spoofedCards.length === 0) continue;
+
         const relZone = mirrorZone(zone, viewerSeat);
         const isOwn = zoneSeat(zone) === viewerSeat;
 
-        for (let i = 0; i < cards.length; i++) {
-            const id = cards[i];
+        for (let i = 0; i < spoofedCards.length; i++) {
+            const id = spoofedCards[i];
             const visible = isOwn || state.revealed[id] === 1;
             scratch.setUint16(offset, id);
             scratch.setUint8(offset + 2, relZone);

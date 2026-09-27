@@ -92,7 +92,7 @@ export class GameClient {
         });
 
         this.setupInput();
-        this.hud.onEndTurn(() => this.sendReady());
+        this.hud.onEndTurn(() => this.toggleReady());
         this.hud.onRematch(() => this.requestRematch());
 
         this.gameLoop = new GameLoop(
@@ -368,8 +368,12 @@ export class GameClient {
         const oppReady = v.hasFlag(SNAPSHOT_FLAGS.OPP_READY);
         const discardsLeft = v.selfDiscards - this.countPending(INPUT.DISCARD);
 
-        const preparing = phase === GAME_STATES.PLAYING && !selfReady;
-        this.hud.setEndTurn(preparing, preparing && this.layout.stack(ZONE.SELF_ATTACK).length > 0);
+        if (phase === GAME_STATES.PLAYING) {
+            const selfHasAttack = this.layout.stack(ZONE.SELF_ATTACK).length > 0;
+            this.hud.setEndTurn(true, selfReady || selfHasAttack, selfReady);
+        } else {
+            this.hud.setEndTurn(false, false, false);
+        }
 
         let message = null;
         let selectable = -1;
@@ -413,7 +417,12 @@ export class GameClient {
     // --- Input -------------------------------------------------------------
 
     isSelfReady() {
-        return this.view.hasFlag(SNAPSHOT_FLAGS.SELF_READY) || this.hasPending(INPUT.READY);
+        let state = this.view.hasFlag(SNAPSHOT_FLAGS.SELF_READY);
+        for (const p of this.pendingInputs) {
+            if (p.t === INPUT.READY) state = true;
+            if (p.t === INPUT.CANCEL_READY) state = false;
+        }
+        return state;
     }
 
     canPrepare() {
@@ -560,10 +569,18 @@ export class GameClient {
         if (!this.hasSnapshot) this.hud.setPhaseMessage('AGUARDANDO O OPONENTE...');
     }
 
-    sendReady() {
-        if (!this.canPrepare() || this.layout.stack(ZONE.SELF_ATTACK).length === 0) return;
-        console.log('[Client] Finalizando turno (READY).');
-        this.sendInput(INPUT.READY, -1);
+    toggleReady() {
+        if (!this.hasSnapshot || this.cinematics.gameOverShown) return;
+        if (this.view.phase !== GAME_STATES.PLAYING) return;
+
+        if (this.isSelfReady()) {
+            console.log('[Client] Cancelando turno (CANCEL_READY).');
+            this.sendInput(INPUT.CANCEL_READY, -1);
+        } else {
+            if (this.layout.stack(ZONE.SELF_ATTACK).length === 0) return;
+            console.log('[Client] Finalizando turno (READY).');
+            this.sendInput(INPUT.READY, -1);
+        }
     }
 
     // --- Loop --------------------------------------------------------------

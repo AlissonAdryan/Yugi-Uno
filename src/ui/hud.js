@@ -66,6 +66,7 @@ export class Hud {
         this.cache = {
             selfHP: -1, oppHP: -1, phase: null, endVisible: null, endEnabled: null, bgColor: -1, banner: null, rematch: ''
         };
+        this.lastRoundColor = CONFIG.COLOR.NONE; // cor da rodada imediatamente antes do Rainbow
         this.colorAlertTimer = null;
         this.bgFadeTimer = null;
         this.bgFading = false;
@@ -206,7 +207,7 @@ export class Hud {
         }
     }
 
-    setEndTurn(visible, enabled) {
+    setEndTurn(visible, enabled, isReady = false) {
         if (visible !== this.cache.endVisible) {
             this.cache.endVisible = visible;
             this.el.endTurn.hidden = !visible;
@@ -215,6 +216,11 @@ export class Hud {
             this.cache.endEnabled = enabled;
             this.el.endTurn.disabled = !enabled;
         }
+        const text = isReady ? 'CANCELAR FINALIZAÇÃO' : 'FINALIZAR TURNO';
+        if (this.el.endTurn.textContent !== text) {
+            this.el.endTurn.textContent = text;
+        }
+        this.el.endTurn.classList.toggle('cancel-mode', isReady);
     }
 
     setPhaseMessage(text) {
@@ -228,9 +234,31 @@ export class Hud {
     syncBackground(color) {
         if (color === this.cache.bgColor) return;
         this.cache.bgColor = color;
+        // Guarda a última cor de rodada real para montar o Rainbow dinâmico
+        if (color !== CONFIG.COLOR.RAINBOW && color !== CONFIG.COLOR.NONE) {
+            this.lastRoundColor = color;
+        }
         const palette = CONFIG.COLOR_PALETTES[color];
-        const bg = palette ? palette.bg : CONFIG.DEFAULT_BACKGROUND;
+        const bg = (color === CONFIG.COLOR.RAINBOW)
+            ? Hud._rainbowBg(this.lastRoundColor)
+            : (palette ? palette.bg : CONFIG.DEFAULT_BACKGROUND);
         this.crossfadeBackground(bg);
+    }
+
+    /**
+     * Monta o bg do Rainbow de forma dinâmica:
+     * - bg-1 (sólido) = cor da rodada atual
+     * - bg-2/3/4 (blobs) = as outras 3 cores
+     * @param {number} roundColor COLOR.* da rodada vigente
+     */
+    static _rainbowBg(roundColor) {
+        // bg[0] de cada paleta (base sólida) e bg[1] (cor do blob claro) por cor básica
+        const BASE = { 1: '#4a0f0f', 2: '#0f204a', 3: '#0f4a15', 4: '#4a4a0f' };
+        const BLOB = { 1: '#721616', 2: '#153366', 3: '#156620', 4: '#666615' };
+        const ALL  = [1, 2, 3, 4]; // RED, BLUE, GREEN, YELLOW
+        const solidBase = BASE[roundColor] ?? CONFIG.DEFAULT_BACKGROUND[0];
+        const others = ALL.filter(c => c !== roundColor); // sempre 3 ou 4 elementos
+        return [solidBase, BLOB[others[0]], BLOB[others[1]], BLOB[others[2]]];
     }
 
     /** Camada de cima volta a ficar invisível e sem transição, pronta para o próximo fade. */
@@ -255,12 +283,14 @@ export class Hud {
             root.setProperty('--bg-1', this.pendingBg[0]);
             root.setProperty('--bg-2', this.pendingBg[1]);
             root.setProperty('--bg-3', this.pendingBg[2]);
+            if (this.pendingBg[3]) root.setProperty('--bg-4', this.pendingBg[3]);
             this.snapIncomingHidden();
         }
 
         root.setProperty('--bg-1-next', bg[0]);
         root.setProperty('--bg-2-next', bg[1]);
         root.setProperty('--bg-3-next', bg[2]);
+        if (bg[3]) root.setProperty('--bg-4-next', bg[3]);
         this.pendingBg = bg;
         this.bgFading = true;
         this.el.plasmaIncoming.style.opacity = '1';
@@ -270,6 +300,7 @@ export class Hud {
             root.setProperty('--bg-1', bg[0]);
             root.setProperty('--bg-2', bg[1]);
             root.setProperty('--bg-3', bg[2]);
+            if (bg[3]) root.setProperty('--bg-4', bg[3]);
             this.snapIncomingHidden();
         }, BG_FADE_MS);
     }
