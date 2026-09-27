@@ -235,7 +235,7 @@ export const CONFIG = Object.freeze({
          * indefinidamente (ver fallback-adapter.js) — essa camada nunca é obrigatória pro jogo rodar.
          * Hospede /relay-server/ grátis no Render (sem cartão) e cole a URL wss:// aqui. Vazio desativa.
          */
-        RELAY_WS_ENDPOINT: ''
+        RELAY_WS_ENDPOINT: 'wss://yugi-uno.onrender.com/'
     }),
 
     AUDIO: Object.freeze({
