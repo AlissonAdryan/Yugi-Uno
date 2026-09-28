@@ -88,7 +88,7 @@ export const CONFIG = Object.freeze({
             BLOCK: 8,
             REVERSE: 7,
             CHANGE_COLOR: 8,
-            HEAL: 3,
+            HEAL: 4,
             SHIELD: 6,
             REVIVE: 1,
             PAINT: 5,
