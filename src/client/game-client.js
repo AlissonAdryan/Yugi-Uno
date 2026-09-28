@@ -90,6 +90,7 @@ export class GameClient {
         // Inputs enviados e ainda não confirmados pelo ack do snapshot: { seq, t, id, zone, order }
         this.inputSeq = 0;
         this.pendingInputs = [];
+        this.paintSelection = [];
 
         this.scene = { deckX: 0, deckY: 0, deckCount: 0, hoveredCard: -1, selectableZone: -1, showcase: this.showcase };
 
@@ -184,6 +185,23 @@ export class GameClient {
                 this.particles.emitRise(vx, vy, '#ffd700', 10 + evt.amount * 8, 26, 240, PARTICLE_TYPES.STAR);
                 this.particles.emitBurst(vx, vy, '#fff3b0', 12, 160, PARTICLE_TYPES.CIRCLE);
             }
+            return;
+        }
+
+        if (evt.t === EVENT.PAINT_APPLIED) {
+            if (!document.hidden) this.audio.play(SFX.HEAL_USE);
+            for (const c of evt.cards) {
+                const id = c.cardId;
+                if (this.pool.isActive(id)) {
+                    this.pool.color[id] = c.color;
+                    const x = this.pool.x[id] + CONFIG.CARD_DIMENSIONS.WIDTH / 2;
+                    const y = this.pool.y[id] + CONFIG.CARD_DIMENSIONS.HEIGHT / 2;
+                    if (!document.hidden) {
+                        this.particles.emitBurst(x, y, CONFIG.COLOR_PALETTES[c.color].color, 15, 120, PARTICLE_TYPES.CIRCLE);
+                    }
+                }
+            }
+            this.relayout();
             return;
         }
 
@@ -481,7 +499,12 @@ export class GameClient {
 
     canPrepare() {
         if (!this.hasSnapshot || this.cinematics.gameOverShown) return false;
-        return this.view.phase === GAME_STATES.PLAYING && !this.isSelfReady();
+        return this.view.phase === GAME_STATES.PLAYING && !this.isSelfReady() && !this.isPaintSelecting();
+    }
+
+    isPaintSelecting() {
+        if (!this.hasSnapshot || this.view.phase !== GAME_STATES.PLAYING) return false;
+        return (this.view.selfStatus & CONFIG.STATUS.PAINT_PENDING) !== 0 || this.hasPending(INPUT.PLAY_CONSUMABLE);
     }
 
     isDiscarding() {
@@ -534,6 +557,17 @@ export class GameClient {
         // Toque em tela não tem "mousemove" contínuo: sem isso, uma carta tocada antes fica
         // presa levantada pra sempre quando o jogador toca em outra (só existe em celular/tablet).
         this.lowerHover();
+
+        if (this.isPaintSelecting()) {
+            if (zone !== ZONE.SELF_HAND) return false;
+            if (pool.color[id] === CONFIG.COLOR.BLACK || pool.color[id] === CONFIG.COLOR.NONE) {
+                this.audio.play(SFX.ERROR);
+                this.shakeBackToHand(id);
+                return false;
+            }
+            this.handlePaintClick(id);
+            return false;
+        }
 
         if (this.isDiscarding()) {
             if (zone !== ZONE.SELF_HAND) return false;
@@ -616,6 +650,33 @@ export class GameClient {
         pool.zIndex[id] = DRAG_Z_INDEX;
         this.animator.to(id, { scale: 0.8 }, 150, Easing.QuadOut, null, null, pool);
         this.sendInput(INPUT.SELL_CARD, id, CLIENT_ZONE.TRASH, 0);
+    }
+
+    handlePaintClick(id) {
+        const pool = this.pool;
+        const idx = this.paintSelection.indexOf(id);
+        if (idx !== -1) {
+            this.paintSelection.splice(idx, 1);
+            pool.paintSelected[id] = 0;
+            this.audio.playSample(SAMPLES.CARD_HOVER);
+        } else {
+            if (this.paintSelection.length >= CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) return;
+            this.paintSelection.push(id);
+            pool.paintSelected[id] = 1;
+            this.audio.playSample(SAMPLES.CARD_HOVER);
+        }
+        
+        if (this.paintSelection.length === CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) {
+            // Mostrar color picker
+            this.colorPicker.show(30, (color) => {
+                this.sendInput(INPUT.PAINT_SELECT, -1, -1, 0, undefined, { cards: [...this.paintSelection], color });
+                this.colorPicker.hide();
+                for (const cardId of this.paintSelection) this.pool.paintSelected[cardId] = 0;
+                this.paintSelection = [];
+            });
+        } else {
+            this.colorPicker.hide();
+        }
     }
 
     /**
@@ -727,7 +788,7 @@ export class GameClient {
     update() {
         if (!this.hasSnapshot || this.input.draggedCard !== -1) return;
         const pool = this.pool;
-        const canHover = this.canPrepare() || this.isDiscarding();
+        const canHover = this.canPrepare() || this.isDiscarding() || this.isPaintSelecting();
         let current = canHover ? this.pickCard(this.input.pointerX, this.input.pointerY) : -1;
         if (current !== -1 && pool.zone[current] !== ZONE.SELF_HAND) current = -1;
         if (current === this.hoveredCard) return;

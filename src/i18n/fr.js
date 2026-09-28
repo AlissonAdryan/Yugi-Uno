@@ -121,5 +121,7 @@ export const FR = {
     "DESC_CHANGE_COLOR": "Consommable : jouez n'importe quelle couleur cette manche.",
     "DESC_HEAL": "Consommable : récupère la moitié des dégâts infligés dans la manche.",
     "DESC_SHIELD": "Consommable : subit la moitié des dégâts jusqu'à la prochaine manche.",
-    "DESC_REVIVE": "Consommable : survit à un coup fatal pendant les 5 prochaines manches. 1 fois par partie."
+    "DESC_REVIVE": "Consommable : survit à un coup fatal pendant les 5 prochaines manches. 1 fois par partie.",
+    "CARD_PAINT": 'Peindre',
+    "DESC_PAINT": 'Choisissez 2 cartes de votre main et peignez-les de la couleur de votre choix. (Phase de préparation uniquement)'
 };

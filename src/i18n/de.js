@@ -121,5 +121,7 @@ export const DE = {
     "DESC_CHANGE_COLOR": "Verbrauchbar: spiele diese Runde jede Farbe.",
     "DESC_HEAL": "Verbrauchbar: heilt die Hälfte des Schadens, den du diese Runde verursachst.",
     "DESC_SHIELD": "Verbrauchbar: nur halber Schaden bis zur nächsten Runde.",
-    "DESC_REVIVE": "Verbrauchbar: überlebe in den nächsten 5 Runden einen tödlichen Treffer. 1x pro Partie."
+    "DESC_REVIVE": "Verbrauchbar: überlebe in den nächsten 5 Runden einen tödlichen Treffer. 1x pro Partie.",
+    "CARD_PAINT": 'Malen',
+    "DESC_PAINT": 'Wähle 2 Karten aus deiner Hand und male sie in einer beliebigen Farbe an. (Nur in der Vorbereitungsphase)'
 };

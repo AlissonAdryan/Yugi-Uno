@@ -10,7 +10,7 @@ export const EN = {
     "PVE": "PLAYER VS CPU",
     "CREATE_ROOM": "CREATE ROOM",
     "BACK_TO_MENU": "BACK TO MENU",
-    
+
     // Room
     "ROOM_CREATING": "CREATING ROOM...",
     "ROOM_CREATED": "ROOM CREATED",
@@ -28,12 +28,12 @@ export const EN = {
     "NETWORK_ERROR_ROOM": "Error connecting to the P2P network. Please try again.",
     "JOIN_SLOW_HINT": "Still searching for the host... Make sure their room is open and the code is correct.",
     "BACK": "Back",
-    
+
     // Name Prompt
     "WHAT_IS_YOUR_NAME": "WHAT IS YOUR NAME?",
     "YOUR_NAME": "Your name",
     "CONFIRM": "CONFIRM",
-    
+
     // Game UI
     "YOU": "YOU",
     "OPPONENT": "OPPONENT",
@@ -41,7 +41,7 @@ export const EN = {
     "CANCEL_TURN": "CANCEL TURN",
     "CHOOSE_COLOR": "CHOOSE NEXT COLOR",
     "USE_SLOT": "USE",
-    
+
     // Messages
     "WAITING_OPPONENT": "WAITING FOR OPPONENT...",
     "DEFENSE_LOCKED": "YOUR DEFENSE IS LOCKED THIS ROUND!",
@@ -51,7 +51,7 @@ export const EN = {
     "OPPONENT_CHOOSING_COLOR": "OPPONENT IS CHOOSING COLOR...",
     "HIT_LOCKOUT": "LOCKED OUT!",
     "HIT_HAND_SWAP": "HANDS SWAPPED!",
-    
+
     // Network
     "NET_CONNECTING": "Connecting...",
     "NET_UNSTABLE": "Unstable connection...",
@@ -59,7 +59,7 @@ export const EN = {
     "NET_RECONNECTING": "Host connection lost. Reconnecting (up to 2 min)...",
     "NET_LOST": "Connection permanently lost.",
     "NET_ERROR": "Connection error.",
-    
+
     // Game Over
     "VICTORY": "VICTORY!",
     "DEFEAT": "DEFEAT!",
@@ -69,7 +69,7 @@ export const EN = {
     "ACCEPT_REMATCH": "ACCEPT REMATCH",
     "OPP_WANTS_REMATCH": "{opponent} WANTS A REMATCH!",
     "WAITING_REMATCH_OPPONENT": "REMATCH REQUEST SENT. WAITING FOR {opponent}...",
-    
+
     // End Reasons
     "REASON_WIN": "You reduced your opponent's hit points to zero!",
     "REASON_LOSS": "Your hit points reached zero!",
@@ -121,5 +121,7 @@ export const EN = {
     "DESC_CHANGE_COLOR": "Consumable: play any color this round.",
     "DESC_HEAL": "Consumable: heal half the damage you deal this round.",
     "DESC_SHIELD": "Consumable: take half damage until the next round.",
-    "DESC_REVIVE": "Consumable: survive one lethal hit over the next 5 rounds. Once per match."
+    "DESC_REVIVE": "Consumable: survive one lethal hit over the next 5 rounds. Once per match.",
+    "CARD_PAINT": 'Paint',
+    "DESC_PAINT": 'Choose 2 cards from your hand and paint them any color. (Prep Phase Only)'
 };

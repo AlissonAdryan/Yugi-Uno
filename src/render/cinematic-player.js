@@ -18,7 +18,8 @@ const CONSUMABLE_FX = Object.freeze({
     [CARD_TYPES.CHANGE_COLOR]: CONSUMABLE_FX_DEFAULT,
     [CARD_TYPES.HEAL]: Object.freeze({ color: '#2ecc71', sound: SFX.HEAL_USE, toLife: true }),
     [CARD_TYPES.SHIELD]: Object.freeze({ color: '#00e5ff', sound: SFX.SHIELD_UP, toLife: true }),
-    [CARD_TYPES.REVIVE]: Object.freeze({ color: '#ffd700', sound: SFX.REVIVE_USE, toLife: true })
+    [CARD_TYPES.REVIVE]: Object.freeze({ color: '#ffd700', sound: SFX.REVIVE_USE, toLife: true }),
+    [CARD_TYPES.PAINT]: Object.freeze({ color: '#7b68ee', sound: SFX.CONSUMABLE, toLife: false })
 });
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));

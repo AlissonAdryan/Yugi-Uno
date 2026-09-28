@@ -121,5 +121,7 @@ export const TR = {
     "DESC_CHANGE_COLOR": "Tüketilebilir: bu tur istediğin rengi oyna.",
     "DESC_HEAL": "Tüketilebilir: turda verdiğin hasarın yarısını iyileştir.",
     "DESC_SHIELD": "Tüketilebilir: sonraki tura kadar yarı hasar al.",
-    "DESC_REVIVE": "Tüketilebilir: sonraki 5 turda bir ölümcül darbeden kurtul. Maç başına 1 kez."
+    "DESC_REVIVE": "Tüketilebilir: sonraki 5 turda bir ölümcül darbeden kurtul. Maç başına 1 kez.",
+    "CARD_PAINT": 'Boyamak',
+    "DESC_PAINT": 'Elinden 2 kart seç ve onları istediğin bir renge boya. (Sadece Hazırlık Aşamasında)'
 };

@@ -112,6 +112,7 @@ export class Canvas2DRenderer {
             else this.drawFace(ctx, pool.type[i], pool.color[i], pool.power[i], i, pool.scale[i]);
 
             if (pool.outlined[i] === 1) this.drawPlayableOutline(ctx);
+            if (pool.paintSelected[i] === 1) this.drawPaintSelected(ctx);
 
             ctx.restore();
         }
@@ -248,6 +249,26 @@ export class Canvas2DRenderer {
         ctx.strokeStyle = OUTLINE.COLOR;
         ctx.lineWidth = OUTLINE.LINE_WIDTH;
         ctx.stroke();
+    }
+
+    /** Borda brilhante roxa pulsante quando a carta é selecionada para o Pintar. */
+    drawPaintSelected(ctx) {
+        const w = CARD_DIMENSIONS.WIDTH;
+        const h = CARD_DIMENSIONS.HEIGHT;
+        const r = CARD_DIMENSIONS.RADIUS;
+        const pad = 4;
+        
+        ctx.save();
+        ctx.beginPath();
+        ctx.roundRect(-pad, -pad, w + pad * 2, h + pad * 2, r + pad/2);
+        
+        const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.005);
+        ctx.strokeStyle = `rgba(123, 104, 238, ${0.4 + pulse * 0.6})`;
+        ctx.lineWidth = 4 + pulse * 2;
+        ctx.shadowColor = '#7b68ee';
+        ctx.shadowBlur = 10 + pulse * 10;
+        ctx.stroke();
+        ctx.restore();
     }
 
     drawDeckPile(scene) {

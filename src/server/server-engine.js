@@ -49,6 +49,8 @@ export class ServerEngine {
         this.startRequested = false;
         // Invalida timeouts de escolha de cor antigos (cada abertura da escolha gera um novo token)
         this.colorChoiceToken = 0;
+        // Pintar: o jogador precisa selecionar 2 cartas + 1 cor após usar a carta (1 = aguardando seleção)
+        // Está em this.state.paintPending
 
         this._flushMicrotask = () => {
             if (!this.flushPending) return;
@@ -354,6 +356,7 @@ export class ServerEngine {
             case INPUT.SHOP_BUY: reason = this.buyItem(seat, msg.slot); break;
             case INPUT.SHOP_REROLL: reason = this.rerollShop(seat); break;
             case INPUT.SHOP_FREEZE: reason = this.toggleFreeze(seat, msg.slot); break;
+            case INPUT.PAINT_SELECT: reason = this.paintSelect(seat, msg.cards, msg.color); break;
             default: reason = 'UNKNOWN_INPUT';
         }
 
@@ -501,7 +504,39 @@ export class ServerEngine {
                 s.reviveRounds[seat] = CONFIG.CONSUMABLES.REVIVE_ROUNDS;
                 console.log(`[Server] P${seat + 1} usou Reviver: protegido de 1 morte pelas próximas ${CONFIG.CONSUMABLES.REVIVE_ROUNDS} rodadas.`);
                 break;
+            case CARD_TYPES.PAINT:
+                s.paintPending[seat] = 1;
+                console.log(`[Server] P${seat + 1} usou Pintar: aguardando seleção de 2 cartas e 1 cor.`);
+                break;
         }
+        this.markDirty();
+        return null;
+    }
+
+    /** Pintar: jogador seleciona 2 cartas da mão e 1 cor básica para recolorir. */
+    paintSelect(seat, cards, color) {
+        const s = this.state;
+        if (!s.paintPending[seat]) return 'PAINT_NOT_PENDING';
+        if (!Array.isArray(cards) || cards.length !== CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) return 'PAINT_WRONG_COUNT';
+        if (!Number.isInteger(color) || !CONFIG.BASIC_COLORS.includes(color)) return 'INVALID_COLOR';
+
+        // Verificar que todas as cartas existem, estão na mão e não são sem cor / especiais sem cor pintáveis
+        const uniqueIds = new Set(cards);
+        if (uniqueIds.size !== cards.length) return 'DUPLICATE_CARDS';
+        for (const cardId of cards) {
+            if (!this.isInHand(seat, cardId)) return 'NOT_IN_HAND';
+            // Não pode pintar cartas que já são pretas (consumíveis sem cor: +4, trocar cor, etc.)
+            if (s.color[cardId] === CONFIG.COLOR.BLACK || s.color[cardId] === CONFIG.COLOR.NONE) return 'CANNOT_PAINT_COLORLESS';
+        }
+
+        s.paintPending[seat] = 0;
+        const result = [];
+        for (const cardId of cards) {
+            s.color[cardId] = color;
+            result.push({ cardId, color });
+        }
+        this.emitTo(seat, EVENT.PAINT_APPLIED, { cards: result });
+        console.log(`[Server] P${seat + 1} pintou ${cards.length} cartas de ${CONFIG.COLOR_PALETTES[color].name}.`);
         this.markDirty();
         return null;
     }

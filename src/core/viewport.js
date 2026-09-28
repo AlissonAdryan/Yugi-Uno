@@ -37,8 +37,11 @@ export class Viewport {
         this.width = w / this.scale;
         this.height = h / this.scale;
         this.uiScale = Math.min(VIEW.UI_SCALE_MAX, Math.max(VIEW.UI_SCALE_MIN, this.scale));
+        const trashCorrection = this.scale / this.uiScale;
 
         document.documentElement.style.setProperty('--ui-scale', this.uiScale.toFixed(4));
+        document.documentElement.style.setProperty('--scene-scale', this.scale.toFixed(4));
+        document.documentElement.style.setProperty('--trash-scale', trashCorrection.toFixed(4));
         for (let i = 0; i < this.listeners.length; i++) this.listeners[i](this);
     }
 

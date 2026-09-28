@@ -18,6 +18,7 @@ const CARD_TYPES = Object.freeze({
     HEAL: 6,
     SHIELD: 7,
     REVIVE: 8,
+    PAINT: 9,
     HIDDEN: 255
 });
 
@@ -26,7 +27,8 @@ const STATUS = Object.freeze({
     HEAL: 1,
     SHIELD: 2,
     REVIVE_ACTIVE: 4,
-    REVIVE_USED: 8
+    REVIVE_USED: 8,
+    PAINT_PENDING: 16
 });
 
 /*
@@ -85,7 +87,8 @@ export const CONFIG = Object.freeze({
             CHANGE_COLOR: 8,
             HEAL: 3,
             SHIELD: 6,
-            REVIVE: 1
+            REVIVE: 1,
+            PAINT: 5
         })
     }),
     
@@ -106,7 +109,8 @@ export const CONFIG = Object.freeze({
         CHANGE_COLOR: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 4, shopWeight: 12 }),
         HEAL: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 5, shopWeight: 10 }),
         SHIELD: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 5, shopWeight: 10 }),
-        REVIVE: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 16, shopWeight: 3 })
+        REVIVE: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 16, shopWeight: 3 }),
+        PAINT: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 7, shopWeight: 6 })
     }),
 
     // Resolução virtual de referência: altura mínima para mãos + tabuleiro com respiro (~870px ocupados)
@@ -158,7 +162,7 @@ export const CONFIG = Object.freeze({
     SHOP: Object.freeze({
         SLOTS: 3,
         REFRESH_EVERY_ROUNDS: 2,        // rodadas de combate entre renovações automáticas
-        STARTING_COINS: 2,
+        STARTING_COINS: 3,
         MAX_COINS: 999,
         // Ao fim de cada combate (o oposto das compras de carta, pra equilibrar)
         ROUND_COINS: Object.freeze({ WINNER: 1, LOSER: 2, TIE: 1 }),
@@ -178,18 +182,19 @@ export const CONFIG = Object.freeze({
         // Congelar: só 1 item por vez (força escolher qual guardar), e ele fica mais caro ao "descongelar"
         // na renovação seguinte (senão seria só uma reserva de graça, sem custo nenhum)
         MAX_FROZEN: 1,
-        FREEZE_SURCHARGE: 2
+        FREEZE_SURCHARGE: 1
     }),
 
     // Especiais sem cor (podem ser jogadas em qualquer cor e não contam no sorteio de cores em comum)
-    COLORLESS_SPECIALS: Object.freeze(['PLUS4', 'CHANGE_COLOR', 'HEAL', 'SHIELD', 'REVIVE']),
+    COLORLESS_SPECIALS: Object.freeze(['PLUS4', 'CHANGE_COLOR', 'HEAL', 'SHIELD', 'REVIVE', 'PAINT']),
 
     // Regras numéricas dos consumíveis de vida (GAME_RULES §6.5–6.7)
     CONSUMABLES: Object.freeze({
         HEAL_RATIO: 0.5,            // cura = floor(dano causado na rodada * ratio)
         SHIELD_DAMAGE_RATIO: 0.5,   // dano recebido por golpe = floor(dano * ratio)
         REVIVE_ROUNDS: 5,           // rodadas de combate em que o Reviver fica de guarda
-        REVIVE_SURVIVE_HP: 1        // vida que sobra quando o Reviver impede a morte
+        REVIVE_SURVIVE_HP: 1,       // vida que sobra quando o Reviver impede a morte
+        PAINT_CARDS_NEEDED: 2       // quantas cartas o Pintar recolore
     }),
 
     /*
@@ -201,13 +206,14 @@ export const CONFIG = Object.freeze({
      * aponte `fx` para ele aqui — nenhuma outra parte do renderer precisa mudar.
      */
     CARD_VISUALS: Object.freeze({
-        [CARD_TYPES.REVIVE]: Object.freeze({ background: '#fbf7ea', border: '#d4af37', painted: true, fx: 'FOIL_GOLD' })
+        [CARD_TYPES.REVIVE]: Object.freeze({ background: '#fbf7ea', border: '#d4af37', painted: true, fx: 'FOIL_GOLD' }),
+        [CARD_TYPES.PAINT]: Object.freeze({ background: '#111111', border: '#7b68ee', painted: true, fx: 'FOIL_HOLO' })
     }),
 
     // Contorno animado (sentido horário) nas cartas da mão que podem ser jogadas agora. Só visual e só local.
     PLAYABLE_OUTLINE: Object.freeze({
         // Tipos que nunca recebem o contorno, mesmo quando jogáveis
-        EXCLUDED_TYPES: Object.freeze([CARD_TYPES.CHANGE_COLOR, CARD_TYPES.HEAL, CARD_TYPES.SHIELD, CARD_TYPES.REVIVE]),
+        EXCLUDED_TYPES: Object.freeze([CARD_TYPES.CHANGE_COLOR, CARD_TYPES.HEAL, CARD_TYPES.SHIELD, CARD_TYPES.REVIVE, CARD_TYPES.PAINT]),
         COLOR: '#7df9ff',
         GLOW_COLOR: 'rgba(0, 229, 255, 0.35)',
         LINE_WIDTH: 3,
@@ -403,6 +409,11 @@ export const CONFIG = Object.freeze({
             MAIN_THEME: Object.freeze({
                 sources: Object.freeze(['assets/audio/music/main_theme.ogg']),
                 volume: 0.1 // -90% do volume original da faixa
+            }),
+            SHOP_THEME: Object.freeze({
+                sources: Object.freeze(['assets/audio/music/shop_theme.ogg']),
+                volume: 0.1,
+                optional: true
             })
         }),
         // Efeitos gravados (arquivo curto, decodificado inteiro em memória): `sources` + `volume` padrão

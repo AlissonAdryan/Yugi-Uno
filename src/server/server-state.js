@@ -34,6 +34,7 @@ export class ServerState {
         this.reviveRounds = new Uint8Array(2);  // rodadas de guarda restantes do Reviver (0 = inativo)
         this.reviveUsed = new Uint8Array(2);    // 1 = já usou o Reviver nesta partida (limite: 1x)
         this.reviveGuard = new Uint8Array(2);   // 1 = o Reviver já salvou nesta rodada: vida não passa de 1 pra baixo
+        this.paintPending = new Uint8Array(2);  // 1 = o jogador usou Pintar e precisa selecionar cartas/cor
 
         // Economia (moedas privadas, loja por assento). Itens da loja em SoA: índice = assento * SLOTS + espaço
         this.cardFlags = new Uint8Array(capacity); // CONFIG.CARD_FLAGS por carta (ex.: RESALE)
@@ -78,6 +79,7 @@ export class ServerState {
         this.reviveRounds.fill(0);
         this.reviveUsed.fill(0);
         this.reviveGuard.fill(0);
+        this.paintPending.fill(0);
         this.cardFlags.fill(0);
         this.coins.fill(CONFIG.SHOP.STARTING_COINS);
         this.rerollCost.fill(CONFIG.SHOP.REROLL_BASE_COST);
@@ -112,6 +114,7 @@ export class ServerState {
         if (this.shieldActive[seat]) bits |= STATUS.SHIELD;
         if (this.reviveRounds[seat] > 0) bits |= STATUS.REVIVE_ACTIVE;
         if (this.reviveUsed[seat]) bits |= STATUS.REVIVE_USED;
+        if (this.paintPending[seat]) bits |= STATUS.PAINT_PENDING;
         return bits;
     }
 

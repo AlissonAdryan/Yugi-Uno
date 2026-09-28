@@ -96,7 +96,8 @@ export function summonCount(type) {
 
 export function isConsumable(type) {
     return type === CARD_TYPES.CHANGE_COLOR || type === CARD_TYPES.HEAL
-        || type === CARD_TYPES.SHIELD || type === CARD_TYPES.REVIVE;
+        || type === CARD_TYPES.SHIELD || type === CARD_TYPES.REVIVE
+        || type === CARD_TYPES.PAINT;
 }
 
 /**

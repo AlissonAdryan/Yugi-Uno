@@ -1661,6 +1661,7 @@ body {
     width: 100px;
     height: 150px;
     margin-left: -50px;
+    zoom: var(--trash-scale, 1);
     display: flex;
     align-items: center;
     justify-content: center;

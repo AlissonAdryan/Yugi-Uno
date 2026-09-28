@@ -10,7 +10,7 @@ export const ES = {
     "PVE": "JUGADOR VS CPU",
     "CREATE_ROOM": "CREAR SALA",
     "BACK_TO_MENU": "VOLVER AL MENÚ",
-    
+
     // Room
     "ROOM_CREATING": "CREANDO SALA...",
     "ROOM_CREATED": "SALA CREADA",
@@ -28,12 +28,12 @@ export const ES = {
     "NETWORK_ERROR_ROOM": "Error al conectar con la red P2P. Inténtalo de nuevo.",
     "JOIN_SLOW_HINT": "Aún buscando al host... Comprueba que su sala esté abierta y que el código sea correcto.",
     "BACK": "Volver",
-    
+
     // Name Prompt
     "WHAT_IS_YOUR_NAME": "¿CUÁL ES TU NOMBRE?",
     "YOUR_NAME": "Tu nombre",
     "CONFIRM": "CONFIRMAR",
-    
+
     // Game UI
     "YOU": "TÚ",
     "OPPONENT": "OPONENTE",
@@ -41,7 +41,7 @@ export const ES = {
     "CANCEL_TURN": "CANCELAR TURNO",
     "CHOOSE_COLOR": "ELIGE EL PRÓXIMO COLOR",
     "USE_SLOT": "USAR",
-    
+
     // Messages
     "WAITING_OPPONENT": "ESPERANDO AL OPONENTE...",
     "DEFENSE_LOCKED": "¡TU DEFENSA ESTÁ BLOQUEADA ESTA RONDA!",
@@ -51,7 +51,7 @@ export const ES = {
     "OPPONENT_CHOOSING_COLOR": "EL OPONENTE ESTÁ ELIGIENDO EL COLOR...",
     "HIT_LOCKOUT": "¡BLOQUEO!",
     "HIT_HAND_SWAP": "¡CAMBIO DE MANOS!",
-    
+
     // Network
     "NET_CONNECTING": "Conectando...",
     "NET_UNSTABLE": "Conexión inestable...",
@@ -59,7 +59,7 @@ export const ES = {
     "NET_RECONNECTING": "Conexión con el host perdida. Reconectando (hasta 2 min)...",
     "NET_LOST": "Conexión perdida definitivamente.",
     "NET_ERROR": "Error de conexión.",
-    
+
     // Game Over
     "VICTORY": "¡VICTORIA!",
     "DEFEAT": "¡DERROTA!",
@@ -69,7 +69,7 @@ export const ES = {
     "ACCEPT_REMATCH": "ACEPTAR REVANCHA",
     "OPP_WANTS_REMATCH": "¡{opponent} QUIERE REVANCHA!",
     "WAITING_REMATCH_OPPONENT": "PETICIÓN DE REVANCHA ENVIADA. ESPERANDO A {opponent}...",
-    
+
     // End Reasons
     "REASON_WIN": "¡Redujiste los puntos de vida del oponente a cero!",
     "REASON_LOSS": "¡Tus puntos de vida llegaron a cero!",
@@ -121,5 +121,7 @@ export const ES = {
     "DESC_CHANGE_COLOR": "Consumible: juega cualquier color esta ronda.",
     "DESC_HEAL": "Consumible: recupera la mitad del daño que causes en la ronda.",
     "DESC_SHIELD": "Consumible: recibe la mitad del daño hasta la próxima ronda.",
-    "DESC_REVIVE": "Consumible: sobrevive a un golpe fatal en las próximas 5 rondas. 1 vez por partida."
+    "DESC_REVIVE": "Consumible: sobrevive a un golpe fatal en las próximas 5 rondas. 1 vez por partida.",
+    "CARD_PAINT": 'Pintar',
+    "DESC_PAINT": 'Elige 2 cartas de tu mano y píntalas de cualquier color. (Solo Fase de Preparación)'
 };

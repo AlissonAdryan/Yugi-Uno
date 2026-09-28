@@ -37,18 +37,18 @@ const FX_PRESETS = {
         bands: [
             {
                 stops: [[0, 'rgba(255,196,60,0)'], [0.5, 'rgba(255,196,60,0.34)'], [1, 'rgba(255,196,60,0)']],
-                width: 0.7, period: 4.2, sweep: 0.75, alpha: 1, composite: 'source-over', offset: 0.35
+                width: 0.7, period: 2.8, sweep: 0.75, alpha: 1, composite: 'source-over', offset: 0.35
             },
             {
                 stops: [
                     [0, 'rgba(255,215,90,0)'], [0.35, 'rgba(255,215,110,0.45)'], [0.5, 'rgba(255,255,235,0.95)'],
                     [0.65, 'rgba(255,205,80,0.45)'], [1, 'rgba(255,215,90,0)']
                 ],
-                width: 0.26, period: 3.1, sweep: 0.5, alpha: 0.9, composite: 'lighter'
+                width: 0.26, period: 1.8, sweep: 0.5, alpha: 0.9, composite: 'lighter'
             }
         ],
         sparkles: {
-            count: 9, color: '#f2b91d', core: '#fffbe6', minSize: 2.2, maxSize: 4.6, minRate: 1.6, maxRate: 3.2
+            count: 9, color: '#f2b91d', core: '#fffbe6', minSize: 2.2, maxSize: 4.6, minRate: 3.2, maxRate: 6.4
         }
     },
     // Holográfico arco-íris (pronto para cartas futuras de fundo escuro)

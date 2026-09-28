@@ -45,7 +45,8 @@ export const INPUT = Object.freeze({
     SELL_CARD: 10,       // { cardId }  carta da mão na lixeira -> moedas (só na preparação, antes de finalizar)
     SHOP_BUY: 11,        // { slot }    compra o item do espaço da SUA loja (fase de preparação)
     SHOP_REROLL: 12,     // {}          renova a loja pagando rerollCost
-    SHOP_FREEZE: 13      // { slot }    congela/descongela o item (sobrevive à próxima renovação)
+    SHOP_FREEZE: 13,     // { slot }    congela/descongela o item (sobrevive à próxima renovação)
+    PAINT_SELECT: 14     // { cards: [id, id], color }  seleciona 2 cartas e uma cor para o Pintar
 });
 
 export const EVENT = Object.freeze({
@@ -77,7 +78,8 @@ export const EVENT = Object.freeze({
     SHOP_PURCHASED: 19,  // { cardId, slot, type, color, power }  (só pra quem comprou: a carta nasce do item)
     COINS_EARNED: 20,    // { amount, won }  moedas do fim da rodada (cada um recebe só as suas)
     SHOP_REFRESHED: 21,  // {}  a loja se renovou sozinha (cada jogador, a sua)
-    SHOP_REROLLED: 22    // { cost }  renovação paga (só pra quem pagou)
+    SHOP_REROLLED: 22,   // { cost }  renovação paga (só pra quem pagou)
+    PAINT_APPLIED: 23    // { cards: [{ cardId, color }] }  (só pra quem pintou: as cartas mudaram de cor)
 });
 
 export const HIT_EFFECT = Object.freeze({ NONE: 0, LOCKOUT: 1, HAND_SWAP: 2 });

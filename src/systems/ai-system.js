@@ -130,6 +130,10 @@ export class AISystem {
         if (v.phase === GAME_STATES.DISCARDING || v.phase === GAME_STATES.FORCED_DISCARDING) {
             return this.decideDiscard();
         }
+        
+        if (v.selfStatus & CONFIG.STATUS.PAINT_PENDING) {
+            return this.decidePaint();
+        }
 
         if (this.plan.round !== v.round) {
             this.plan.round = v.round;
@@ -244,6 +248,13 @@ export class AISystem {
                 return v.selfHP <= AI.SHIELD_BELOW_HP || Math.random() < AI.SHIELD_RANDOM_CHANCE;
             case CARD_TYPES.REVIVE:
                 return v.selfHP <= AI.REVIVE_BELOW_HP;
+            case CARD_TYPES.PAINT: {
+                let paintables = 0;
+                for (const i of this.hand) {
+                    if (v.color[i] !== CONFIG.COLOR.BLACK && v.color[i] !== CONFIG.COLOR.NONE) paintables++;
+                }
+                return paintables >= CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED && Math.random() < AI.CONSUMABLE_CHANCE;
+            }
             default:
                 return false;
         }
@@ -262,6 +273,29 @@ export class AISystem {
         }
         const pick = this.playable[Math.floor(Math.random() * this.playable.length)];
         return { t: INPUT.PLAY_CARD, cardId: v.ids[pick], zone: ZONE.SELF_ATTACK };
+    }
+
+    /** Seleciona cartas aleatórias e uma cor para o Pintar. */
+    decidePaint() {
+        const v = this.view;
+        const paintables = [];
+        for (const i of this.hand) {
+            if (v.color[i] !== CONFIG.COLOR.BLACK && v.color[i] !== CONFIG.COLOR.NONE) paintables.push(i);
+        }
+        if (paintables.length < CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) {
+            // Travou: não tem cartas pra pintar. Finaliza o turno.
+            return { t: INPUT.READY };
+        }
+        const cards = [];
+        for (let i = 0; i < CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED; i++) {
+            const idx = Math.floor(Math.random() * paintables.length);
+            cards.push(v.ids[paintables[idx]]);
+            paintables.splice(idx, 1);
+        }
+        const colors = CONFIG.BASIC_COLORS;
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        console.log(`[AISystem:${this.label}] Pintando cartas de ${CONFIG.COLOR_PALETTES[color].name}.`);
+        return { t: INPUT.PAINT_SELECT, cards, color };
     }
 
     /** Descarta (ou doa) a carta numérica mais fraca; especiais são guardadas. */

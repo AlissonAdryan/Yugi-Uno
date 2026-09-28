@@ -244,8 +244,140 @@ function paintReviveFace(ctx) {
     drawReviveEmblem(ctx, cx, cy + 4, 40);
 }
 
+/** Face estática do Pintar: fundo preto profundo com paleta de pintura em néon e aura misteriosa. */
+function paintPaintFace(ctx) {
+    ctx.beginPath();
+    ctx.roundRect(0, 0, W, H, R);
+    ctx.clip();
+
+    // Fundo preto com gradiente sutil de profundidade
+    const bg = ctx.createRadialGradient(W / 2, H * 0.45, 5, W / 2, H * 0.45, W * 0.8);
+    bg.addColorStop(0, '#1a1a2e');
+    bg.addColorStop(0.5, '#111122');
+    bg.addColorStop(1, '#050510');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Aura mística atrás da paleta
+    const aura = ctx.createRadialGradient(W / 2, H * 0.48, 2, W / 2, H * 0.48, W * 0.55);
+    aura.addColorStop(0, 'rgba(123, 104, 238, 0.35)');
+    aura.addColorStop(0.5, 'rgba(123, 104, 238, 0.1)');
+    aura.addColorStop(1, 'rgba(123, 104, 238, 0)');
+    ctx.fillStyle = aura;
+    ctx.fillRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cy = H * 0.48;
+
+    // Paleta (forma oval inclinada)
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(-0.15);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 32, 25, 0, 0, TAU);
+    const palGrad = ctx.createLinearGradient(-32, -25, 32, 25);
+    palGrad.addColorStop(0, '#2a2a3a');
+    palGrad.addColorStop(0.5, '#1e1e2e');
+    palGrad.addColorStop(1, '#151520');
+    ctx.fillStyle = palGrad;
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#7b68ee';
+    ctx.stroke();
+
+    // Buraco da paleta (polegar)
+    ctx.beginPath();
+    ctx.ellipse(-14, 8, 5, 4, 0.3, 0, TAU);
+    ctx.fillStyle = '#050510';
+    ctx.fill();
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = '#5b4eae';
+    ctx.stroke();
+
+    // Gotas de tinta (4 cores do jogo)
+    const droplets = [
+        { x: 8, y: -14, color: '#e74c3c' },
+        { x: 20, y: -6, color: '#3498db' },
+        { x: 16, y: 8, color: '#2ecc71' },
+        { x: -2, y: -6, color: '#ffcc00' }
+    ];
+    for (const d of droplets) {
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, 4.5, 0, TAU);
+        const dGrad = ctx.createRadialGradient(d.x - 1, d.y - 1, 0.5, d.x, d.y, 4.5);
+        dGrad.addColorStop(0, '#ffffff');
+        dGrad.addColorStop(0.3, d.color);
+        dGrad.addColorStop(1, d.color);
+        ctx.fillStyle = dGrad;
+        ctx.fill();
+        ctx.shadowColor = d.color;
+        ctx.shadowBlur = 6;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+    }
+    ctx.restore();
+
+    // Pincel sobre a paleta (diagonal)
+    ctx.save();
+    ctx.translate(cx + 18, cy - 22);
+    ctx.rotate(0.7);
+    // Cabo
+    const handleGrad = ctx.createLinearGradient(0, -28, 0, -4);
+    handleGrad.addColorStop(0, '#c9a857');
+    handleGrad.addColorStop(0.5, '#a8860b');
+    handleGrad.addColorStop(1, '#7a6109');
+    ctx.fillStyle = handleGrad;
+    ctx.beginPath();
+    ctx.roundRect(-2.5, -28, 5, 24, 1.5);
+    ctx.fill();
+    // Ferrule (faixa metálica)
+    ctx.fillStyle = '#b0b0b0';
+    ctx.fillRect(-3, -5, 6, 5);
+    // Cerdas
+    const bristleGrad = ctx.createLinearGradient(0, 0, 0, 12);
+    bristleGrad.addColorStop(0, '#ddd');
+    bristleGrad.addColorStop(0.6, '#9b59b6');
+    bristleGrad.addColorStop(1, '#7b68ee');
+    ctx.fillStyle = bristleGrad;
+    ctx.beginPath();
+    ctx.moveTo(-3.5, 0);
+    ctx.lineTo(-2, 12);
+    ctx.quadraticCurveTo(0, 14, 2, 12);
+    ctx.lineTo(3.5, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // Moldura dupla
+    const frame = ctx.createLinearGradient(0, 0, W, H);
+    frame.addColorStop(0, '#5b4eae');
+    frame.addColorStop(0.4, '#9b84ff');
+    frame.addColorStop(0.6, '#7b68ee');
+    frame.addColorStop(1, '#4a3d8f');
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = frame;
+    ctx.beginPath();
+    ctx.roundRect(5, 5, W - 10, H - 10, R - 3);
+    ctx.stroke();
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = 'rgba(155, 132, 255, 0.5)';
+    ctx.beginPath();
+    ctx.roundRect(9, 9, W - 18, H - 18, R - 5);
+    ctx.stroke();
+
+    // Ornamentos nos cantos
+    ctx.fillStyle = '#7b68ee';
+    drawDiamond(ctx, 13, 13, 3.2);
+    drawDiamond(ctx, W - 13, 13, 3.2);
+    drawDiamond(ctx, 13, H - 13, 3.2);
+    drawDiamond(ctx, W - 13, H - 13, 3.2);
+    drawDiamond(ctx, W / 2, 9, 2.4);
+    drawDiamond(ctx, W / 2, H - 9, 2.4);
+}
+
 const PAINTERS = Object.freeze({
-    [CARD_TYPES.REVIVE]: paintReviveFace
+    [CARD_TYPES.REVIVE]: paintReviveFace,
+    [CARD_TYPES.PAINT]: paintPaintFace
 });
 
 /**

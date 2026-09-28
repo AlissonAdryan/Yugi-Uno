@@ -121,5 +121,7 @@ export const IT = {
     "DESC_CHANGE_COLOR": "Consumabile: gioca qualsiasi colore in questo turno.",
     "DESC_HEAL": "Consumabile: recupera metà del danno che infliggi nel turno.",
     "DESC_SHIELD": "Consumabile: subisci metà danno fino al prossimo turno.",
-    "DESC_REVIVE": "Consumabile: sopravvivi a un colpo fatale nei prossimi 5 turni. 1 volta per partita."
+    "DESC_REVIVE": "Consumabile: sopravvivi a un colpo fatale nei prossimi 5 turni. 1 volta per partita.",
+    "CARD_PAINT": 'Dipingere',
+    "DESC_PAINT": 'Scegli 2 carte dalla tua mano e dipingile di qualsiasi colore. (Solo Fase di Preparazione)'
 };
