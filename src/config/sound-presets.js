@@ -320,6 +320,126 @@ export const SOUND_PRESETS = Object.freeze({
         echo: { delay: 0.1, feedback: 0.3, mix: 0.3 }
     },
 
+    // --- Pintar -----------------------------------------------------------------
+    // Carta usada: "splash" de tinta estourando + arpejo colorido subindo
+    PAINT_USE: {
+        duration: 0.7, volume: 0.1,
+        envelope: { attack: 0.003, decay: 0.25, sustain: 0.3, release: 0.3 },
+        layers: [
+            { kind: 'noise', color: 'pink', gain: 0.8, duration: 0.22, filter: { type: 'bandpass', freq: 600, freqEnd: 2600, q: 1.4 } },
+            { kind: 'tone', wave: 'sine', freq: 90, freqEnd: 45, gain: 0.5, duration: 0.18 },
+            {
+                kind: 'tone', wave: 'triangle', freq: 'C5', gain: 0.45, delay: 0.12, duration: 0.5,
+                envelope: { attack: 0.005, decay: 0.12, sustain: 0.3, release: 0.2 }
+            }
+        ],
+        notes: [
+            { at: 0, semitones: 0 }, { at: 0.08, semitones: 4, volume: 0.6 },
+            { at: 0.16, semitones: 7, volume: 0.5 }, { at: 0.24, semitones: 12, volume: 0.45 }
+        ],
+        echo: { delay: 0.12, feedback: 0.35, mix: 0.3 }
+    },
+    // Pincelada molhada: ruído "escovando" pra cima e pra baixo, com o gotejar agudo por cima
+    PAINT_BRUSH: {
+        duration: 0.85, volume: 0.1,
+        envelope: { attack: 0.05, decay: 0.2, sustain: 0.55, release: 0.25 },
+        layers: [
+            { kind: 'noise', color: 'pink', gain: 0.8, filter: { type: 'bandpass', freq: 900, freqEnd: 2800, q: 2.2 }, tremolo: { rate: 7, depth: 0.4 } },
+            { kind: 'noise', color: 'brown', gain: 0.5, filter: { type: 'lowpass', freq: 700 } },
+            { kind: 'fm', freq: 'G6', modRatio: 1.5, modIndex: 2, modIndexEnd: 0, gain: 0.15, delay: 0.35, duration: 0.2 },
+            { kind: 'fm', freq: 'D6', modRatio: 1.5, modIndex: 2, modIndexEnd: 0, gain: 0.12, delay: 0.6, duration: 0.2 }
+        ]
+    },
+    // Tinta assentou: brilho cristalino com a cor "acendendo"
+    PAINT_DONE: {
+        duration: 0.16, volume: 0.09,
+        envelope: { attack: 0.002, decay: 0.08, sustain: 0.3, release: 0.06 },
+        layers: [
+            { kind: 'tone', wave: 'sine', freq: 'E6' },
+            { kind: 'fm', freq: 'E7', modRatio: 3.5, modIndex: 1.5, modIndexEnd: 0, gain: 0.3 }
+        ],
+        sequence: { step: 0.055, semitones: [0, 5, 9, 12, 17] },
+        echo: { delay: 0.1, feedback: 0.35, mix: 0.3 }
+    },
+
+    // --- Troca de Guarda -------------------------------------------------------
+    // Carta usada (só quem usou ouve): engrenagem metálica girando + dois "tics" subindo
+    GUARD_SWAP_USE: {
+        duration: 0.6, volume: 0.1,
+        envelope: { attack: 0.01, decay: 0.2, sustain: 0.35, release: 0.25 },
+        filter: { type: 'bandpass', freq: 900, freqEnd: 3200, q: 1.6 },
+        layers: [
+            { kind: 'noise', color: 'pink', gain: 0.6, tremolo: { rate: 16, depth: 0.6 } },
+            { kind: 'fm', freq: 'A5', modRatio: 1.41, modIndex: 3, modIndexEnd: 0.4, gain: 0.45, delay: 0.05 },
+            { kind: 'fm', freq: 'E6', modRatio: 1.41, modIndex: 3, modIndexEnd: 0.4, gain: 0.35, delay: 0.22 }
+        ],
+        echo: { delay: 0.11, feedback: 0.3, mix: 0.25 }
+    },
+    // A troca no combate (os dois ouvem): varredura de ar girando nos dois sentidos + "clack" no encaixe
+    GUARD_SWAP: {
+        duration: 0.85, volume: 0.1,
+        envelope: { attack: 0.06, decay: 0.2, sustain: 0.5, release: 0.25 },
+        layers: [
+            { kind: 'noise', color: 'pink', duration: 0.5, filter: { type: 'bandpass', freq: 400, freqEnd: 2600, q: 2.4 } },
+            { kind: 'noise', color: 'pink', delay: 0.25, duration: 0.45, filter: { type: 'bandpass', freq: 2600, freqEnd: 500, q: 2.4 } },
+            { kind: 'tone', wave: 'triangle', freq: 'D5', freqEnd: 'A5', gain: 0.25, vibrato: { rate: 9, depth: 25 } },
+            {
+                kind: 'fm', freq: 'G4', modRatio: 2.76, modIndex: 5, modIndexEnd: 0.2, gain: 0.5, delay: 0.62,
+                envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.12 }
+            }
+        ],
+        echo: { delay: 0.12, feedback: 0.3, mix: 0.2 }
+    },
+    // Duas Trocas se anulando: as pilhas travam no meio do giro com um "clang" seco
+    GUARD_SWAP_CANCEL: {
+        duration: 0.45, volume: 0.1, distortion: 0.2,
+        envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.2 },
+        layers: [
+            { kind: 'fm', freq: 'C4', modRatio: 3.1, modIndex: 7, modIndexEnd: 0.3 },
+            { kind: 'noise', color: 'white', gain: 0.4, duration: 0.05, filter: { type: 'highpass', freq: 2500 } }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.12, semitones: -5, volume: 0.6 }]
+    },
+
+    // --- Relâmpago ---------------------------------------------------------------
+    // Carga: zumbido elétrico crescendo (a carta "enche" de energia)
+    LIGHTNING_CHARGE: {
+        duration: 0.4, volume: 0.09,
+        envelope: { attack: 0.3, decay: 0.03, sustain: 1, release: 0.05 },
+        filter: { type: 'lowpass', freq: 500, freqEnd: 7000, q: 6 },
+        layers: [
+            { kind: 'tone', wave: 'sawtooth', freq: 60, freqEnd: 240, tremolo: { rate: 38, depth: 0.5 } },
+            { kind: 'tone', wave: 'square', freq: 120, freqEnd: 480, gain: 0.4, detune: 9 },
+            { kind: 'noise', color: 'white', gain: 0.3, filter: { type: 'highpass', freq: 3000 } }
+        ]
+    },
+    // Estalo do raio: rachado agudo seco + trovão grave rolando
+    LIGHTNING_STRIKE: {
+        duration: 0.9, volume: 0.12, distortion: 0.4, pitchJitter: 0.8,
+        envelope: { attack: 0.001, decay: 0.3, sustain: 0.25, release: 0.5 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.9, duration: 0.08, filter: { type: 'highpass', freq: 1800 } },
+            { kind: 'noise', color: 'brown', gain: 0.9, delay: 0.04, filter: { type: 'lowpass', freq: 900, freqEnd: 90 } },
+            { kind: 'tone', wave: 'sine', freq: 110, freqEnd: 30, gain: 0.7, delay: 0.03, sweepTime: 0.6 },
+            {
+                kind: 'fm', freq: 'E7', modRatio: 3.3, modIndex: 6, modIndexEnd: 0, gain: 0.3,
+                envelope: { attack: 0.001, decay: 0.08, sustain: 0, release: 0.06 }
+            }
+        ],
+        echo: { delay: 0.14, feedback: 0.35, mix: 0.3 }
+    },
+    // Sobrecarga (Relâmpago na vida): estalos rápidos queimando + chiado
+    OVERLOAD: {
+        duration: 0.05, volume: 0.1,
+        envelope: { attack: 0.001, decay: 0.035, sustain: 0.2, release: 0.02 },
+        layers: [
+            { kind: 'noise', color: 'white', filter: { type: 'bandpass', freq: 3500, q: 1.2 } },
+            { kind: 'tone', wave: 'square', freq: 'A5', gain: 0.35 }
+        ],
+        sequence: { step: 0.05, semitones: [0, 7, -2, 9, 3, 12, 5, 14] },
+        echo: { delay: 0.09, feedback: 0.3, mix: 0.25 }
+    },
+
     // --- Economia (lixeira, moedas, loja) --------------------------------------
     // Moeda caindo: dois "tlins" metálicos curtinhos
     COIN: {

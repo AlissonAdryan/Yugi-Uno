@@ -1,6 +1,7 @@
 import { CONFIG } from '../config/constants.js';
 import {
-    canPlayColor, canPlayOnCombatSlot, consumableBlockReason, isConsumable, pickColorFromMask, purchaseBlockReason, sellValue
+    canPlayColor, canPlayOnCombatSlot, consumableBlockReason, countAttackOptions, isConsumable, isPaintable, leavesNoAttack,
+    pickColorFromMask, purchaseBlockReason, sellValue
 } from './rules.js';
 import { ZONE } from '../utils/zones.js';
 import {
@@ -34,6 +35,13 @@ export class AISystem {
         this.hand = [];
         this.playable = [];
         this.defensePlayable = [];
+        this.board = []; // próprias cartas no Ataque/Defesa (índices no snapshot)
+    }
+
+    /** Mesma regra do servidor (rules.countAttackOptions): mão + Ataque + Defesa. */
+    attackOptions(exceptIdx = -1) {
+        const v = this.view;
+        return countAttackOptions(v, this.hand, v.selfColor, exceptIdx) + countAttackOptions(v, this.board, v.selfColor, exceptIdx);
     }
 
     hello(token = 'local-cpu') {
@@ -98,8 +106,10 @@ export class AISystem {
         this.defensePlayable.length = 0;
 
         let attackIdx = -1;
+        this.board.length = 0;
         for (let i = 0; i < v.cardCount; i++) {
             if (v.zone[i] === ZONE.SELF_ATTACK) attackIdx = i;
+            if (v.zone[i] === ZONE.SELF_ATTACK || v.zone[i] === ZONE.SELF_DEFENSE) this.board.push(i);
         }
 
         for (let i = 0; i < v.cardCount; i++) {
@@ -155,6 +165,12 @@ export class AISystem {
         const economy = this.decideEconomy();
         if (economy) return economy;
 
+        // Troca de Guarda armada: a carta fraca vai no Ataque (vira Defesa) e a forte na Defesa (vira Ataque)
+        if (v.selfStatus & CONFIG.STATUS.GUARD_SWAP) {
+            const swapPlay = this.decideSwapPlay();
+            if (swapPlay) return swapPlay;
+        }
+
         if (v.countInZone(ZONE.SELF_ATTACK) === 0) return this.randomAttack();
 
         const canDefend = v.countInZone(ZONE.SELF_DEFENSE) === 0 && !v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED);
@@ -196,6 +212,8 @@ export class AISystem {
             for (const i of this.hand) {
                 if (v.type[i] !== CARD_TYPES.NUMBER || v.power[i] > AI.SELL_MAX_POWER) continue;
                 if (sellValue(v.type[i], v.power[i], v.cardFlags[i]) <= 0) continue;
+                // Nunca vende a última carta que ainda pode ir pro ataque nesta rodada
+                if (leavesNoAttack(this.attackOptions(), this.attackOptions(i))) continue;
                 if (weakest < 0 || v.power[i] < v.power[weakest]) weakest = i;
             }
             if (weakest >= 0) {
@@ -248,16 +266,41 @@ export class AISystem {
                 return v.selfHP <= AI.SHIELD_BELOW_HP || Math.random() < AI.SHIELD_RANDOM_CHANCE;
             case CARD_TYPES.REVIVE:
                 return v.selfHP <= AI.REVIVE_BELOW_HP;
+            case CARD_TYPES.GUARD_SWAP:
+                // Só vale com Defesa disponível: a CPU monta a jogada invertida (ver decide/pickSwapPlay)
+                return !v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED) && this.defensePlayable.length >= 2
+                    && Math.random() < AI.GUARD_SWAP_CHANCE;
             case CARD_TYPES.PAINT: {
                 let paintables = 0;
                 for (const i of this.hand) {
-                    if (v.color[i] !== CONFIG.COLOR.BLACK && v.color[i] !== CONFIG.COLOR.NONE) paintables++;
+                    if (isPaintable(v.color[i])) paintables++;
                 }
                 return paintables >= CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED && Math.random() < AI.CONSUMABLE_CHANCE;
             }
             default:
                 return false;
         }
+    }
+
+    /**
+     * Jogada da CPU com a própria Troca de Guarda armada: isca fraca no Ataque, carta forte escondida na
+     * Defesa (no combate elas trocam). Retorna null quando não há o que ajustar.
+     */
+    decideSwapPlay() {
+        const v = this.view;
+        const byPower = (a, b) => v.power[a] - v.power[b];
+        if (v.countInZone(ZONE.SELF_ATTACK) === 0) {
+            if (this.playable.length < 2) return null;
+            const weakest = this.playable.slice().sort(byPower)[0];
+            console.log(`[AISystem:${this.label}] Troca de Guarda armada: isca ${v.power[weakest]} no Ataque.`);
+            return { t: INPUT.PLAY_CARD, cardId: v.ids[weakest], zone: ZONE.SELF_ATTACK };
+        }
+        const canDefend = v.countInZone(ZONE.SELF_DEFENSE) === 0 && !v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED);
+        if (!canDefend || this.defensePlayable.length === 0) return null;
+        const strongest = this.defensePlayable.slice().sort(byPower)[this.defensePlayable.length - 1];
+        this.plan.wantsDefense = false;
+        console.log(`[AISystem:${this.label}] Troca de Guarda armada: ${v.power[strongest]} escondido na Defesa.`);
+        return { t: INPUT.PLAY_CARD, cardId: v.ids[strongest], zone: ZONE.SELF_DEFENSE };
     }
 
     randomAttack() {
@@ -275,27 +318,33 @@ export class AISystem {
         return { t: INPUT.PLAY_CARD, cardId: v.ids[pick], zone: ZONE.SELF_ATTACK };
     }
 
-    /** Seleciona cartas aleatórias e uma cor para o Pintar. */
+    /**
+     * Pintar: pinta pra cor da rodada, priorizando as cartas mais fortes que ainda não são dessa cor
+     * (vira ataque/defesa jogável). Nunca tira a cor da rodada de uma carta: a mão jogável só cresce.
+     */
     decidePaint() {
         const v = this.view;
-        const paintables = [];
-        for (const i of this.hand) {
-            if (v.color[i] !== CONFIG.COLOR.BLACK && v.color[i] !== CONFIG.COLOR.NONE) paintables.push(i);
-        }
-        if (paintables.length < CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) {
-            // Travou: não tem cartas pra pintar. Finaliza o turno.
-            return { t: INPUT.READY };
-        }
-        const cards = [];
-        for (let i = 0; i < CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED; i++) {
-            const idx = Math.floor(Math.random() * paintables.length);
-            cards.push(v.ids[paintables[idx]]);
-            paintables.splice(idx, 1);
-        }
+        const needed = CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED;
         const colors = CONFIG.BASIC_COLORS;
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        console.log(`[AISystem:${this.label}] Pintando cartas de ${CONFIG.COLOR_PALETTES[color].name}.`);
-        return { t: INPUT.PAINT_SELECT, cards, color };
+        const roundColor = colors.includes(v.selfColor) ? v.selfColor : colors[Math.floor(Math.random() * colors.length)];
+
+        const others = [];
+        const same = [];
+        for (const i of this.hand) {
+            if (!isPaintable(v.color[i])) continue;
+            (v.color[i] === roundColor ? same : others).push(i);
+        }
+        if (others.length + same.length < needed) {
+            // O servidor só aceita o Pintar com 2 cartas coloridas na mão: não deveria acontecer
+            console.warn(`[AISystem:${this.label}] Pintar pendente sem cartas suficientes para pintar.`);
+            return null;
+        }
+        const byPower = (a, b) => v.power[b] - v.power[a];
+        others.sort(byPower);
+        const picks = others.concat(same).slice(0, needed);
+        const cards = picks.map((i) => v.ids[i]);
+        console.log(`[AISystem:${this.label}] Pintando ${cards.length} cartas de ${CONFIG.COLOR_PALETTES[roundColor].name}.`);
+        return { t: INPUT.PAINT_SELECT, cards, color: roundColor };
     }
 
     /** Descarta (ou doa) a carta numérica mais fraca; especiais são guardadas. */

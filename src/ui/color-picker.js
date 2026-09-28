@@ -26,14 +26,26 @@ export class ColorPicker {
         this.audio = audio;
         this.root = document.getElementById('color-picker');
         this.wheel = document.getElementById('color-wheel');
+        this.title = this.root.querySelector('.color-picker-title');
         this.onPick = null;
+        this.onCancel = null;
         this.visible = false;
         this.locked = false;
         this.mask = -1;
+        this.mode = '';
         this.closeTimer = 0;
 
         this.root.style.setProperty('--choice-ms', `${CONFIG.TIMINGS.COLOR_CHOICE_TIMEOUT}ms`);
         this.slices = WHEEL_SLOTS.map(({ color, corner }) => this.createSlice(color, corner));
+
+        // Clique no fundo escurecido (fora da carta): só cancela nos modos que permitem (ex.: Pintar)
+        this.root.addEventListener('click', (e) => {
+            if (e.target !== this.root || this.locked || !this.onCancel) return;
+            const cancel = this.onCancel;
+            this.audio.play(SFX.CLICK);
+            this.hide();
+            cancel();
+        });
     }
 
     createSlice(color, corner) {
@@ -50,17 +62,25 @@ export class ColorPicker {
     }
 
     /**
-     * Abre (ou mantém aberto) o seletor. Chamar de novo com a mesma máscara não reinicia nada.
+     * Abre (ou mantém aberto) o seletor. Chamar de novo com a mesma máscara e modo não reinicia nada.
      * @param {number} mask cores disponíveis (bits de rules.colorBit)
      * @param {(color: number) => void} onPick
+     * @param {{ mode?: string, title?: string, timed?: boolean, onCancel?: () => void }} [options]
+     *        mode: '' (escolha da rodada) | 'paint' (Pintar); timed: mostra o cronômetro do servidor;
+     *        onCancel: permite fechar clicando fora da carta
      */
-    show(mask, onPick) {
+    show(mask, onPick, { mode = '', title = i18n.t('CHOOSE_COLOR'), timed = true, onCancel = null } = {}) {
         this.onPick = onPick;
-        if (this.visible && mask === this.mask) return;
+        this.onCancel = onCancel;
+        if (this.visible && mask === this.mask && mode === this.mode) return;
 
         clearTimeout(this.closeTimer);
         this.mask = mask;
+        this.mode = mode;
         this.locked = false;
+        this.title.textContent = title;
+        this.root.classList.toggle('untimed', !timed);
+        this.root.classList.toggle('paint-mode', mode === 'paint');
         this.wheel.classList.remove('locked');
         for (const { color, btn } of this.slices) {
             btn.disabled = (mask & colorBit(color)) === 0;
@@ -95,10 +115,16 @@ export class ColorPicker {
         for (const { btn } of this.slices) btn.classList.remove('chosen');
     }
 
+    isOpen(mode) {
+        return this.visible && this.mode === mode;
+    }
+
     hide() {
         if (!this.visible) return;
         this.visible = false;
         this.mask = -1;
+        this.mode = '';
+        this.onCancel = null;
         this.root.classList.add('closing');
         clearTimeout(this.closeTimer);
         this.closeTimer = setTimeout(() => {

@@ -104,6 +104,7 @@ export const JA = {
     "SHOP_HINT": "凍結できるアイテムは同時に1つだけです。次の入れ替えで価格が2コイン上がります。購入したカードの売値は半分です。",
     "COINS": "コイン",
     "TRASH_HINT": "離して売却",
+    "TRASH_LAST_ATTACK": "攻撃できる最後のカードです！",
     "CARD_NUMBER": "カード {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const JA = {
     "DESC_SHIELD": "消耗品：次のラウンドまで受けるダメージが半分に。",
     "DESC_REVIVE": "消耗品：今後5ラウンド、致命傷を1回だけ耐える。1試合1回。",
     "CARD_PAINT": 'ペイント',
-    "DESC_PAINT": '手札から2枚のカードを選び、好きな色に塗ります。（準備フェーズのみ）'
+    "DESC_PAINT": '手札から2枚のカードを選び、好きな色に塗ります。（準備フェーズのみ）',
+    "PAINT_ALERT": "ペイント！",
+    "PAINT_PICK_CARDS": "ペイント：手札からカードを{n}枚選んでください",
+    "PAINT_PICK_COLOR": "新しい色を選んでください",
+    "CARD_GUARD_SWAP": "攻守交代",
+    "DESC_GUARD_SWAP": "消耗品：戦闘開始時、両陣営のアタックとディフェンスが入れ替わる。",
+    "GUARD_SWAP_ALERT": "攻守交代！",
+    "GUARD_SWAP_CANCELLED": "交代が相殺された！",
+    "CARD_LIGHTNING": "ライトニング",
+    "DESC_LIGHTNING": "敵のカードを撃ち抜き、もう1枚へ連鎖する。ブロックに勝つ。ライフ直撃：手札を2枚焼く。",
+    "HIT_OVERLOAD": "オーバーロード！"
 };

@@ -104,6 +104,7 @@ export const DE = {
     "SHOP_HINT": "Nur ein Artikel kann gleichzeitig eingefroren werden — er wird beim nächsten Wechsel 2 Münzen teurer. Gekaufte Karten bringen beim Verkauf nur die Hälfte.",
     "COINS": "Münzen",
     "TRASH_HINT": "Zum Verkaufen loslassen",
+    "TRASH_LAST_ATTACK": "Deine letzte Karte, die angreifen kann!",
     "CARD_NUMBER": "Karte {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const DE = {
     "DESC_SHIELD": "Verbrauchbar: nur halber Schaden bis zur nächsten Runde.",
     "DESC_REVIVE": "Verbrauchbar: überlebe in den nächsten 5 Runden einen tödlichen Treffer. 1x pro Partie.",
     "CARD_PAINT": 'Malen',
-    "DESC_PAINT": 'Wähle 2 Karten aus deiner Hand und male sie in einer beliebigen Farbe an. (Nur in der Vorbereitungsphase)'
+    "DESC_PAINT": 'Wähle 2 Karten aus deiner Hand und male sie in einer beliebigen Farbe an. (Nur in der Vorbereitungsphase)',
+    "PAINT_ALERT": "MALEN!",
+    "PAINT_PICK_CARDS": "MALEN: WÄHLE {n} KARTE(N) AUS DEINER HAND",
+    "PAINT_PICK_COLOR": "WÄHLE DIE NEUE FARBE",
+    "CARD_GUARD_SWAP": "Wachwechsel",
+    "DESC_GUARD_SWAP": "Verbrauchbar: zu Kampfbeginn tauschen Angriff und Verteidigung auf beiden Feldern die Plätze.",
+    "GUARD_SWAP_ALERT": "WACHWECHSEL!",
+    "GUARD_SWAP_CANCELLED": "WECHSEL AUFGEHOBEN!",
+    "CARD_LIGHTNING": "Blitz",
+    "DESC_LIGHTNING": "Trifft die gegnerische Karte und springt auf eine weitere über. Schlägt Blocken. Aufs Leben: verbrennt 2 Handkarten.",
+    "HIT_OVERLOAD": "ÜBERLADUNG!"
 };

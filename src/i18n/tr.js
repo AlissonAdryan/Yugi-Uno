@@ -104,6 +104,7 @@ export const TR = {
     "SHOP_HINT": "Aynı anda yalnızca bir ürün dondurulabilir — bir sonraki yenilemede fiyatı 2 altın artar. Satın alınan kartlar yarı fiyatına satılır.",
     "COINS": "Jeton",
     "TRASH_HINT": "Satmak için bırak",
+    "TRASH_LAST_ATTACK": "Saldırabilecek son kartın!",
     "CARD_NUMBER": "Kart {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const TR = {
     "DESC_SHIELD": "Tüketilebilir: sonraki tura kadar yarı hasar al.",
     "DESC_REVIVE": "Tüketilebilir: sonraki 5 turda bir ölümcül darbeden kurtul. Maç başına 1 kez.",
     "CARD_PAINT": 'Boyamak',
-    "DESC_PAINT": 'Elinden 2 kart seç ve onları istediğin bir renge boya. (Sadece Hazırlık Aşamasında)'
+    "DESC_PAINT": 'Elinden 2 kart seç ve onları istediğin bir renge boya. (Sadece Hazırlık Aşamasında)',
+    "PAINT_ALERT": "BOYA!",
+    "PAINT_PICK_CARDS": "BOYA: ELİNDEN {n} KART SEÇ",
+    "PAINT_PICK_COLOR": "YENİ RENGİ SEÇ",
+    "CARD_GUARD_SWAP": "Nöbet Değişimi",
+    "DESC_GUARD_SWAP": "Tüketilebilir: savaş başlarken iki sahada da Saldırı ve Savunma yer değiştirir.",
+    "GUARD_SWAP_ALERT": "NÖBET DEĞİŞİMİ!",
+    "GUARD_SWAP_CANCELLED": "DEĞİŞİMLER İPTAL!",
+    "CARD_LIGHTNING": "Şimşek",
+    "DESC_LIGHTNING": "Rakip karta çarpar ve bir karta daha sıçrar. Bloku yener. Cana isabet: elden 2 kart yakar.",
+    "HIT_OVERLOAD": "AŞIRI YÜK!"
 };

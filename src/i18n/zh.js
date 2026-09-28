@@ -104,6 +104,7 @@ export const ZH = {
     "SHOP_HINT": "同一时间只能冻结一件物品——它会在下次刷新时贵2枚金币。购买的卡牌转卖只值一半。",
     "COINS": "金币",
     "TRASH_HINT": "松开即可出售",
+    "TRASH_LAST_ATTACK": "这是最后一张能攻击的牌！",
     "CARD_NUMBER": "卡牌 {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const ZH = {
     "DESC_SHIELD": "消耗品：直到下回合受到的伤害减半。",
     "DESC_REVIVE": "消耗品：未来 5 回合内抵挡一次致命伤。每局限 1 次。",
     "CARD_PAINT": '涂色',
-    "DESC_PAINT": '从手牌中选择2张卡牌并涂上任何颜色。（仅限准备阶段）'
+    "DESC_PAINT": '从手牌中选择2张卡牌并涂上任何颜色。（仅限准备阶段）',
+    "PAINT_ALERT": "涂色！",
+    "PAINT_PICK_CARDS": "涂色：从手牌中选择 {n} 张卡牌",
+    "PAINT_PICK_COLOR": "选择新的颜色",
+    "CARD_GUARD_SWAP": "攻守互换",
+    "DESC_GUARD_SWAP": "消耗品：战斗开始时，双方场上的攻击与防御互换位置。",
+    "GUARD_SWAP_ALERT": "攻守互换！",
+    "GUARD_SWAP_CANCELLED": "互换被抵消！",
+    "CARD_LIGHTNING": "闪电",
+    "DESC_LIGHTNING": "击毁敌方卡牌并连锁到另一张。克制封锁。命中生命：烧毁对手 2 张手牌。",
+    "HIT_OVERLOAD": "过载！"
 };

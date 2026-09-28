@@ -13,12 +13,19 @@ export const CLASH_KIND = Object.freeze({
     A_BLOCKS: 2,
     B_BLOCKS: 3,
     A_REVERSES: 4,
-    B_REVERSES: 5
+    B_REVERSES: 5,
+    A_LIGHTNING: 6,
+    B_LIGHTNING: 7
 });
 
 /** Cartas sem cor vinculada (+4, Trocar Cor) podem ser jogadas em qualquer cor e não contam no sorteio. */
 export function isColorless(color) {
     return color === COLOR.BLACK || color === COLOR.NONE;
+}
+
+/** O Pintar só recolore cartas que já têm uma cor básica (nunca +4, consumíveis ou outras sem cor). */
+export function isPaintable(color) {
+    return !isColorless(color) && color !== COLOR.RAINBOW;
 }
 
 /** Bit da cor para máscaras de "cores em comum" (0 para cartas sem cor). */
@@ -97,7 +104,44 @@ export function summonCount(type) {
 export function isConsumable(type) {
     return type === CARD_TYPES.CHANGE_COLOR || type === CARD_TYPES.HEAL
         || type === CARD_TYPES.SHIELD || type === CARD_TYPES.REVIVE
-        || type === CARD_TYPES.PAINT;
+        || type === CARD_TYPES.PAINT || type === CARD_TYPES.GUARD_SWAP;
+}
+
+/**
+ * A carta pode abrir o Slot de Ataque nesta rodada? (consumível só vai pro USE; o resto obedece à cor)
+ * @param {number} type
+ * @param {number} color
+ * @param {number} activeColor cor ativa do jogador (sorteada ou RAINBOW)
+ */
+export function isAttackOption(type, color, activeColor) {
+    return !isConsumable(type) && canPlayColor(color, activeColor);
+}
+
+/**
+ * Quantas cartas da lista ainda poderiam ir pro Ataque nesta rodada. Base da proteção "nunca ficar sem
+ * jogada" (Finalizar Turno exige um Ataque): vender ou pintar não pode zerar esse número.
+ * @param {FaceStore} store
+ * @param {ArrayLike<number>} list índices no store (mão, Ataque e Defesa — as do campo voltam pra mão)
+ * @param {number} activeColor
+ * @param {number} [exceptIdx] carta ignorada (ex.: a que está indo pra lixeira)
+ * @param {ArrayLike<number>|null} [paintList] cartas contadas como já pintadas de `paintColor`
+ * @param {number} [paintColor]
+ * @returns {number}
+ */
+export function countAttackOptions(store, list, activeColor, exceptIdx = -1, paintList = null, paintColor = COLOR.NONE) {
+    let count = 0;
+    for (let i = 0; i < list.length; i++) {
+        const idx = list[i];
+        if (idx === exceptIdx) continue;
+        let color = store.color[idx];
+        if (paintList !== null) {
+            for (let p = 0; p < paintList.length; p++) {
+                if (paintList[p] === idx) color = paintColor;
+            }
+        }
+        if (isAttackOption(store.type[idx], color, activeColor)) count++;
+    }
+    return count;
 }
 
 /**
@@ -113,6 +157,8 @@ export function consumableBlockReason(type, status) {
         case CARD_TYPES.HEAL: return (status & STATUS.HEAL) ? 'HEAL_ALREADY_ACTIVE' : null;
         case CARD_TYPES.SHIELD: return (status & STATUS.SHIELD) ? 'SHIELD_ALREADY_ACTIVE' : null;
         case CARD_TYPES.REVIVE: return (status & STATUS.REVIVE_USED) ? 'REVIVE_ALREADY_USED' : null;
+        // Duas Trocas do mesmo jogador se anulariam: a segunda só desperdiçaria a primeira
+        case CARD_TYPES.GUARD_SWAP: return (status & STATUS.GUARD_SWAP) ? 'GUARD_SWAP_ALREADY_ACTIVE' : null;
         default: return null;
     }
 }
@@ -203,19 +249,53 @@ export function resolveNumberClash(powerA, powerB) {
     return powerA - powerB;
 }
 
+/** Especiais que agem no choque de mesa (em vez de lutar com número). */
+function isFieldSpecial(type) {
+    return type === CARD_TYPES.BLOCK || type === CARD_TYPES.REVERSE || type === CARD_TYPES.LIGHTNING;
+}
+
+/** Efeito do especial `type` quando ele age sozinho contra uma carta comum. */
+function soloClashKind(type, isA) {
+    if (type === CARD_TYPES.BLOCK) return isA ? CLASH_KIND.A_BLOCKS : CLASH_KIND.B_BLOCKS;
+    if (type === CARD_TYPES.REVERSE) return isA ? CLASH_KIND.A_REVERSES : CLASH_KIND.B_REVERSES;
+    return isA ? CLASH_KIND.A_LIGHTNING : CLASH_KIND.B_LIGHTNING;
+}
+
 /**
  * Classifica o choque entre duas cartas de topo (nunca +2/+4, que explodem antes).
- * Consumíveis (Trocar Cor, Cura, Escudo, Reviver) que cheguem ao combate via invocação se comportam
- * como número de valor 0 — o efeito deles só existe quando usados no slot USE.
+ * Consumíveis que cheguem ao combate via invocação se comportam como número de valor 0 — o efeito
+ * deles só existe quando usados no slot USE.
+ *
+ * Especial contra especial (GAME_RULES §6.2/§6.10): o Relâmpago é mais rápido que o Block (fulmina
+ * antes do Block agir), mas o Reverso puxa o Relâmpago junto com a pilha. Block x Reverso e dois
+ * especiais iguais se anulam.
  */
 export function classifyClash(typeA, typeB) {
-    const aSpecial = typeA === CARD_TYPES.BLOCK || typeA === CARD_TYPES.REVERSE;
-    const bSpecial = typeB === CARD_TYPES.BLOCK || typeB === CARD_TYPES.REVERSE;
+    const aSpecial = isFieldSpecial(typeA);
+    const bSpecial = isFieldSpecial(typeB);
 
     if (!aSpecial && !bSpecial) return CLASH_KIND.NUMBERS;
-    if (aSpecial && bSpecial) return CLASH_KIND.MUTUAL_DESTRUCTION;
-    if (aSpecial) return typeA === CARD_TYPES.BLOCK ? CLASH_KIND.A_BLOCKS : CLASH_KIND.A_REVERSES;
-    return typeB === CARD_TYPES.BLOCK ? CLASH_KIND.B_BLOCKS : CLASH_KIND.B_REVERSES;
+    if (aSpecial && bSpecial) {
+        if (typeA === CARD_TYPES.LIGHTNING && typeB === CARD_TYPES.BLOCK) return CLASH_KIND.A_LIGHTNING;
+        if (typeB === CARD_TYPES.LIGHTNING && typeA === CARD_TYPES.BLOCK) return CLASH_KIND.B_LIGHTNING;
+        if (typeA === CARD_TYPES.REVERSE && typeB === CARD_TYPES.LIGHTNING) return CLASH_KIND.A_REVERSES;
+        if (typeB === CARD_TYPES.REVERSE && typeA === CARD_TYPES.LIGHTNING) return CLASH_KIND.B_REVERSES;
+        return CLASH_KIND.MUTUAL_DESTRUCTION;
+    }
+    return aSpecial ? soloClashKind(typeA, true) : soloClashKind(typeB, false);
+}
+
+/** Máscara com as 4 cores básicas (ex.: seletor de cor do Pintar, que aceita qualquer uma). */
+export const ALL_BASIC_COLORS_MASK = CONFIG.BASIC_COLORS.reduce((mask, color) => mask | colorBit(color), 0);
+
+/**
+ * Proteção contra ficar sem jogada: a mudança só é recusada se o jogador TINHA opção de Ataque e ficaria
+ * com zero (sem opção nenhuma antes, vender/pintar não piora nada).
+ * @param {number} before countAttackOptions antes da mudança
+ * @param {number} after countAttackOptions depois da mudança
+ */
+export function leavesNoAttack(before, after) {
+    return before > 0 && after === 0;
 }
 
 /** Quantas cores básicas estão presentes na máscara (ver colorBit). */

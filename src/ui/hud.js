@@ -5,6 +5,8 @@ import { SFX } from '../config/sound-presets.js';
 import { i18n } from '../i18n/index.js';
 
 const COLOR_ALERT_MS = 1500;
+// Estilos do alerta central por carta especial (ver showSpecialAlert e style.css)
+const SPECIAL_ALERT_CLASSES = Object.freeze(['alert-paint', 'alert-swap', 'alert-storm']);
 const FLOATING_TEXT_MS = 1500;
 // Deve bater com a duração de `transition: opacity` de .plasma-layer--incoming em style.css
 const BG_FADE_MS = 1500;
@@ -70,7 +72,7 @@ export class Hud {
         };
 
         this.cache = {
-            selfHP: -1, oppHP: -1, phase: null, endVisible: null, endEnabled: null, bgColor: -1, banner: null, rematch: '',
+            selfHP: -1, oppHP: -1, phase: null, phaseVariant: '', endVisible: null, endEnabled: null, bgColor: -1, banner: null, rematch: '',
             status: -1, reviveRounds: -1
         };
         this.el.shield = this.el.selfHpBox.querySelector('.hp-shield');
@@ -245,10 +247,16 @@ export class Hud {
         this.el.endTurn.classList.toggle('cancel-mode', isReady);
     }
 
-    setPhaseMessage(text) {
-        if (text === this.cache.phase) return;
+    /**
+     * @param {string|null} text
+     * @param {string} [variant] '' (padrão, vermelho) | 'paint' (arco-íris, instruções do Pintar)
+     */
+    setPhaseMessage(text, variant = '') {
+        if (text === this.cache.phase && variant === this.cache.phaseVariant) return;
         this.cache.phase = text;
+        this.cache.phaseVariant = variant;
         this.el.phaseMessage.textContent = text || '';
+        this.el.phaseMessage.classList.toggle('phase-paint', variant === 'paint');
         this.el.phaseMessage.hidden = !text;
     }
 
@@ -336,6 +344,30 @@ export class Hud {
         const alert = this.el.colorAlert;
         alert.textContent = i18n.t(CONFIG.COLOR_NAME_KEYS[color]);
         alert.style.color = color === CONFIG.COLOR.RAINBOW ? '#ffffff' : CONFIG.COLOR_HEX[color];
+        for (let i = 0; i < SPECIAL_ALERT_CLASSES.length; i++) alert.classList.remove(SPECIAL_ALERT_CLASSES[i]);
+        alert.classList.add('show');
+        clearTimeout(this.colorAlertTimer);
+        this.colorAlertTimer = setTimeout(() => alert.classList.remove('show'), COLOR_ALERT_MS);
+    }
+
+    /** "PINTAR!" em tinta arco-íris no centro da tela (só quem usou a carta vê). */
+    showPaintAlert() {
+        this.showSpecialAlert(i18n.t('PAINT_ALERT'), 'alert-paint');
+    }
+
+    /**
+     * Texto grande no centro da tela com o estilo de uma carta especial (reinicia a animação).
+     * @param {string} text já traduzido
+     * @param {'alert-paint'|'alert-swap'|'alert-storm'} variant classe de estilo (style.css)
+     */
+    showSpecialAlert(text, variant) {
+        const alert = this.el.colorAlert;
+        alert.textContent = text;
+        alert.style.color = '';
+        for (let i = 0; i < SPECIAL_ALERT_CLASSES.length; i++) alert.classList.remove(SPECIAL_ALERT_CLASSES[i]);
+        alert.classList.add(variant);
+        alert.classList.remove('show');
+        void alert.offsetWidth;
         alert.classList.add('show');
         clearTimeout(this.colorAlertTimer);
         this.colorAlertTimer = setTimeout(() => alert.classList.remove('show'), COLOR_ALERT_MS);
@@ -350,7 +382,7 @@ export class Hud {
     /**
      * @param {string} text
      * @param {boolean} isSelfTarget
-     * @param {string} [variant] '' | 'heal' | 'shielded' | 'guarded' (cor do texto)
+     * @param {string} [variant] '' | 'heal' | 'shielded' | 'guarded' | 'overload' (cor do texto)
      */
     showFloatingText(text, isSelfTarget, variant = '') {
         const node = document.createElement('div');
@@ -432,7 +464,8 @@ export class Hud {
     // --- Lixeira ---------------------------------------------------------------
 
     /**
-     * @param {'idle'|'armed'|'hover'} state armed = arrastando uma carta; hover = carta em cima da lixeira
+     * @param {'idle'|'armed'|'hover'|'blocked'} state armed = arrastando uma carta; hover = carta em cima
+     *        da lixeira; blocked = em cima, mas é a última carta que pode atacar (venda proibida)
      * @param {number} [value] moedas que a carta renderia (mostrado em cima da lixeira no hover)
      */
     setTrashState(state, value = 0) {
@@ -440,8 +473,16 @@ export class Hud {
         if (state === 'hover') this.el.trashValue.textContent = `+${value}`;
         if (state === this.trashState) return;
         this.trashState = state;
+        // Um novo arrasto encerra o aviso de venda recusada na hora
+        if (state !== 'idle') el.classList.remove('denied');
         el.classList.toggle('armed', state === 'armed');
         el.classList.toggle('hover', state === 'hover');
+        el.classList.toggle('blocked', state === 'blocked');
+    }
+
+    /** Venda recusada (última opção de Ataque): a lixeira treme em vermelho e o aviso fica mais um pouco. */
+    trashDenied() {
+        this.pulseClass(this.el.selfTrash, 'denied', 1400);
     }
 
     /** Retângulo da própria lixeira em px de tela (lido 1x por arrasto, nunca por frame). */

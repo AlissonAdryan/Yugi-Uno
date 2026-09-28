@@ -12,7 +12,13 @@ export class CardPool {
         this.spawned = new Uint8Array(capacity);
         // 1 = jogável agora (contorno animado); preenchido pelo PlayableSystem
         this.outlined = new Uint8Array(capacity);
+        // Pintar: 1 = pode ser escolhida (contorno arco-íris) / 1 = já escolhida
+        this.paintable = new Uint8Array(capacity);
         this.paintSelected = new Uint8Array(capacity);
+        // Pintar em andamento: a face nova (color) escorre por cima da antiga (paintFrom) conforme paintT 0..1
+        this.paintAnim = new Uint8Array(capacity);
+        this.paintFrom = new Uint8Array(capacity);
+        this.paintT = new Float32Array(capacity);
 
         // Face e posição lógica (zona relativa) como o jogador local as conhece
         this.zone = new Uint8Array(capacity);
@@ -56,7 +62,9 @@ export class CardPool {
         this.active[id] = 1;
         this.spawned[id] = 1;
         this.outlined[id] = 0;
+        this.paintable[id] = 0;
         this.paintSelected[id] = 0;
+        this.paintAnim[id] = 0;
         this.x[id] = x;
         this.y[id] = y;
         this.targetX[id] = x;
@@ -73,6 +81,9 @@ export class CardPool {
         this.active[id] = 0;
         this.spawned[id] = 0;
         this.outlined[id] = 0;
+        this.paintable[id] = 0;
+        this.paintSelected[id] = 0;
+        this.paintAnim[id] = 0;
     }
 
     /** Ordena os ids ativos por zIndex (insertion sort estável, sem alocação; dados quase ordenados). */

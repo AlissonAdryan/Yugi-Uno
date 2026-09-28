@@ -104,6 +104,7 @@ export const FR = {
     "SHOP_HINT": "Un seul article peut être gelé à la fois — il coûte 2 pièces de plus au renouvellement suivant. Les cartes achetées se revendent à moitié prix.",
     "COINS": "Pièces",
     "TRASH_HINT": "Relâchez pour vendre",
+    "TRASH_LAST_ATTACK": "Votre dernière carte qui peut attaquer !",
     "CARD_NUMBER": "Carte {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const FR = {
     "DESC_SHIELD": "Consommable : subit la moitié des dégâts jusqu'à la prochaine manche.",
     "DESC_REVIVE": "Consommable : survit à un coup fatal pendant les 5 prochaines manches. 1 fois par partie.",
     "CARD_PAINT": 'Peindre',
-    "DESC_PAINT": 'Choisissez 2 cartes de votre main et peignez-les de la couleur de votre choix. (Phase de préparation uniquement)'
+    "DESC_PAINT": 'Choisissez 2 cartes de votre main et peignez-les de la couleur de votre choix. (Phase de préparation uniquement)',
+    "PAINT_ALERT": "PEINDRE !",
+    "PAINT_PICK_CARDS": "PEINDRE : CHOISISSEZ {n} CARTE(S) DE VOTRE MAIN",
+    "PAINT_PICK_COLOR": "CHOISISSEZ LA NOUVELLE COULEUR",
+    "CARD_GUARD_SWAP": "Relève de la Garde",
+    "DESC_GUARD_SWAP": "Consommable : au début du combat, l'Attaque et la Défense échangent leur place sur les deux terrains.",
+    "GUARD_SWAP_ALERT": "RELÈVE DE LA GARDE !",
+    "GUARD_SWAP_CANCELLED": "RELÈVES ANNULÉES !",
+    "CARD_LIGHTNING": "Foudre",
+    "DESC_LIGHTNING": "Foudroie la carte ennemie et rebondit sur une autre. Bat le Blocage. Sur la vie : brûle 2 cartes de la main.",
+    "HIT_OVERLOAD": "SURCHARGE !"
 };

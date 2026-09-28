@@ -19,6 +19,8 @@ const CARD_TYPES = Object.freeze({
     SHIELD: 7,
     REVIVE: 8,
     PAINT: 9,
+    GUARD_SWAP: 10,  // consumível: Ataque e Defesa trocam de lugar no início do combate
+    LIGHTNING: 11,   // especial de campo com cor (laminado): fulmina em cadeia, vence o Block
     HIDDEN: 255
 });
 
@@ -28,7 +30,8 @@ const STATUS = Object.freeze({
     SHIELD: 2,
     REVIVE_ACTIVE: 4,
     REVIVE_USED: 8,
-    PAINT_PENDING: 16
+    PAINT_PENDING: 16,
+    GUARD_SWAP: 32   // Troca de Guarda armada: dispara no início do próximo combate
 });
 
 /*
@@ -88,7 +91,9 @@ export const CONFIG = Object.freeze({
             HEAL: 3,
             SHIELD: 6,
             REVIVE: 1,
-            PAINT: 5
+            PAINT: 5,
+            GUARD_SWAP: 5,
+            LIGHTNING: 4
         })
     }),
     
@@ -110,7 +115,10 @@ export const CONFIG = Object.freeze({
         HEAL: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 5, shopWeight: 10 }),
         SHIELD: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 5, shopWeight: 10 }),
         REVIVE: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 16, shopWeight: 3 }),
-        PAINT: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 7, shopWeight: 6 })
+        PAINT: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 7, shopWeight: 6 }),
+        GUARD_SWAP: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 7, shopWeight: 7 }),
+        // Laminado raro: mais caro que Block/Reverso porque vence o Block e fulmina 2 cartas
+        LIGHTNING: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 13, shopWeight: 4 })
     }),
 
     // Resolução virtual de referência: altura mínima para mãos + tabuleiro com respiro (~870px ocupados)
@@ -186,7 +194,14 @@ export const CONFIG = Object.freeze({
     }),
 
     // Especiais sem cor (podem ser jogadas em qualquer cor e não contam no sorteio de cores em comum)
-    COLORLESS_SPECIALS: Object.freeze(['PLUS4', 'CHANGE_COLOR', 'HEAL', 'SHIELD', 'REVIVE', 'PAINT']),
+    COLORLESS_SPECIALS: Object.freeze(['PLUS4', 'CHANGE_COLOR', 'HEAL', 'SHIELD', 'REVIVE', 'PAINT', 'GUARD_SWAP']),
+
+    // Relâmpago (GAME_RULES §6.10): quantas cartas o raio fulmina no choque (a da frente + saltos) e
+    // quantas cartas da mão do alvo ele queima ao atingir a vida (Sobrecarga)
+    LIGHTNING: Object.freeze({
+        CHAIN_TARGETS: 2,
+        HAND_BURN: 2
+    }),
 
     // Regras numéricas dos consumíveis de vida (GAME_RULES §6.5–6.7)
     CONSUMABLES: Object.freeze({
@@ -207,13 +222,19 @@ export const CONFIG = Object.freeze({
      */
     CARD_VISUALS: Object.freeze({
         [CARD_TYPES.REVIVE]: Object.freeze({ background: '#fbf7ea', border: '#d4af37', painted: true, fx: 'FOIL_GOLD' }),
-        [CARD_TYPES.PAINT]: Object.freeze({ background: '#111111', border: '#7b68ee', painted: true, fx: 'FOIL_HOLO' })
+        [CARD_TYPES.PAINT]: Object.freeze({ background: '#111111', border: '#7b68ee', painted: true, fx: 'FOIL_HOLO' }),
+        // Sem laminado de propósito: só a moldura de aço-ciano recortada a diferencia dos outros consumíveis
+        [CARD_TYPES.GUARD_SWAP]: Object.freeze({ background: '#07090e', border: '#7fdbff', painted: true }),
+        // colored: a face pintada em cache é uma por cor (a carta tem cor e segue a cor da rodada)
+        [CARD_TYPES.LIGHTNING]: Object.freeze({ background: '#2c3e50', border: '#fffbe0', painted: true, colored: true, fx: 'FOIL_STORM' })
     }),
 
     // Contorno animado (sentido horário) nas cartas da mão que podem ser jogadas agora. Só visual e só local.
     PLAYABLE_OUTLINE: Object.freeze({
         // Tipos que nunca recebem o contorno, mesmo quando jogáveis
-        EXCLUDED_TYPES: Object.freeze([CARD_TYPES.CHANGE_COLOR, CARD_TYPES.HEAL, CARD_TYPES.SHIELD, CARD_TYPES.REVIVE, CARD_TYPES.PAINT]),
+        EXCLUDED_TYPES: Object.freeze([
+            CARD_TYPES.CHANGE_COLOR, CARD_TYPES.HEAL, CARD_TYPES.SHIELD, CARD_TYPES.REVIVE, CARD_TYPES.PAINT, CARD_TYPES.GUARD_SWAP
+        ]),
         COLOR: '#7df9ff',
         GLOW_COLOR: 'rgba(0, 229, 255, 0.35)',
         LINE_WIDTH: 3,
@@ -258,6 +279,12 @@ export const CONFIG = Object.freeze({
         HEAL: 1300,
         // Luz divina na vida + carta gigante se despedaçando (ver ANIM.DIVINE_LEAD + SHOWCASE_*)
         REVIVE_SAVE: 2800,
+        // Troca de Guarda: Ataque e Defesa orbitam e trocam de lugar antes da revelação (>= ANIM.GUARD_SWAP_*)
+        GUARD_SWAP: 1250,
+        // Relâmpago: carga + raio na carta da frente + salto em cadeia (>= ANIM.LIGHTNING_*)
+        LIGHTNING: 1350,
+        // Sobrecarga (Relâmpago na vida): tempo extra além do DIRECT_HIT pros raios queimarem a mão
+        OVERLOAD_EXTRA: 450,
         // Moedas do fim da rodada e renovação da loja (pausa curta pra a animação respirar)
         ROUND_ECONOMY: 500
     }),
@@ -296,6 +323,26 @@ export const CONFIG = Object.freeze({
         // Carta indo pra lixeira e virando moeda
         SELL_FLY: 260,
         SELL_BURN: 220,
+        // Pintar: a carta sobe da mão, a tinta escorre de cima pra baixo e ela volta com um "pop"
+        PAINT_LIFT: 260,
+        PAINT_SWEEP: 800,
+        PAINT_SETTLE: 380,
+        PAINT_STAGGER: 170,
+        PAINT_RISE: 70,
+        PAINT_SCALE: 1.3,
+        PAINT_WAVE_AMP: 5,
+        PAINT_DRIPS: 3,
+        // Troca de Guarda: as pilhas sobem, orbitam em meia-volta até o slot oposto e assentam
+        GUARD_SWAP_LIFT: 170,
+        GUARD_SWAP_ORBIT: 560,
+        GUARD_SWAP_SETTLE: 240,
+        GUARD_SWAP_SCALE: 1.14,
+        // Relâmpago: carga elétrica, raio na carta da frente e salto em cadeia até a próxima
+        LIGHTNING_CHARGE: 360,
+        LIGHTNING_HOP: 210,
+        LIGHTNING_REVEAL: 110,
+        LIGHTNING_BOLT_LIFE: 300,
+        LIGHTNING_FADE: 260,
         MUSIC_FADE_S: 0.9
     }),
 
@@ -309,6 +356,7 @@ export const CONFIG = Object.freeze({
         SHIELD_BELOW_HP: 18,
         SHIELD_RANDOM_CHANCE: 0.25,
         REVIVE_BELOW_HP: 14,
+        GUARD_SWAP_CHANCE: 0.45,
         // Economia: compra itens especiais/9 se sobrar moeda; vende números fracos com mão cheia
         BUY_CHANCE: 0.65,
         SELL_WHEN_HAND_AT_LEAST: 11,

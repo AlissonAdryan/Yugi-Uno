@@ -104,6 +104,7 @@ export const ES = {
     "SHOP_HINT": "Solo un artículo puede estar congelado a la vez — cuesta 2 monedas más en la próxima renovación. Las cartas compradas se revenden a la mitad.",
     "COINS": "Monedas",
     "TRASH_HINT": "Suelta para vender",
+    "TRASH_LAST_ATTACK": "¡Última carta que puede atacar!",
     "CARD_NUMBER": "Carta {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const ES = {
     "DESC_SHIELD": "Consumible: recibe la mitad del daño hasta la próxima ronda.",
     "DESC_REVIVE": "Consumible: sobrevive a un golpe fatal en las próximas 5 rondas. 1 vez por partida.",
     "CARD_PAINT": 'Pintar',
-    "DESC_PAINT": 'Elige 2 cartas de tu mano y píntalas de cualquier color. (Solo Fase de Preparación)'
+    "DESC_PAINT": 'Elige 2 cartas de tu mano y píntalas de cualquier color. (Solo Fase de Preparación)',
+    "PAINT_ALERT": "¡PINTAR!",
+    "PAINT_PICK_CARDS": "PINTAR: ELIGE {n} CARTA(S) DE TU MANO",
+    "PAINT_PICK_COLOR": "ELIGE EL NUEVO COLOR",
+    "CARD_GUARD_SWAP": "Cambio de Guardia",
+    "DESC_GUARD_SWAP": "Consumible: al empezar el combate, Ataque y Defensa cambian de lugar en ambos campos.",
+    "GUARD_SWAP_ALERT": "¡CAMBIO DE GUARDIA!",
+    "GUARD_SWAP_CANCELLED": "¡CAMBIOS ANULADOS!",
+    "CARD_LIGHTNING": "Relámpago",
+    "DESC_LIGHTNING": "Fulmina la carta enemiga y salta a una más. Vence al Bloqueo. En la vida: quema 2 cartas de la mano.",
+    "HIT_OVERLOAD": "¡SOBRECARGA!"
 };

@@ -5,12 +5,13 @@ import { Animator, Easing } from '../render/animator.js';
 import { Canvas2DRenderer } from '../render/canvas2d-renderer.js';
 import { CinematicPlayer } from '../render/cinematic-player.js';
 import { ParticleSystem, PARTICLE_TYPES } from '../render/particle-system.js';
+import { BoltSystem } from '../render/bolt-system.js';
 import { BoardSystem } from '../systems/board-system.js';
 import { InputSystem } from '../systems/input-system.js';
 import { LayoutSystem } from '../systems/layout-system.js';
 import { PlayableSystem } from '../systems/playable-system.js';
 import { SAMPLES, SFX } from '../config/sound-presets.js';
-import { consumableBlockReason, isConsumable, sellValue } from '../systems/rules.js';
+import { isConsumable, isPaintable, sellValue } from '../systems/rules.js';
 import { ColorPicker } from '../ui/color-picker.js';
 import { ShopPanel } from '../ui/shop-panel.js';
 import { CLIENT_ZONE, ZONE } from '../utils/zones.js';
@@ -61,9 +62,15 @@ export class GameClient {
             cardVisible: false, type: 0, color: 0, scale: 1, alpha: 1, rotation: 0,
             dim: 0, glow: 0, flash: 0, crack: 0, shakeX: 0, shakeY: 0, cracks: []
         };
+        // Raios do Relâmpago (pool fixo) e a cena lida pelo renderer a cada frame
+        this.bolts = new BoltSystem();
+        this.scene = {
+            deckX: 0, deckY: 0, deckCount: 0, hoveredCard: -1, selectableZone: -1, showcase: this.showcase,
+            bolts: this.bolts, flash: 0, flashColor: '#cfefff', guardSwapArmed: false
+        };
         this.cinematics = new CinematicPlayer({
             pool: this.pool, animator: this.animator, particles: this.particles, hud: this.hud, board: this.board,
-            viewport: this.viewport, audio: this.audio, showcase: this.showcase
+            viewport: this.viewport, audio: this.audio, showcase: this.showcase, bolts: this.bolts, scene: this.scene
         });
         this.colorPicker = new ColorPicker(audio);
 
@@ -91,8 +98,6 @@ export class GameClient {
         this.inputSeq = 0;
         this.pendingInputs = [];
         this.paintSelection = [];
-
-        this.scene = { deckX: 0, deckY: 0, deckCount: 0, hoveredCard: -1, selectableZone: -1, showcase: this.showcase };
 
         network.on(NET_EVENT.SERVER_MESSAGE, (msg) => this.enqueue(msg));
     }
@@ -160,7 +165,15 @@ export class GameClient {
             if (evt.input === INPUT.SHOP_BUY || evt.input === INPUT.SHOP_REROLL || evt.input === INPUT.SHOP_FREEZE) {
                 this.shopPanel.onRejected(evt);
             }
-            if (evt.input === INPUT.SELL_CARD) this.audio.play(SFX.SHOP_DENY);
+            if (evt.input === INPUT.SELL_CARD) {
+                this.audio.play(SFX.SHOP_DENY);
+                if (evt.reason === 'LAST_ATTACK_OPTION') this.hud.trashDenied();
+            }
+            if (evt.input === INPUT.PAINT_SELECT) {
+                // A seleção foi recusada (ex.: uma das cartas saiu da mão): recomeça a escolha
+                this.audio.play(SFX.ERROR);
+                this.clearPaintSelection();
+            }
             this.restoreFromView();
             if (this.cinematics.gameOverShown) this.syncRematch();
             return;
@@ -185,23 +198,6 @@ export class GameClient {
                 this.particles.emitRise(vx, vy, '#ffd700', 10 + evt.amount * 8, 26, 240, PARTICLE_TYPES.STAR);
                 this.particles.emitBurst(vx, vy, '#fff3b0', 12, 160, PARTICLE_TYPES.CIRCLE);
             }
-            return;
-        }
-
-        if (evt.t === EVENT.PAINT_APPLIED) {
-            if (!document.hidden) this.audio.play(SFX.HEAL_USE);
-            for (const c of evt.cards) {
-                const id = c.cardId;
-                if (this.pool.isActive(id)) {
-                    this.pool.color[id] = c.color;
-                    const x = this.pool.x[id] + CONFIG.CARD_DIMENSIONS.WIDTH / 2;
-                    const y = this.pool.y[id] + CONFIG.CARD_DIMENSIONS.HEIGHT / 2;
-                    if (!document.hidden) {
-                        this.particles.emitBurst(x, y, CONFIG.COLOR_PALETTES[c.color].color, 15, 120, PARTICLE_TYPES.CIRCLE);
-                    }
-                }
-            }
-            this.relayout();
             return;
         }
 
@@ -288,6 +284,7 @@ export class GameClient {
         this.hasSnapshot = true;
         this.dropAckedInputs();
         this.reapplyPredictions();
+        this.prunePaintSelection();
 
         const dragged = this.input.draggedCard;
         if (dragged !== -1 && (!pool.isActive(dragged) || pool.zone[dragged] !== ZONE.SELF_HAND || !this.canPrepare())) {
@@ -298,6 +295,8 @@ export class GameClient {
         }
 
         this.scene.deckCount = v.deckCount;
+        // Troca de Guarda armada: só quem usou recebe o status (o sinal some quando ela dispara no combate)
+        this.scene.guardSwapArmed = (v.selfStatus & CONFIG.STATUS.GUARD_SWAP) !== 0;
         this.board.setLocked(ZONE.SELF_DEFENSE, v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED));
         this.board.setLocked(ZONE.OPP_DEFENSE, v.hasFlag(SNAPSHOT_FLAGS.OPP_DEFENSE_LOCKED));
         this.hud.setHP(v.selfHP, v.oppHP);
@@ -353,6 +352,7 @@ export class GameClient {
         this.board.highlightZone = -1;
         this.hoveredCard = -1;
         this.pendingInputs = [];
+        this.clearPaintSelection();
 
         const pool = this.pool;
         for (let id = 0; id < pool.maxCards; id++) {
@@ -430,6 +430,7 @@ export class GameClient {
         this.layout.rebuild();
         this.layout.apply(this.input.draggedCard);
         this.playable.update(this.canPrepare(), this.view.selfColor, this.view.selfStatus);
+        this.playable.updatePaintable(this.isPickingPaintCards());
         this.refreshControls();
     }
 
@@ -440,16 +441,26 @@ export class GameClient {
         const oppReady = v.hasFlag(SNAPSHOT_FLAGS.OPP_READY);
         const discardsLeft = v.selfDiscards - this.countPending(INPUT.DISCARD);
 
+        const painting = this.isPaintSelecting();
         if (phase === GAME_STATES.PLAYING) {
             const selfHasAttack = this.layout.stack(ZONE.SELF_ATTACK).length > 0;
-            this.hud.setEndTurn(true, selfReady || selfHasAttack, selfReady);
+            // Com o Pintar aberto o turno não pode ser finalizado (o servidor também recusa)
+            this.hud.setEndTurn(true, !painting && (selfReady || selfHasAttack), selfReady);
         } else {
             this.hud.setEndTurn(false, false, false);
         }
 
         let message = null;
+        let variant = '';
         let selectable = -1;
-        if (phase === GAME_STATES.PLAYING) {
+        const needed = CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED;
+        if (phase === GAME_STATES.PLAYING && painting) {
+            // Com as 2 cartas escolhidas quem instrui é o título do seletor de cor (evita texto duplicado)
+            if (this.isPickingPaintCards()) {
+                message = i18n.t('PAINT_PICK_CARDS', { n: needed - this.paintSelection.length });
+                variant = 'paint';
+            }
+        } else if (phase === GAME_STATES.PLAYING) {
             if (selfReady && !oppReady) message = i18n.t('WAITING_OPPONENT');
             else if (!selfReady && v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED)) message = i18n.t('DEFENSE_LOCKED');
         } else if (phase === GAME_STATES.DISCARDING) {
@@ -469,11 +480,13 @@ export class GameClient {
         } else if (phase === GAME_STATES.CHOOSING_COLOR && v.hasFlag(SNAPSHOT_FLAGS.OPP_CHOOSING_COLOR)) {
             message = i18n.t('OPPONENT_CHOOSING_COLOR');
         }
-        this.hud.setPhaseMessage(message);
+        this.hud.setPhaseMessage(message, variant);
         this.scene.selectableZone = selectable;
 
         if (phase === GAME_STATES.CHOOSING_COLOR && v.hasFlag(SNAPSHOT_FLAGS.SELF_CHOOSING_COLOR)) {
             this.colorPicker.show(v.colorChoices, (color) => this.chooseColor(color));
+        } else if (this.isPickingPaintColor()) {
+            this.showPaintPicker();
         } else {
             this.colorPicker.hide();
         }
@@ -502,9 +515,34 @@ export class GameClient {
         return this.view.phase === GAME_STATES.PLAYING && !this.isSelfReady() && !this.isPaintSelecting();
     }
 
+    /** Pintar em andamento: carta enviada, seleção aberta ou seleção enviada aguardando confirmação. */
     isPaintSelecting() {
         if (!this.hasSnapshot || this.view.phase !== GAME_STATES.PLAYING) return false;
-        return (this.view.selfStatus & CONFIG.STATUS.PAINT_PENDING) !== 0 || this.hasPending(INPUT.PLAY_CONSUMABLE);
+        return this.isPaintPending() || this.hasPendingPaintUse() || this.hasPending(INPUT.PAINT_SELECT);
+    }
+
+    isPaintPending() {
+        return (this.view.selfStatus & CONFIG.STATUS.PAINT_PENDING) !== 0;
+    }
+
+    /** Uma carta Pintar foi mandada pro slot USE e o servidor ainda não confirmou. */
+    hasPendingPaintUse() {
+        for (const p of this.pendingInputs) {
+            if (p.t === INPUT.PLAY_CONSUMABLE && this.pool.isValid(p.id) && this.pool.type[p.id] === CONFIG.CARD_TYPES.PAINT) return true;
+        }
+        return false;
+    }
+
+    /** O jogador está escolhendo as cartas do Pintar agora. */
+    isPickingPaintCards() {
+        return this.hasSnapshot && this.view.phase === GAME_STATES.PLAYING && this.isPaintPending()
+            && !this.hasPending(INPUT.PAINT_SELECT) && this.paintSelection.length < CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED;
+    }
+
+    /** As 2 cartas já foram escolhidas: falta a cor. */
+    isPickingPaintColor() {
+        return this.hasSnapshot && this.view.phase === GAME_STATES.PLAYING && this.isPaintPending()
+            && !this.hasPending(INPUT.PAINT_SELECT) && this.paintSelection.length === CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED;
     }
 
     isDiscarding() {
@@ -559,8 +597,8 @@ export class GameClient {
         this.lowerHover();
 
         if (this.isPaintSelecting()) {
-            if (zone !== ZONE.SELF_HAND) return false;
-            if (pool.color[id] === CONFIG.COLOR.BLACK || pool.color[id] === CONFIG.COLOR.NONE) {
+            if (zone !== ZONE.SELF_HAND || !this.isPickingPaintCards() && pool.paintSelected[id] !== 1) return false;
+            if (!isPaintable(pool.color[id])) {
                 this.audio.play(SFX.ERROR);
                 this.shakeBackToHand(id);
                 return false;
@@ -630,7 +668,8 @@ export class GameClient {
             if (over) this.audio.play(SFX.HOVER);
         }
         if (over) {
-            this.hud.setTrashState('hover', sellValue(pool.type[id], pool.power[id], pool.cardFlags[id]));
+            if (this.playable.isLastAttackOption(id, this.view.selfColor)) this.hud.setTrashState('blocked');
+            else this.hud.setTrashState('hover', sellValue(pool.type[id], pool.power[id], pool.cardFlags[id]));
             this.board.highlightZone = -1;
             pool.rotation[id] = 0;
             return;
@@ -652,31 +691,67 @@ export class GameClient {
         this.sendInput(INPUT.SELL_CARD, id, CLIENT_ZONE.TRASH, 0);
     }
 
+    /** Marca/desmarca uma carta da mão para o Pintar; com as 2 escolhidas, o seletor de cor abre. */
     handlePaintClick(id) {
+        if (this.hasPending(INPUT.PAINT_SELECT)) return;
         const pool = this.pool;
         const idx = this.paintSelection.indexOf(id);
         if (idx !== -1) {
             this.paintSelection.splice(idx, 1);
             pool.paintSelected[id] = 0;
-            this.audio.playSample(SAMPLES.CARD_HOVER);
         } else {
             if (this.paintSelection.length >= CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) return;
             this.paintSelection.push(id);
             pool.paintSelected[id] = 1;
-            this.audio.playSample(SAMPLES.CARD_HOVER);
+            this.particles.emitBurst(pool.x[id] + HALF_W, pool.y[id] + HALF_H, '#9b84ff', 14, 150, PARTICLE_TYPES.STAR);
         }
-        
-        if (this.paintSelection.length === CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) {
-            // Mostrar color picker
-            this.colorPicker.show(30, (color) => {
-                this.sendInput(INPUT.PAINT_SELECT, -1, -1, 0, undefined, { cards: [...this.paintSelection], color });
-                this.colorPicker.hide();
-                for (const cardId of this.paintSelection) this.pool.paintSelected[cardId] = 0;
-                this.paintSelection = [];
-            });
-        } else {
-            this.colorPicker.hide();
+        this.audio.playSample(SAMPLES.CARD_HOVER);
+        // relayout -> refreshControls: atualiza a instrução, os contornos e abre/fecha o seletor de cor
+        this.relayout();
+    }
+
+    showPaintPicker() {
+        // Cores que tirariam a última opção de Ataque ficam cinza (a da rodada sempre sobra)
+        const mask = this.playable.paintColorMask(this.paintSelection, this.view.selfColor);
+        this.colorPicker.show(mask, (color) => this.submitPaint(color), {
+            mode: 'paint',
+            title: i18n.t('PAINT_PICK_COLOR'),
+            timed: false,
+            // Clicar fora da carta desfaz a seleção (pra trocar de cartas antes de escolher a cor)
+            onCancel: () => {
+                this.clearPaintSelection();
+                this.relayout();
+            }
+        });
+    }
+
+    submitPaint(color) {
+        if (this.paintSelection.length !== CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) return;
+        const cards = [...this.paintSelection];
+        console.log(`[Client] Pintando as cartas ${cards.join(', ')} de ${CONFIG.COLOR_PALETTES[color].name}.`);
+        this.clearPaintSelection();
+        this.colorPicker.hide();
+        this.sendInput(INPUT.PAINT_SELECT, -1, -1, 0, undefined, { cards, color });
+    }
+
+    clearPaintSelection() {
+        for (const id of this.paintSelection) this.pool.paintSelected[id] = 0;
+        this.paintSelection = [];
+    }
+
+    /** A cada snapshot: seleção só vale enquanto o Pintar está pendente e as cartas seguem na mão. */
+    prunePaintSelection() {
+        if (this.paintSelection.length === 0) return;
+        if (!this.isPaintPending() || this.view.phase !== GAME_STATES.PLAYING) {
+            this.clearPaintSelection();
+            return;
         }
+        const pool = this.pool;
+        this.paintSelection = this.paintSelection.filter((id) => {
+            const keep = pool.isActive(id) && pool.zone[id] === ZONE.SELF_HAND && isPaintable(pool.color[id]);
+            if (!keep) pool.paintSelected[id] = 0;
+            return keep;
+        });
     }
 
     /**
@@ -716,13 +791,21 @@ export class GameClient {
         this.overTrash = false;
         this.hud.setTrashState('idle');
         if (canDrop && onTrash && sellValue(pool.type[id], pool.power[id], pool.cardFlags[id]) > 0) {
+            if (this.playable.isLastAttackOption(id, this.view.selfColor)) {
+                // Última carta que ainda pode atacar nesta rodada: vender travaria o turno (o servidor também recusa)
+                console.log(`[Client] Venda bloqueada: a carta ${id} é a última opção de Ataque da rodada.`);
+                this.audio.play(SFX.SHOP_DENY);
+                this.hud.trashDenied();
+                this.shakeBackToHand(id);
+                return;
+            }
             this.sellCard(id);
             return;
         }
-        if (canDrop && zone === ZONE.SELF_USE && isConsumable(pool.type[id])
-            && consumableBlockReason(pool.type[id], this.view.selfStatus) !== null) {
-            // Reviver já usado / Cura ou Escudo já ativos: a carta treme e volta, com som de erro
-            console.log(`[Client] Consumível recusado localmente: ${consumableBlockReason(pool.type[id], this.view.selfStatus)}`);
+        const useBlocked = canDrop && zone === ZONE.SELF_USE && isConsumable(pool.type[id]) ? this.playable.useBlockReason(id) : null;
+        if (useBlocked) {
+            // Reviver já usado / Cura ou Escudo já ativos / Pintar sem 2 cartas coloridas: treme e volta
+            console.log(`[Client] Consumível recusado localmente: ${useBlocked}`);
             this.audio.play(SFX.ERROR);
             this.shakeBackToHand(id);
             return;
@@ -771,7 +854,7 @@ export class GameClient {
 
     toggleReady() {
         if (!this.hasSnapshot || this.cinematics.gameOverShown) return;
-        if (this.view.phase !== GAME_STATES.PLAYING) return;
+        if (this.view.phase !== GAME_STATES.PLAYING || this.isPaintSelecting()) return;
 
         if (this.isSelfReady()) {
             console.log('[Client] Cancelando turno (CANCEL_READY).');

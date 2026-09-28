@@ -852,6 +852,56 @@ body {
     animation: pickerTimer var(--choice-ms, 20s) linear forwards;
 }
 
+/* --- Seletor no modo Pintar: sem cronômetro, moldura roxa da carta Pintar, título em tinta arco-íris --- */
+.color-picker.untimed .color-picker-timer {
+    display: none;
+}
+
+.color-picker.paint-mode .color-picker-card {
+    background: radial-gradient(circle at 50% 45%, #1a1a2e, #050510 75%);
+    border-color: #9b84ff;
+    box-shadow: 0 0 46px rgba(123, 104, 238, 0.75), 0 0 90px rgba(255, 0, 128, 0.25), 0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+.color-picker.paint-mode .color-picker-title,
+#phase-message.phase-paint,
+#color-alert.alert-paint {
+    background: linear-gradient(90deg, #ff5b5b, #ffcc00, #2ecc71, #3498db, #b36bff, #ff5b5b);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 10px rgba(0, 0, 0, 0.9)) drop-shadow(0 0 14px rgba(155, 132, 255, 0.7));
+}
+
+#phase-message.phase-paint {
+    font-size: 34px;
+}
+
+/* --- Alertas das cartas novas: Troca de Guarda (aço-ciano) e Relâmpago (elétrico) --- */
+#color-alert.alert-swap {
+    background: linear-gradient(180deg, #ffffff 10%, #c9f1ff 45%, #7fdbff 60%, #3f7c9a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 16px rgba(127, 219, 255, 0.75));
+}
+
+#color-alert.alert-storm {
+    background: linear-gradient(180deg, #ffffff 15%, #fff7b0 50%, #ffd23c 70%, #8ff0ff 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 18px rgba(143, 240, 255, 0.85));
+}
+
+.damage-text.overload {
+    color: #fff7b0;
+    text-shadow: 0 0 20px #000, 0 0 36px #8ff0ff, 0 0 60px #ffd23c;
+}
+
 @keyframes pickerFadeIn {
     from { opacity: 0; }
     to { opacity: 1; }
@@ -1768,6 +1818,36 @@ body {
 }
 
 .trash.armed .trash-hint, .trash.hover .trash-hint { opacity: 1; transform: translateX(0); }
+
+/* Venda proibida: é a última carta que pode atacar nesta rodada (tampa trancada, brasa vermelha) */
+.trash-hint--blocked { color: #ff8a8a; }
+
+.trash.blocked, .trash.denied {
+    border-style: solid;
+    border-color: #ff4d4d;
+    color: #ffb3b3;
+    animation: none;
+}
+
+.trash.blocked .trash-lid, .trash.denied .trash-lid { transform: rotate(0); }
+.trash.blocked .trash-ember, .trash.denied .trash-ember {
+    background: radial-gradient(circle at 50% 60%, rgba(255, 40, 40, 0.6), rgba(255, 0, 0, 0.15) 55%, rgba(255, 0, 0, 0) 72%);
+    opacity: 1;
+}
+
+.trash.blocked .trash-hint:not(.trash-hint--blocked), .trash.denied .trash-hint:not(.trash-hint--blocked) { opacity: 0; }
+.trash.blocked .trash-hint--blocked, .trash.denied .trash-hint--blocked { opacity: 1; transform: translateX(0); }
+.trash.armed .trash-hint--blocked, .trash.hover .trash-hint--blocked { opacity: 0; }
+
+.trash.denied { animation: trashDeny 0.45s ease-in-out; }
+
+@keyframes trashDeny {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-7px) rotate(-3deg); }
+    40% { transform: translateX(6px) rotate(3deg); }
+    60% { transform: translateX(-4px) rotate(-2deg); }
+    80% { transform: translateX(3px) rotate(1deg); }
+}
 
 /* "+N" que sobe da lixeira ao vender */
 .trash-gain {

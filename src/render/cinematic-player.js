@@ -19,8 +19,19 @@ const CONSUMABLE_FX = Object.freeze({
     [CARD_TYPES.HEAL]: Object.freeze({ color: '#2ecc71', sound: SFX.HEAL_USE, toLife: true }),
     [CARD_TYPES.SHIELD]: Object.freeze({ color: '#00e5ff', sound: SFX.SHIELD_UP, toLife: true }),
     [CARD_TYPES.REVIVE]: Object.freeze({ color: '#ffd700', sound: SFX.REVIVE_USE, toLife: true }),
-    [CARD_TYPES.PAINT]: Object.freeze({ color: '#7b68ee', sound: SFX.CONSUMABLE, toLife: false })
+    [CARD_TYPES.PAINT]: Object.freeze({ color: '#7b68ee', sound: SFX.PAINT_USE, toLife: false }),
+    [CARD_TYPES.GUARD_SWAP]: Object.freeze({ color: '#7fdbff', sound: SFX.GUARD_SWAP_USE, toLife: false })
 });
+const PAINT_SPLASH_COLORS = Object.freeze(CONFIG.BASIC_COLORS.map((c) => CONFIG.COLOR_HEX[c]));
+const SWAP_COLOR = '#7fdbff';
+const STORM_COLOR = '#8ff0ff';
+const STORM_CORE = '#fff7b0';
+const STACK_DX = CONFIG.STACK_OFFSET.X;
+const STACK_DY = CONFIG.STACK_OFFSET.Y;
+
+function hexChannel(hex, offset) {
+    return parseInt(hex.slice(offset, offset + 2), 16) || 255;
+}
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -61,8 +72,11 @@ export class CinematicPlayer {
      *           particles: import('./particle-system.js').ParticleSystem, hud: import('../ui/hud.js').Hud,
      *           audio: import('../audio/audio-engine.js').AudioEngine }} deps
      */
-    constructor({ pool, animator, particles, hud, board, viewport, audio, showcase }) {
+    constructor({ pool, animator, particles, hud, board, viewport, audio, showcase, bolts, scene }) {
         this.pool = pool;
+        // Raios do Relâmpago (BoltSystem) e a cena, onde fica o clarão de tela (scene.flash)
+        this.bolts = bolts;
+        this.scene = scene;
         this.board = board;
         this.viewport = viewport;
         this.animator = animator;
@@ -97,6 +111,9 @@ export class CinematicPlayer {
             case EVENT.HEAL: return this.heal(evt);
             case EVENT.REVIVE_TRIGGERED: return this.reviveSave(evt.seat);
             case EVENT.CARD_SOLD: return this.cardSold(evt);
+            case EVENT.PAINT_APPLIED: return this.paintApplied(evt.cards);
+            case EVENT.GUARD_SWAP: return this.guardSwap(evt);
+            case EVENT.LIGHTNING_STRIKE: return this.lightningStrike(evt);
         }
     }
 
@@ -120,9 +137,23 @@ export class CinematicPlayer {
             case EVENT.REVERSE_SWAP: this.remove(evt.reverseId); break;
             case EVENT.SUMMON:
             case EVENT.CONSUMABLE_USED: this.remove(evt.cardId); break;
-            case EVENT.DIRECT_HIT: if (evt.effect !== HIT_EFFECT.NONE) this.remove(evt.cardId); break;
+            case EVENT.DIRECT_HIT:
+                if (evt.effect !== HIT_EFFECT.NONE) this.remove(evt.cardId);
+                if (evt.burned) for (const id of evt.burned) this.remove(id);
+                break;
+            case EVENT.LIGHTNING_STRIKE:
+                this.remove(evt.lightningId);
+                for (const face of evt.targets) this.remove(face.id);
+                break;
             case EVENT.GAME_OVER: this.showGameOverScreen(evt.result, evt.reason); break;
             case EVENT.CARD_SOLD: this.remove(evt.cardId); break;
+            case EVENT.PAINT_APPLIED:
+                for (const c of evt.cards) {
+                    if (!this.pool.isActive(c.cardId)) continue;
+                    this.pool.color[c.cardId] = c.color;
+                    this.pool.paintAnim[c.cardId] = 0;
+                }
+                break;
         }
     }
 
@@ -331,6 +362,20 @@ export class CinematicPlayer {
         const x = this.centerX(cardId);
         const y = this.centerY(cardId);
         this.particles.emitBurst(x, y, '#ffffff', 40, 200, PARTICLE_TYPES.STAR);
+        if (isSelf && type === CARD_TYPES.PAINT) {
+            // Estouro de tinta: respingos grossos nas 4 cores do jogo + o aviso de que é hora de escolher
+            for (const color of PAINT_SPLASH_COLORS) {
+                this.particles.emitBurst(x, y, color, 26, 420, PARTICLE_TYPES.CIRCLE, 1.6);
+                this.particles.emitBurst(x, y, color, 8, 650, PARTICLE_TYPES.SPARK, 1.2);
+            }
+            this.hud.showPaintAlert();
+        }
+        if (isSelf && type === CARD_TYPES.GUARD_SWAP) {
+            // Só quem usou vê: a energia corre até o campo inimigo e as cartas de lá "estremecem"
+            for (let i = 0; i < 3; i++) this.particles.emitBurst(x, y, SWAP_COLOR, 18, 260 + i * 120, PARTICLE_TYPES.SPARK, 1.1);
+            this.hud.showSpecialAlert(i18n.t('GUARD_SWAP_ALERT'), 'alert-swap');
+            this.guardSwapArmedFx(x, y);
+        }
         if (fx.toLife) {
             const life = this.hpPoint(true);
             this.particles.emitLine(x, y, life.x, life.y, fx.color, 45, PARTICLE_TYPES.STAR);
@@ -341,6 +386,315 @@ export class CinematicPlayer {
             }
         }
         this.explode(cardId, fx.color);
+    }
+
+    // --- Troca de Guarda -----------------------------------------------------
+
+    /** Centro visual de um slot do tabuleiro (coordenadas virtuais). */
+    slotCenter(zone) {
+        const r = this.board.slots[zone];
+        return r ? { x: r.hitX + r.hitW / 2, y: r.hitY + r.hitH / 2 } : { x: this.viewport.width / 2, y: this.viewport.height / 2 };
+    }
+
+    /** Cartas ativas numa zona relativa, do fundo pro topo (ordem da pilha). */
+    cardsIn(zone) {
+        const pool = this.pool;
+        const ids = [];
+        for (let id = 0; id < pool.maxCards; id++) {
+            if (pool.active[id] === 1 && pool.zone[id] === zone) ids.push(id);
+        }
+        ids.sort((a, b) => pool.order[a] - pool.order[b]);
+        return ids;
+    }
+
+    /**
+     * Troca de Guarda armada (só quem usou vê, sem travar a fila): um feixe corre do slot USE até o campo
+     * inimigo, anéis de energia orbitam Ataque e Defesa de lá e as cartas inimigas estremecem.
+     */
+    guardSwapArmedFx(fromX, fromY) {
+        const atk = this.slotCenter(ZONE.OPP_ATTACK);
+        const def = this.slotCenter(ZONE.OPP_DEFENSE);
+        const mx = (atk.x + def.x) / 2;
+        const my = (atk.y + def.y) / 2;
+        const radius = Math.abs(def.y - atk.y) / 2 + 30;
+        this.particles.emitLine(fromX, fromY, mx, my, SWAP_COLOR, 40, PARTICLE_TYPES.STAR);
+        this.particles.emitBurst(atk.x, atk.y, SWAP_COLOR, 22, 170, PARTICLE_TYPES.CIRCLE);
+        this.particles.emitBurst(def.x, def.y, SWAP_COLOR, 22, 170, PARTICLE_TYPES.CIRCLE);
+
+        const pool = this.pool;
+        const shaken = this.cardsIn(ZONE.OPP_ATTACK).concat(this.cardsIn(ZONE.OPP_DEFENSE));
+        const baseRot = shaken.map((id) => pool.rotation[id]);
+        const baseZone = shaken.map((id) => pool.zone[id]);
+        const r = hexChannel(SWAP_COLOR, 1);
+        const g = hexChannel(SWAP_COLOR, 3);
+        const b = hexChannel(SWAP_COLOR, 5);
+        this.animate(ANIM.GUARD_SWAP_ORBIT * 1.4, (t) => {
+            // Duas "luas" girando em volta do par Ataque/Defesa, soltando rastro
+            for (let k = 0; k < 2; k++) {
+                const a = t * Math.PI * 3 + k * Math.PI;
+                const px = mx + Math.cos(a) * radius * 0.75;
+                const py = my + Math.sin(a) * radius;
+                this.particles.emit(px, py, -Math.sin(a) * 40, Math.cos(a) * 40, 0.5, 2.5 + Math.random() * 2, PARTICLE_TYPES.STAR, r, g, b);
+            }
+            const wobble = t < 1 ? Math.sin(t * Math.PI * 7) * 0.09 * (1 - t) : 0;
+            for (let i = 0; i < shaken.length; i++) {
+                const id = shaken[i];
+                if (!pool.isActive(id) || pool.zone[id] !== baseZone[i]) continue;
+                pool.rotation[id] = baseRot[i] + wobble;
+            }
+        });
+    }
+
+    /**
+     * A Troca de Guarda dispara no início do combate (os dois veem, sem saber quem usou): em cada campo que
+     * troca, as pilhas de Ataque e Defesa sobem, orbitam em meia-volta em volta do ponto entre os slots
+     * (girando de pé pra deitada e vice-versa) e assentam no slot oposto. Duas Trocas se anulam: as pilhas
+     * giram até o meio, batem e voltam.
+     * @param {{ self: number, opp: number, cancelled: number }} evt
+     */
+    async guardSwap(evt) {
+        const sides = [];
+        if (evt.self) sides.push([ZONE.SELF_ATTACK, ZONE.SELF_DEFENSE]);
+        if (evt.opp) sides.push([ZONE.OPP_ATTACK, ZONE.OPP_DEFENSE]);
+
+        if (evt.cancelled) {
+            this.hud.showSpecialAlert(i18n.t('GUARD_SWAP_CANCELLED'), 'alert-swap');
+            await this.guardSwapCancelled();
+            return;
+        }
+        this.hud.showSpecialAlert(i18n.t('GUARD_SWAP_ALERT'), 'alert-swap');
+        if (sides.length === 0) {
+            // Ninguém tinha Defesa: a carta falha (a órbita aparece e se desfaz)
+            this.audio.play(SFX.FIZZLE);
+            for (const zone of [ZONE.SELF_ATTACK, ZONE.OPP_ATTACK]) {
+                const c = this.slotCenter(zone);
+                this.particles.emitRise(c.x, c.y, '#95a5a6', 20, 40, 150, PARTICLE_TYPES.CIRCLE);
+            }
+            await sleep(ANIM.GUARD_SWAP_LIFT + ANIM.GUARD_SWAP_SETTLE);
+            return;
+        }
+
+        this.audio.play(SFX.GUARD_SWAP);
+        await Promise.all(sides.map(([atkZone, defZone]) => this.swapSide(atkZone, defZone)));
+    }
+
+    /** Um campo trocando: Ataque e Defesa em órbita de meia-volta até o slot oposto. */
+    async swapSide(atkZone, defZone) {
+        const pool = this.pool;
+        const atkRect = this.board.slots[atkZone];
+        const defRect = this.board.slots[defZone];
+        if (!atkRect || !defRect) return;
+        const attack = this.cardsIn(atkZone);
+        const defense = this.cardsIn(defZone);
+        const a = this.slotCenter(atkZone);
+        const d = this.slotCenter(defZone);
+        const mx = (a.x + d.x) / 2;
+        const my = (a.y + d.y) / 2;
+        const radius = Math.hypot(a.x - mx, a.y - my);
+        // Cada carta: ângulo inicial em volta do centro, rotação inicial/final e índice na pilha
+        const moving = [];
+        for (let j = 0; j < attack.length; j++) moving.push({ id: attack[j], from: a, rot0: 0, rot1: Math.PI / 2, j });
+        for (let j = 0; j < defense.length; j++) moving.push({ id: defense[j], from: d, rot0: Math.PI / 2, rot1: 0, j });
+
+        for (const m of moving) {
+            this.animator.cancel(m.id, pool);
+            m.angle0 = Math.atan2(m.from.y - my, m.from.x - mx);
+            pool.zIndex[m.id] = 520 + m.j;
+            pool.hoverOffsetY[m.id] = 0;
+        }
+        this.particles.emitBurst(mx, my, SWAP_COLOR, 36, 240, PARTICLE_TYPES.CIRCLE, 1.3);
+        this.particles.emitBurst(mx, my, '#ffffff', 14, 180, PARTICLE_TYPES.STAR);
+
+        // 1) Sobem
+        await Promise.all(moving.map((m) => this.tween(m.id, { scale: ANIM.GUARD_SWAP_SCALE }, ANIM.GUARD_SWAP_LIFT, Easing.QuadOut)));
+
+        // 2) Meia-volta em órbita (sentido horário), girando de pé <-> deitada, com rastro de luz
+        const r = hexChannel(SWAP_COLOR, 1);
+        const g = hexChannel(SWAP_COLOR, 3);
+        const b = hexChannel(SWAP_COLOR, 5);
+        await this.animate(ANIM.GUARD_SWAP_ORBIT, (t) => {
+            const e = Easing.QuadInOut(t);
+            for (let i = 0; i < moving.length; i++) {
+                const m = moving[i];
+                if (!pool.isActive(m.id)) continue;
+                const ang = m.angle0 + Math.PI * e;
+                const cx = mx + Math.cos(ang) * radius;
+                const cy = my + Math.sin(ang) * radius;
+                pool.targetX[m.id] = cx - HALF_W + m.j * STACK_DX;
+                pool.targetY[m.id] = cy - HALF_H + m.j * STACK_DY;
+                pool.x[m.id] = pool.targetX[m.id];
+                pool.y[m.id] = pool.targetY[m.id];
+                pool.rotation[m.id] = m.rot0 + (m.rot1 - m.rot0) * e;
+                if (m.j === 0 && t < 1) {
+                    const vx = -Math.sin(ang) * 60;
+                    const vy = Math.cos(ang) * 60;
+                    this.particles.emit(cx, cy, -vx, -vy, 0.45, 3 + Math.random() * 3, PARTICLE_TYPES.STAR, r, g, b);
+                }
+            }
+        });
+
+        // 3) Assentam no slot novo com um estalo de luz
+        for (const m of moving) {
+            const rect = m.rot1 === 0 ? atkRect : defRect;
+            pool.targetX[m.id] = rect.x + m.j * STACK_DX;
+            pool.targetY[m.id] = rect.y + m.j * STACK_DY;
+            pool.rotation[m.id] = m.rot1;
+        }
+        this.particles.emitBurst(a.x, a.y, SWAP_COLOR, 26, 220, PARTICLE_TYPES.STAR);
+        this.particles.emitBurst(d.x, d.y, SWAP_COLOR, 26, 220, PARTICLE_TYPES.STAR);
+        await Promise.all(moving.map((m) => this.tween(m.id, { scale: 1 }, ANIM.GUARD_SWAP_SETTLE, Easing.BackOut)));
+        for (const m of moving) pool.zIndex[m.id] = 100 + m.j;
+    }
+
+    /** Duas Trocas se anularam: em cada campo com Ataque e Defesa, as pilhas giram até se chocarem e voltam. */
+    async guardSwapCancelled() {
+        const pool = this.pool;
+        const jobs = [];
+        for (const [atkZone, defZone] of [[ZONE.SELF_ATTACK, ZONE.SELF_DEFENSE], [ZONE.OPP_ATTACK, ZONE.OPP_DEFENSE]]) {
+            const ids = this.cardsIn(atkZone).concat(this.cardsIn(defZone));
+            if (ids.length === 0) continue;
+            const a = this.slotCenter(atkZone);
+            const d = this.slotCenter(defZone);
+            const mx = (a.x + d.x) / 2;
+            const my = (a.y + d.y) / 2;
+            for (const id of ids) {
+                const rot = pool.rotation[id];
+                jobs.push((async () => {
+                    await this.tween(id, { scale: ANIM.GUARD_SWAP_SCALE, rotation: rot + 0.45 }, ANIM.GUARD_SWAP_LIFT + 120, Easing.QuadOut);
+                    await this.tween(id, { scale: 1, rotation: rot }, ANIM.GUARD_SWAP_SETTLE, Easing.BackOut);
+                })());
+            }
+            setTimeout(() => {
+                this.audio.play(SFX.GUARD_SWAP_CANCEL);
+                this.particles.emitBurst(mx, my, '#bdc3c7', 34, 260, PARTICLE_TYPES.SQUARE);
+                this.particles.emitBurst(mx, my, SWAP_COLOR, 20, 200, PARTICLE_TYPES.SPARK);
+            }, ANIM.GUARD_SWAP_LIFT + 120);
+        }
+        if (jobs.length === 0) this.audio.play(SFX.GUARD_SWAP_CANCEL);
+        await Promise.all(jobs);
+    }
+
+    // --- Relâmpago ------------------------------------------------------------
+
+    /** Clarão de tela aditivo que apaga sozinho (não trava a fila). */
+    flashScreen(amount, color = '#cfefff', duration = 220) {
+        const scene = this.scene;
+        if (!scene) return;
+        scene.flashColor = color;
+        scene.flash = Math.max(scene.flash, amount);
+        const start = scene.flash;
+        this.animate(duration, (t) => { scene.flash = start * (1 - Easing.QuadOut(t)); });
+    }
+
+    /** Faíscas elétricas saltando em volta de um ponto (carga do Relâmpago), por `duration` ms. */
+    crackle(x, y, spread, duration) {
+        const r = hexChannel(STORM_COLOR, 1);
+        const g = hexChannel(STORM_COLOR, 3);
+        const b = hexChannel(STORM_COLOR, 5);
+        return this.animate(duration, (t) => {
+            if (t >= 1) return;
+            for (let n = 0; n < 3; n++) {
+                const a = Math.random() * Math.PI * 2;
+                const d = spread * (0.6 + Math.random() * 0.5);
+                const px = x + Math.cos(a) * d;
+                const py = y + Math.sin(a) * d * 1.3;
+                this.particles.emit(px, py, (x - px) * 2.2, (y - py) * 2.2, 0.28, 2 + Math.random() * 2.5, PARTICLE_TYPES.SPARK, r, g, b);
+            }
+        });
+    }
+
+    /** Uma carta atingida por raio: acende, explode em faíscas e some. */
+    zap(id) {
+        const pool = this.pool;
+        if (!pool.isActive(id)) return;
+        const x = this.centerX(id);
+        const y = this.centerY(id);
+        const hex = CONFIG.COLOR_HEX[pool.color[id]] || '#ffffff';
+        this.particles.emitBurst(x, y, STORM_COLOR, 34, 380, PARTICLE_TYPES.SPARK, 1.2);
+        this.particles.emitBurst(x, y, hex, 26, 240, PARTICLE_TYPES.SQUARE);
+        this.particles.emitBurst(x, y, '#ffffff', 16, 200, PARTICLE_TYPES.STAR, 1.3);
+        this.remove(id);
+    }
+
+    /**
+     * Relâmpago em Cadeia (os dois veem): a carta se carrega crepitando, dispara um raio na carta da frente
+     * inimiga e o raio salta dela para a próxima (combo ou Defesa, revelada no instante do golpe), cada
+     * golpe com estalo de trovão e clarão de tela. Por fim o Relâmpago se descarrega e some.
+     * @param {{ lightningId: number, seat: number, targets: import('../network/protocol.js').CardFace[] }} evt
+     */
+    async lightningStrike(evt) {
+        const pool = this.pool;
+        const id = evt.lightningId;
+        let sx = this.viewport.width / 2;
+        let sy = this.viewport.height / 2;
+
+        if (pool.isActive(id)) {
+            pool.zIndex[id] = 600;
+            sx = this.centerX(id);
+            sy = this.centerY(id);
+            this.audio.play(SFX.LIGHTNING_CHARGE);
+            await Promise.all([
+                this.tween(id, { scale: 1.3 }, ANIM.LIGHTNING_CHARGE, Easing.BackOut),
+                this.crackle(sx, sy, HALF_W * 1.3, ANIM.LIGHTNING_CHARGE)
+            ]);
+        }
+
+        for (let k = 0; k < evt.targets.length; k++) {
+            const face = evt.targets[k];
+            const tid = face.id;
+            // Carta oculta (Defesa) é revelada um instante antes do raio, pra todos verem o que caiu
+            const wasHidden = pool.isActive(tid) && pool.type[tid] === CARD_TYPES.HIDDEN;
+            this.applyFace(face);
+            if (wasHidden) {
+                this.audio.play(SFX.REVEAL);
+                await this.tween(tid, { scale: 1.15 }, ANIM.LIGHTNING_REVEAL, Easing.QuadOut);
+            }
+            const tx = pool.isActive(tid) ? this.centerX(tid) : sx;
+            const ty = pool.isActive(tid) ? this.centerY(tid) : sy;
+            if (this.bolts) {
+                this.bolts.spawn(sx, sy, tx, ty, ANIM.LIGHTNING_BOLT_LIFE, STORM_COLOR, 1.15);
+                this.bolts.spawn(sx, sy, tx, ty, ANIM.LIGHTNING_BOLT_LIFE * 0.7, '#fff3a0', 0.55);
+            }
+            this.audio.play(SFX.LIGHTNING_STRIKE, { pitch: k * 2 });
+            this.flashScreen(k === 0 ? 1 : 0.7);
+            this.zap(tid);
+            sx = tx;
+            sy = ty;
+            await sleep(ANIM.LIGHTNING_HOP);
+        }
+
+        if (pool.isActive(id)) {
+            const x = this.centerX(id);
+            const y = this.centerY(id);
+            this.particles.emitBurst(x, y, STORM_CORE, 40, 320, PARTICLE_TYPES.STAR, 1.2);
+            this.particles.emitBurst(x, y, STORM_COLOR, 30, 480, PARTICLE_TYPES.SPARK);
+            this.remove(id);
+        }
+        await sleep(ANIM.LIGHTNING_FADE);
+    }
+
+    /**
+     * Sobrecarga (Relâmpago na vida): da borda por onde o Relâmpago saiu, raios caem em até 2 cartas da mão
+     * do alvo, que queimam. O dono vê as próprias cartas; o atacante vê só os versos.
+     */
+    async overloadBurn(evt, selfIsTarget, fromX) {
+        const pool = this.pool;
+        const fromY = selfIsTarget ? this.viewport.height * 0.62 : this.viewport.height * 0.38;
+        const burned = evt.burned || [];
+        for (let k = 0; k < burned.length; k++) {
+            const id = burned[k];
+            if (!pool.isActive(id)) continue;
+            const tx = this.centerX(id);
+            const ty = this.centerY(id);
+            pool.zIndex[id] = 600;
+            if (this.bolts) this.bolts.spawn(fromX, fromY, tx, ty, ANIM.LIGHTNING_BOLT_LIFE, STORM_COLOR, 1);
+            this.audio.play(SFX.LIGHTNING_STRIKE, { pitch: 3 + k * 2, volume: 0.7 });
+            this.flashScreen(0.55);
+            await this.tween(id, { scale: 1.2 }, ANIM.LIGHTNING_HOP * 0.5, Easing.QuadOut);
+            this.zap(id);
+            await sleep(ANIM.LIGHTNING_HOP * 0.5);
+        }
+        await sleep(ANIM.LIGHTNING_FADE);
     }
 
     /**
@@ -374,6 +728,84 @@ export class CinematicPlayer {
             this.particles.emitRise(tx, ty, '#ffd700', Math.min(45, 8 + evt.coins * 4), 18, 360, PARTICLE_TYPES.STAR);
             this.particles.emitBurst(tx, ty, '#fff3b0', 16, 200, PARTICLE_TYPES.CIRCLE);
         }
+    }
+
+    /**
+     * Pintar confirmado (só quem pintou recebe): as cartas sobem da mão, a tinta nova escorre por
+     * cima da cor antiga em tempo real (Canvas2DRenderer.drawPaintingFace) e elas voltam com um "pop".
+     * @param {{ cardId: number, color: number }[]} cards
+     */
+    async paintApplied(cards) {
+        this.audio.play(SFX.PAINT_BRUSH);
+        const jobs = [];
+        let stagger = 0;
+        for (const c of cards) {
+            if (!this.pool.isActive(c.cardId)) continue;
+            jobs.push(this.paintCard(c.cardId, c.color, stagger));
+            stagger += ANIM.PAINT_STAGGER;
+        }
+        await Promise.all(jobs);
+        this.audio.play(SFX.PAINT_DONE);
+    }
+
+    async paintCard(id, color, delay) {
+        const pool = this.pool;
+        if (delay > 0) await sleep(delay);
+        if (!pool.isActive(id)) return;
+
+        const hex = CONFIG.COLOR_HEX[color] || '#ffffff';
+        const r = hexChannel(hex, 1);
+        const g = hexChannel(hex, 3);
+        const b = hexChannel(hex, 5);
+        const homeY = pool.targetY[id];
+        const baseZ = pool.zIndex[id];
+        const baseScale = pool.scale[id];
+        const scale = ANIM.PAINT_SCALE;
+        pool.zIndex[id] = 600;
+
+        // 1) A carta sobe da mão e cresce
+        await this.tween(id, { targetY: homeY - ANIM.PAINT_RISE, scale, rotation: 0 }, ANIM.PAINT_LIFT, Easing.BackOut);
+        if (!pool.isActive(id)) return;
+
+        const cx = this.centerX(id);
+        const cy = this.centerY(id);
+        const halfW = HALF_W * scale;
+        const top = cy - HALF_H * scale;
+        const height = CARD_DIMENSIONS.HEIGHT * scale;
+
+        // 2) Respingo de tinta batendo no topo da carta
+        this.particles.emitBurst(cx, top, hex, 34, 300, PARTICLE_TYPES.CIRCLE, 1.4);
+        this.particles.emitBurst(cx, top, '#ffffff', 10, 220, PARTICLE_TYPES.STAR);
+
+        // 3) A tinta escorre de cima pra baixo, pingando gotas na frente
+        pool.paintFrom[id] = pool.color[id];
+        pool.color[id] = color;
+        pool.paintT[id] = 0;
+        pool.paintAnim[id] = 1;
+        await this.animate(ANIM.PAINT_SWEEP, (t) => {
+            if (!pool.isActive(id)) return;
+            const eased = Easing.QuadInOut(t);
+            pool.paintT[id] = eased;
+            if (t >= 1) return;
+            const frontY = top + eased * height;
+            for (let n = 0; n < 2; n++) {
+                const px = cx + (Math.random() * 2 - 1) * halfW * 0.9;
+                const vx = (Math.random() - 0.5) * 40;
+                const vy = 80 + Math.random() * 140;
+                const size = 2 + Math.random() * 3.5;
+                this.particles.emit(px, frontY, vx, vy, 0.45 + Math.random() * 0.4, size, PARTICLE_TYPES.CIRCLE, r, g, b);
+            }
+        });
+        pool.paintAnim[id] = 0;
+        if (!pool.isActive(id)) return;
+
+        // 4) Tinta assentou: estouro de brilho na cor nova e a carta volta pra mão com impulso
+        this.particles.emitBurst(cx, cy, hex, 45, 380, PARTICLE_TYPES.STAR, 1.3);
+        this.particles.emitBurst(cx, cy, '#ffffff', 18, 260, PARTICLE_TYPES.CIRCLE);
+        this.particles.emitRise(cx, cy, hex, 20, halfW, 220, PARTICLE_TYPES.STAR);
+        await this.tween(id, { scale: scale * 1.12 }, ANIM.PAINT_SETTLE * 0.35, Easing.QuadOut);
+        await this.tween(id, { targetY: homeY, scale: baseScale }, ANIM.PAINT_SETTLE, Easing.BackOut);
+        pool.zIndex[id] = baseZ;
     }
 
     /** Cura resolvida no fim do combate (amount 0 = desperdiçada, só quem usou recebe esse aviso). */
@@ -487,7 +919,10 @@ export class CinematicPlayer {
             await this.tween(id, { targetY: exitY, scale: 1.0 }, ANIM.DIRECT_DASH, Easing.CubicIn);
             this.impact(evt, selfIsTarget);
 
-            if (evt.effect !== HIT_EFFECT.NONE) {
+            if (evt.effect === HIT_EFFECT.OVERLOAD) {
+                this.remove(id);
+                await this.overloadBurn(evt, selfIsTarget, startX + HALF_W);
+            } else if (evt.effect !== HIT_EFFECT.NONE) {
                 this.remove(id);
                 await sleep(ANIM.DIRECT_RETURN);
             } else {
@@ -495,17 +930,24 @@ export class CinematicPlayer {
             }
         } else {
             this.impact(evt, selfIsTarget);
+            if (evt.effect === HIT_EFFECT.OVERLOAD) await this.overloadBurn(evt, selfIsTarget, this.viewport.width / 2);
         }
     }
 
     impact(evt, selfIsTarget) {
+        const overload = evt.effect === HIT_EFFECT.OVERLOAD;
         this.audio.play(SFX.DIRECT_HIT);
-        this.particles.emitDamageWave(selfIsTarget, '#ff0000', 150, PARTICLE_TYPES.SQUARE);
+        this.particles.emitDamageWave(selfIsTarget, overload ? STORM_COLOR : '#ff0000', 150, overload ? PARTICLE_TYPES.SPARK : PARTICLE_TYPES.SQUARE);
         if (selfIsTarget) this.hud.flashDamage();
 
         let text;
         let variant = '';
-        if (evt.effect === HIT_EFFECT.LOCKOUT) {
+        if (overload) {
+            text = i18n.t('HIT_OVERLOAD');
+            variant = 'overload';
+            this.audio.play(SFX.OVERLOAD);
+            this.flashScreen(0.8);
+        } else if (evt.effect === HIT_EFFECT.LOCKOUT) {
             text = i18n.t('HIT_LOCKOUT');
             this.audio.play(SFX.LOCKOUT);
         } else if (evt.effect === HIT_EFFECT.HAND_SWAP) {
@@ -566,6 +1008,8 @@ export class CinematicPlayer {
         clearInterval(this.fireworksTimer);
         this.fireworksTimer = null;
         this.gameOverShown = false;
+        if (this.bolts) this.bolts.clear();
+        if (this.scene) this.scene.flash = 0;
         if (this.showcase) {
             this.showcase.cardVisible = false;
             this.showcase.dim = 0;

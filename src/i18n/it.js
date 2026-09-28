@@ -104,6 +104,7 @@ export const IT = {
     "SHOP_HINT": "Solo un articolo può essere congelato alla volta: costerà 2 monete in più al prossimo rinnovo. Le carte comprate si rivendono a metà prezzo.",
     "COINS": "Monete",
     "TRASH_HINT": "Rilascia per vendere",
+    "TRASH_LAST_ATTACK": "L'ultima carta che può attaccare!",
     "CARD_NUMBER": "Carta {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const IT = {
     "DESC_SHIELD": "Consumabile: subisci metà danno fino al prossimo turno.",
     "DESC_REVIVE": "Consumabile: sopravvivi a un colpo fatale nei prossimi 5 turni. 1 volta per partita.",
     "CARD_PAINT": 'Dipingere',
-    "DESC_PAINT": 'Scegli 2 carte dalla tua mano e dipingile di qualsiasi colore. (Solo Fase di Preparazione)'
+    "DESC_PAINT": 'Scegli 2 carte dalla tua mano e dipingile di qualsiasi colore. (Solo Fase di Preparazione)',
+    "PAINT_ALERT": "DIPINGI!",
+    "PAINT_PICK_CARDS": "DIPINGI: SCEGLI {n} CARTA/E DALLA TUA MANO",
+    "PAINT_PICK_COLOR": "SCEGLI IL NUOVO COLORE",
+    "CARD_GUARD_SWAP": "Cambio della Guardia",
+    "DESC_GUARD_SWAP": "Consumabile: all'inizio del combattimento, Attacco e Difesa si scambiano di posto su entrambi i campi.",
+    "GUARD_SWAP_ALERT": "CAMBIO DELLA GUARDIA!",
+    "GUARD_SWAP_CANCELLED": "CAMBI ANNULLATI!",
+    "CARD_LIGHTNING": "Fulmine",
+    "DESC_LIGHTNING": "Folgora la carta nemica e rimbalza su un'altra. Batte il Blocco. Sulla vita: brucia 2 carte della mano.",
+    "HIT_OVERLOAD": "SOVRACCARICO!"
 };

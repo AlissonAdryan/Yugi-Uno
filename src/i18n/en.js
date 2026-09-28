@@ -104,6 +104,7 @@ export const EN = {
     "SHOP_HINT": "Only one item can be frozen at a time — it gets 2 coins pricier on the next restock. Bought cards resell for half.",
     "COINS": "Coins",
     "TRASH_HINT": "Drop to sell",
+    "TRASH_LAST_ATTACK": "Your last card that can attack!",
     "CARD_NUMBER": "Card {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const EN = {
     "DESC_SHIELD": "Consumable: take half damage until the next round.",
     "DESC_REVIVE": "Consumable: survive one lethal hit over the next 5 rounds. Once per match.",
     "CARD_PAINT": 'Paint',
-    "DESC_PAINT": 'Choose 2 cards from your hand and paint them any color. (Prep Phase Only)'
+    "DESC_PAINT": 'Choose 2 cards from your hand and paint them any color. (Prep Phase Only)',
+    "PAINT_ALERT": "PAINT!",
+    "PAINT_PICK_CARDS": "PAINT: PICK {n} CARD(S) FROM YOUR HAND",
+    "PAINT_PICK_COLOR": "PICK THE NEW COLOR",
+    "CARD_GUARD_SWAP": "Guard Swap",
+    "DESC_GUARD_SWAP": "Consumable: when combat starts, Attack and Defense trade places on both fields.",
+    "GUARD_SWAP_ALERT": "GUARD SWAP!",
+    "GUARD_SWAP_CANCELLED": "SWAPS CANCELLED!",
+    "CARD_LIGHTNING": "Lightning",
+    "DESC_LIGHTNING": "Strikes the enemy card and chains to one more. Beats Block. On life: burns 2 cards from hand.",
+    "HIT_OVERLOAD": "OVERLOAD!"
 };

@@ -375,9 +375,304 @@ function paintPaintFace(ctx) {
     drawDiamond(ctx, W / 2, H - 9, 2.4);
 }
 
+/** Silhueta de carta (retângulo arredondado) centrada em (cx, cy). */
+function miniCardPath(ctx, cx, cy, w, h, r) {
+    ctx.beginPath();
+    ctx.roundRect(cx - w / 2, cy - h / 2, w, h, r);
+}
+
+/** Arco com ponta de seta no fim (ângulos em rad, sentido horário). */
+function arcArrow(ctx, cx, cy, r, from, to, head) {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, from, to);
+    ctx.stroke();
+    const tx = cx + Math.cos(to) * r;
+    const ty = cy + Math.sin(to) * r;
+    // Tangente no fim do arco (sentido horário): perpendicular ao raio
+    const ang = to + Math.PI / 2;
+    ctx.beginPath();
+    ctx.moveTo(tx + Math.cos(ang) * head, ty + Math.sin(ang) * head);
+    ctx.lineTo(tx + Math.cos(ang - 2.5) * head, ty + Math.sin(ang - 2.5) * head);
+    ctx.lineTo(tx + Math.cos(ang + 2.5) * head, ty + Math.sin(ang + 2.5) * head);
+    ctx.closePath();
+    ctx.fill();
+}
+
+/**
+ * Face da Troca de Guarda: preto profundo, uma carta em pé (Ataque) e uma deitada (Defesa) cruzadas,
+ * envoltas por duas setas girando. A moldura é o diferencial: aço-ciano com cantos chanfrados e
+ * setinhas ⇅ no meio das laterais (sem laminado, de propósito).
+ */
+function paintGuardSwapFace(ctx) {
+    ctx.beginPath();
+    ctx.roundRect(0, 0, W, H, R);
+    ctx.clip();
+
+    const cx = W / 2;
+    const cy = H * 0.49;
+    const bg = ctx.createRadialGradient(cx, cy, 4, cx, cy, W * 0.85);
+    bg.addColorStop(0, '#141b26');
+    bg.addColorStop(0.55, '#0a0e15');
+    bg.addColorStop(1, '#030407');
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    const aura = ctx.createRadialGradient(cx, cy, 2, cx, cy, 42);
+    aura.addColorStop(0, 'rgba(127, 219, 255, 0.28)');
+    aura.addColorStop(1, 'rgba(127, 219, 255, 0)');
+    ctx.fillStyle = aura;
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.lineJoin = 'round';
+    ctx.lineCap = 'round';
+
+    // Carta deitada (Defesa) atrás, em ciano
+    miniCardPath(ctx, cx + 5, cy + 7, 30, 20, 3);
+    ctx.fillStyle = 'rgba(127, 219, 255, 0.16)';
+    ctx.fill();
+    ctx.lineWidth = 2;
+    ctx.strokeStyle = '#7fdbff';
+    ctx.stroke();
+
+    // Carta em pé (Ataque) na frente, em branco
+    miniCardPath(ctx, cx - 5, cy - 5, 20, 30, 3);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.14)';
+    ctx.fill();
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = '#ffffff';
+    ctx.stroke();
+    // Espadinha (Ataque): lâmina com ponta, guarda e punho; escudinho (Defesa) na carta deitada
+    const sx = cx - 5;
+    ctx.beginPath();
+    ctx.moveTo(sx, cy - 16);
+    ctx.lineTo(sx + 2, cy - 12.5);
+    ctx.lineTo(sx + 2, cy + 1);
+    ctx.lineTo(sx - 2, cy + 1);
+    ctx.lineTo(sx - 2, cy - 12.5);
+    ctx.closePath();
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.fillRect(sx - 5, cy + 1.5, 10, 1.8);
+    ctx.fillRect(sx - 0.9, cy + 3.3, 1.8, 4.2);
+    ctx.beginPath();
+    ctx.arc(sx, cy + 8.6, 1.4, 0, TAU);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(cx + 14, cy + 3);
+    ctx.lineTo(cx + 18, cy + 4.5);
+    ctx.lineTo(cx + 17.5, cy + 9);
+    ctx.lineTo(cx + 14, cy + 12);
+    ctx.lineTo(cx + 10.5, cy + 9);
+    ctx.lineTo(cx + 10, cy + 4.5);
+    ctx.closePath();
+    ctx.strokeStyle = '#7fdbff';
+    ctx.lineWidth = 1.3;
+    ctx.stroke();
+
+    // Duas setas girando em volta (o "giro" da troca)
+    const arrow = ctx.createLinearGradient(cx - 34, cy - 34, cx + 34, cy + 34);
+    arrow.addColorStop(0, '#ffffff');
+    arrow.addColorStop(1, '#7fdbff');
+    ctx.strokeStyle = arrow;
+    ctx.fillStyle = arrow;
+    ctx.lineWidth = 3;
+    ctx.shadowColor = 'rgba(127, 219, 255, 0.9)';
+    ctx.shadowBlur = 6;
+    arcArrow(ctx, cx, cy, 33, Math.PI * 1.08, Math.PI * 1.82, 6);
+    arcArrow(ctx, cx, cy, 33, Math.PI * 0.08, Math.PI * 0.82, 6);
+    ctx.shadowBlur = 0;
+
+    // Moldura de aço-ciano com cantos chanfrados (octógono) — o toque "levemente diferente"
+    const frame = ctx.createLinearGradient(0, 0, W, H);
+    frame.addColorStop(0, '#5e7c8f');
+    frame.addColorStop(0.35, '#c9f1ff');
+    frame.addColorStop(0.55, '#7fdbff');
+    frame.addColorStop(1, '#3f5a6b');
+    const inset = 6;
+    const cut = 9;
+    ctx.beginPath();
+    ctx.moveTo(inset + cut, inset);
+    ctx.lineTo(W - inset - cut, inset);
+    ctx.lineTo(W - inset, inset + cut);
+    ctx.lineTo(W - inset, H - inset - cut);
+    ctx.lineTo(W - inset - cut, H - inset);
+    ctx.lineTo(inset + cut, H - inset);
+    ctx.lineTo(inset, H - inset - cut);
+    ctx.lineTo(inset, inset + cut);
+    ctx.closePath();
+    ctx.lineWidth = 1.8;
+    ctx.strokeStyle = frame;
+    ctx.stroke();
+
+    // Setinhas ⇅ no meio das laterais
+    ctx.fillStyle = '#9fe6ff';
+    for (let side = 0; side < 2; side++) {
+        const x = side === 0 ? inset : W - inset;
+        const y = H / 2;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 9);
+        ctx.lineTo(x - 3.2, y - 4);
+        ctx.lineTo(x + 3.2, y - 4);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.moveTo(x, y + 9);
+        ctx.lineTo(x - 3.2, y + 4);
+        ctx.lineTo(x + 3.2, y + 4);
+        ctx.closePath();
+        ctx.fill();
+    }
+    ctx.fillStyle = 'rgba(159, 230, 255, 0.8)';
+    drawDiamond(ctx, W / 2, inset, 2.4);
+    drawDiamond(ctx, W / 2, H - inset, 2.4);
+}
+
+/** Canal de uma cor #rrggbb multiplicado (clareia > 1, escurece < 1), como string rgb(). Só em cache. */
+function shade(hex, factor) {
+    const r = Math.min(255, Math.round(parseInt(hex.slice(1, 3), 16) * factor));
+    const g = Math.min(255, Math.round(parseInt(hex.slice(3, 5), 16) * factor));
+    const b = Math.min(255, Math.round(parseInt(hex.slice(5, 7), 16) * factor));
+    return `rgb(${r}, ${g}, ${b})`;
+}
+
+// Raio clássico (polígono) em coordenadas locais; a ponta de baixo é o "golpe"
+const BOLT_SHAPE = Object.freeze([
+    [5, -37], [-16, 3], [-3, 3], [-10, 37], [17, -9], [4, -9], [13, -37]
+]);
+
+function boltShapePath(ctx, cx, cy, k) {
+    ctx.beginPath();
+    for (let i = 0; i < BOLT_SHAPE.length; i++) {
+        const x = cx + BOLT_SHAPE[i][0] * k;
+        const y = cy + BOLT_SHAPE[i][1] * k;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+}
+
+/**
+ * Face do Relâmpago na cor da carta: fundo da cor com vinheta de tempestade, anel de energia carregado
+ * e o raio branco-incandescente no centro, moldura dupla elétrica. O laminado animado (FOIL_STORM) vai
+ * por cima, desenhado ao vivo.
+ */
+function paintLightningFace(ctx, color) {
+    const hex = CONFIG.COLOR_HEX[color] || '#2c3e50';
+    ctx.beginPath();
+    ctx.roundRect(0, 0, W, H, R);
+    ctx.clip();
+
+    const cx = W / 2;
+    const cy = H * 0.48;
+    const bg = ctx.createRadialGradient(cx, cy, 6, cx, cy, W * 0.95);
+    bg.addColorStop(0, shade(hex, 1.25));
+    bg.addColorStop(0.45, hex);
+    bg.addColorStop(1, shade(hex, 0.32));
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+
+    // Nuvens de tempestade escurecendo o topo e a base
+    ctx.fillStyle = 'rgba(8, 10, 22, 0.28)';
+    for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.ellipse(8 + i * 22, 10 + (i % 2) * 6, 22, 12, 0, 0, TAU);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.ellipse(W - 8 - i * 22, H - 9 - (i % 2) * 5, 22, 11, 0, 0, TAU);
+        ctx.fill();
+    }
+
+    // Anel de energia carregado
+    const halo = ctx.createRadialGradient(cx, cy, 4, cx, cy, 40);
+    halo.addColorStop(0, 'rgba(255, 255, 240, 0.75)');
+    halo.addColorStop(0.45, 'rgba(190, 240, 255, 0.28)');
+    halo.addColorStop(1, 'rgba(190, 240, 255, 0)');
+    ctx.fillStyle = halo;
+    ctx.fillRect(0, 0, W, H);
+    ctx.beginPath();
+    ctx.arc(cx, cy, 31, 0, TAU);
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.setLineDash([9, 4, 2, 4]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(cx, cy, 35.5, 0, TAU);
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = 'rgba(200, 245, 255, 0.55)';
+    ctx.stroke();
+
+    // Raio: contorno escuro (contraste até na carta amarela) + corpo incandescente com brilho
+    boltShapePath(ctx, cx, cy, 0.95);
+    ctx.lineJoin = 'miter';
+    ctx.lineWidth = 3.4;
+    ctx.strokeStyle = 'rgba(10, 12, 30, 0.55)';
+    ctx.stroke();
+    const body = ctx.createLinearGradient(cx - 16, cy - 36, cx + 16, cy + 36);
+    body.addColorStop(0, '#ffffff');
+    body.addColorStop(0.55, '#fff9c4');
+    body.addColorStop(1, '#ffe36e');
+    ctx.fillStyle = body;
+    ctx.shadowColor = 'rgba(210, 245, 255, 1)';
+    ctx.shadowBlur = 12;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    // Filete de luz no miolo
+    ctx.beginPath();
+    ctx.moveTo(cx + 9 * 0.95, cy - 33 * 0.95);
+    ctx.lineTo(cx - 8 * 0.95, cy + 1);
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.95)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Faíscas fixas em volta do anel
+    ctx.fillStyle = '#ffffff';
+    for (let i = 0; i < 6; i++) {
+        const a = (i / 6) * TAU + 0.4;
+        drawDiamond(ctx, cx + Math.cos(a) * 42, cy + Math.sin(a) * 42, 2.2);
+    }
+
+    // Moldura dupla elétrica: branco perolado por fora, ciano por dentro, zigue-zague no topo e na base
+    const frame = ctx.createLinearGradient(0, 0, W, H);
+    frame.addColorStop(0, '#fffbe0');
+    frame.addColorStop(0.5, '#bff4ff');
+    frame.addColorStop(1, '#fff3a8');
+    ctx.lineWidth = 2.2;
+    ctx.strokeStyle = frame;
+    ctx.beginPath();
+    ctx.roundRect(5, 5, W - 10, H - 10, R - 3);
+    ctx.stroke();
+    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = 'rgba(191, 244, 255, 0.7)';
+    ctx.beginPath();
+    ctx.roundRect(9, 9, W - 18, H - 18, R - 5);
+    ctx.stroke();
+    ctx.lineWidth = 1.4;
+    ctx.strokeStyle = '#fffbe0';
+    for (let edge = 0; edge < 2; edge++) {
+        const y = edge === 0 ? 5 : H - 5;
+        const dir = edge === 0 ? 1 : -1;
+        ctx.beginPath();
+        ctx.moveTo(cx - 12, y);
+        ctx.lineTo(cx - 4, y + dir * 4);
+        ctx.lineTo(cx, y);
+        ctx.lineTo(cx + 4, y + dir * 4);
+        ctx.lineTo(cx + 12, y);
+        ctx.stroke();
+    }
+    ctx.fillStyle = '#fffbe0';
+    drawDiamond(ctx, 13, 13, 3);
+    drawDiamond(ctx, W - 13, 13, 3);
+    drawDiamond(ctx, 13, H - 13, 3);
+    drawDiamond(ctx, W - 13, H - 13, 3);
+}
+
+// Pintores por tipo. Os de cartas com cor (CARD_VISUALS[tipo].colored) recebem a cor como 2º argumento
 const PAINTERS = Object.freeze({
     [CARD_TYPES.REVIVE]: paintReviveFace,
-    [CARD_TYPES.PAINT]: paintPaintFace
+    [CARD_TYPES.PAINT]: paintPaintFace,
+    [CARD_TYPES.GUARD_SWAP]: paintGuardSwapFace,
+    [CARD_TYPES.LIGHTNING]: paintLightningFace
 });
 
 /**
@@ -397,13 +692,15 @@ export class CardArt {
     /**
      * @param {number} type CARD_TYPES.*
      * @param {number} neededScale px de device por unidade virtual onde a carta vai aparecer
+     * @param {number} [color] cor da carta (só muda algo nos tipos com cor; cada cor tem seu cache)
      * @returns {HTMLCanvasElement|null}
      */
-    paintedFace(type, neededScale) {
+    paintedFace(type, neededScale, color = 0) {
         const painter = PAINTERS[type];
         if (!painter) return null;
         const scale = Math.min(MAX_CACHE_SCALE, Math.max(MIN_CACHE_SCALE, Math.ceil(neededScale)));
-        const cached = this.cache.get(type);
+        const key = type * 16 + (color & 15);
+        const cached = this.cache.get(key);
         if (cached && cached.scale >= scale) return cached.canvas;
 
         const canvas = cached ? cached.canvas : document.createElement('canvas');
@@ -413,10 +710,10 @@ export class CardArt {
         ctx.setTransform(scale, 0, 0, scale, 0, 0);
         ctx.clearRect(0, 0, W, H);
         ctx.save();
-        painter(ctx);
+        painter(ctx, color);
         ctx.restore();
-        this.cache.set(type, { canvas, scale });
-        console.log(`[CardArt] Face do tipo ${type} pintada em cache (${scale}x).`);
+        this.cache.set(key, { canvas, scale });
+        console.log(`[CardArt] Face do tipo ${type} (cor ${color}) pintada em cache (${scale}x).`);
         return canvas;
     }
 }

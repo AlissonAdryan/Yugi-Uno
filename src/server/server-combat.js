@@ -41,6 +41,8 @@ export class ServerCombat {
         this.damageTaken.fill(0);
         this.damageDealt.fill(0);
 
+        // A Troca de Guarda age antes de qualquer revelação: quem entra em combate já é a pilha trocada
+        await this.resolveGuardSwap();
         await this.revealCards([...s.zone(SEAT.P1, ATTACK), ...s.zone(SEAT.P2, ATTACK)], TIMINGS.REVEAL);
 
         let steps = 0;
@@ -89,6 +91,45 @@ export class ServerCombat {
     faceOf(id) {
         const s = this.state;
         return { id, type: s.type[id], color: s.color[id], power: s.power[id] };
+    }
+
+    /**
+     * Troca de Guarda (GAME_RULES §6.11): em cada campo que tiver Ataque E Defesa, as duas pilhas
+     * trocam de lugar inteiras (a ordem do combo é preservada). Duas Trocas (uma de cada jogador) se
+     * anulam. Um lado sem Defesa não tem o que trocar e fica como está.
+     */
+    async resolveGuardSwap() {
+        const s = this.state;
+        const users = s.guardSwap[SEAT.P1] + s.guardSwap[SEAT.P2];
+        if (users === 0) return;
+        s.guardSwap.fill(0);
+
+        const cancelled = users % 2 === 0;
+        const swaps = [0, 0];
+        if (!cancelled) {
+            for (const seat of SEATS) {
+                if (s.zone(seat, ATTACK).length > 0 && s.zone(seat, DEFENSE).length > 0) swaps[seat] = 1;
+            }
+        }
+        console.log(cancelled
+            ? '[ServerCombat] Duas Trocas de Guarda se anularam: ninguém troca.'
+            : `[ServerCombat] Troca de Guarda! Campos trocando: P1=${swaps[0]} P2=${swaps[1]}.`);
+
+        // Quem usou a carta continua secreto: cada um recebe só "o meu lado troca / o do oponente troca"
+        for (const viewer of SEATS) {
+            this.engine.emitTo(viewer, EVENT.GUARD_SWAP, {
+                self: swaps[viewer], opp: swaps[1 - viewer], cancelled: cancelled ? 1 : 0
+            });
+        }
+        for (const seat of SEATS) {
+            if (!swaps[seat]) continue;
+            const attack = s.zone(seat, ATTACK).slice();
+            const defense = s.zone(seat, DEFENSE).slice();
+            for (const id of defense) s.moveCard(id, seatZone(seat, ATTACK));
+            for (const id of attack) s.moveCard(id, seatZone(seat, DEFENSE));
+        }
+        this.engine.markDirty();
+        await this.engine.sleep(TIMINGS.GUARD_SWAP);
     }
 
     async revealCards(ids, waitMs) {
@@ -199,7 +240,36 @@ export class ServerCombat {
             case CLASH_KIND.B_REVERSES:
                 await this.reverse(SEAT.P2, b);
                 return;
+            case CLASH_KIND.A_LIGHTNING:
+                await this.lightning(SEAT.P1, a);
+                return;
+            case CLASH_KIND.B_LIGHTNING:
+                await this.lightning(SEAT.P2, b);
+                return;
         }
+    }
+
+    /**
+     * Relâmpago em Cadeia (GAME_RULES §6.10): fulmina a carta da frente do inimigo e salta pra próxima —
+     * a seguinte da mesma pilha (combo) ou, sem ela, a do topo da Defesa inimiga. O Relâmpago se
+     * descarrega junto (é destruído). Age antes do Block, então um Block na frente só é fulminado.
+     */
+    async lightning(seat, lightningId) {
+        const s = this.state;
+        const enemy = 1 - seat;
+        const front = s.zone(enemy, ATTACK);
+        const targets = [];
+        // Do topo pra base na pilha da frente; depois o topo da Defesa
+        for (let i = front.length - 1; i >= 0 && targets.length < CONFIG.LIGHTNING.CHAIN_TARGETS; i--) targets.push(front[i]);
+        const defense = s.zone(enemy, DEFENSE);
+        if (targets.length < CONFIG.LIGHTNING.CHAIN_TARGETS && defense.length > 0) targets.push(defense[defense.length - 1]);
+
+        console.log(`[ServerCombat] Relâmpago de P${seat + 1} fulminou ${targets.length} carta(s) de P${enemy + 1}: ${targets.join(', ')}.`);
+        this.engine.emit(EVENT.LIGHTNING_STRIKE, { lightningId, seat, targets: targets.map((id) => this.faceOf(id)) });
+        this.deck.discard(lightningId);
+        for (const id of targets) this.deck.discard(id);
+        this.engine.markDirty();
+        await this.engine.sleep(TIMINGS.LIGHTNING);
     }
 
     async mutualDestruction(a, b) {
@@ -275,7 +345,15 @@ export class ServerCombat {
             }
 
             let revived = false;
-            if (type === CARD_TYPES.BLOCK) {
+            let extraWait = 0;
+            if (type === CARD_TYPES.LIGHTNING) {
+                const burned = this.pickHandBurn(target);
+                console.log(`[ServerCombat] Relâmpago atingiu P${target + 1}: Sobrecarga queimou ${burned.length} carta(s) da mão.`);
+                this.engine.emit(EVENT.DIRECT_HIT, { cardId, seat: attacker, damage: 0, effect: HIT_EFFECT.OVERLOAD, burned });
+                this.deck.discard(cardId);
+                for (const id of burned) this.deck.discard(id);
+                extraWait = TIMINGS.OVERLOAD_EXTRA;
+            } else if (type === CARD_TYPES.BLOCK) {
                 console.log(`[ServerCombat] Block atingiu P${target + 1}: defesa bloqueada na próxima rodada.`);
                 this.engine.emit(EVENT.DIRECT_HIT, { cardId, seat: attacker, damage: 0, effect: HIT_EFFECT.LOCKOUT });
                 s.defenseLock[target] = 1;
@@ -290,7 +368,7 @@ export class ServerCombat {
             }
 
             this.engine.markDirty();
-            await this.engine.sleep(TIMINGS.DIRECT_HIT);
+            await this.engine.sleep(TIMINGS.DIRECT_HIT + extraWait);
             if (revived) await this.reviveSave(target);
 
             if (s.hp[target] <= 0) {
@@ -376,6 +454,19 @@ export class ServerCombat {
             this.engine.markDirty();
             await this.engine.sleep(TIMINGS.HEAL);
         }
+    }
+
+    /** Sobrecarga: sorteia até HAND_BURN cartas diferentes da mão do alvo (sem alterar a mão ainda). */
+    pickHandBurn(target) {
+        const hand = this.state.zone(target, HAND).slice();
+        const count = Math.min(CONFIG.LIGHTNING.HAND_BURN, hand.length);
+        for (let i = 0; i < count; i++) {
+            const j = i + Math.floor(Math.random() * (hand.length - i));
+            const tmp = hand[i];
+            hand[i] = hand[j];
+            hand[j] = tmp;
+        }
+        return hand.slice(0, count);
     }
 
     swapHands() {

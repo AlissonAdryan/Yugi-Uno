@@ -104,6 +104,7 @@ export const KO = {
     "SHOP_HINT": "한 번에 하나의 아이템만 동결할 수 있습니다 — 다음 교체 때 가격이 2코인 오릅니다. 구매한 카드는 절반 가격에 되팔립니다.",
     "COINS": "코인",
     "TRASH_HINT": "놓아서 판매",
+    "TRASH_LAST_ATTACK": "공격할 수 있는 마지막 카드입니다!",
     "CARD_NUMBER": "카드 {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const KO = {
     "DESC_SHIELD": "소모품: 다음 라운드까지 받는 피해가 절반이 됩니다.",
     "DESC_REVIVE": "소모품: 앞으로 5라운드 동안 치명타를 한 번 버팁니다. 경기당 1회.",
     "CARD_PAINT": '페인트',
-    "DESC_PAINT": '패에서 카드 2장을 선택하여 원하는 색으로 칠하세요. (준비 단계에만 해당)'
+    "DESC_PAINT": '패에서 카드 2장을 선택하여 원하는 색으로 칠하세요. (준비 단계에만 해당)',
+    "PAINT_ALERT": "페인트!",
+    "PAINT_PICK_CARDS": "페인트: 패에서 카드 {n}장을 선택하세요",
+    "PAINT_PICK_COLOR": "새로운 색을 선택하세요",
+    "CARD_GUARD_SWAP": "공수 교대",
+    "DESC_GUARD_SWAP": "소모품: 전투 시작 시 양쪽 필드의 공격과 방어가 자리를 바꿉니다.",
+    "GUARD_SWAP_ALERT": "공수 교대!",
+    "GUARD_SWAP_CANCELLED": "교대 상쇄!",
+    "CARD_LIGHTNING": "라이트닝",
+    "DESC_LIGHTNING": "적 카드를 강타하고 한 장 더 연쇄합니다. 블록을 이깁니다. 생명력 적중: 손패 2장을 태웁니다.",
+    "HIT_OVERLOAD": "과부하!"
 };

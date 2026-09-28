@@ -1,6 +1,7 @@
 import { CONFIG } from '../config/constants.js';
 import { CardArt, drawHealIcon, drawShieldIcon } from './card-art.js';
 import { CardEffects } from './card-effects.js';
+import { ZONE } from '../utils/zones.js';
 
 const { CARD_TYPES, COLOR_HEX, COLOR, CARD_DIMENSIONS, CARD_VISUALS } = CONFIG;
 const NUMBER_LABELS = Array.from({ length: 64 }, (_, i) => String(i));
@@ -19,12 +20,30 @@ const OUTLINE_R = CARD_DIMENSIONS.RADIUS + OUTLINE.PADDING;
 const OUTLINE_PERIMETER = 2 * (OUTLINE_W + OUTLINE_H) - 8 * OUTLINE_R + 2 * Math.PI * OUTLINE_R;
 const OUTLINE_PERIOD = OUTLINE_PERIMETER / OUTLINE.DASH_COUNT;
 const OUTLINE_DASH = [OUTLINE_PERIOD * OUTLINE.DASH_FILL, OUTLINE_PERIOD * (1 - OUTLINE.DASH_FILL)];
+const NO_DASH = [];
+// Troca de Guarda armada: órbita tracejada em volta de Ataque + Defesa
+const SWAP_DASH = [10, 8];
+const ZONE_SELF_ATTACK = ZONE.SELF_ATTACK;
+const ZONE_SELF_DEFENSE = ZONE.SELF_DEFENSE;
+const ZONE_OPP_ATTACK = ZONE.OPP_ATTACK;
+const ZONE_OPP_DEFENSE = ZONE.OPP_DEFENSE;
+
+// Pintar: contorno arco-íris das cartas escolhíveis (cores pré-montadas: nenhuma string criada por frame)
+const HUE_STEP = 10;
+const PAINT_HUE_SPEED = 140;
+const HUE_LINE = Array.from({ length: 360 / HUE_STEP }, (_, i) => `hsl(${i * HUE_STEP}, 100%, 68%)`);
+const HUE_GLOW = Array.from({ length: 360 / HUE_STEP }, (_, i) => `hsla(${i * HUE_STEP}, 100%, 60%, 0.35)`);
+// Pintar: resolução da frente de tinta e das gotas que escorrem à frente dela
+const PAINT_SEGMENTS = 40;
+const PAINT_DRIP_LEN = 16;
+const PAINT_DRIP_WIDTH = 5;
 
 /**
  * Canvas2DRenderer - backend de renderização 2D (Pilar 2/7: interface draw(scene)).
  *
- * scene = { deckX, deckY, deckCount, hoveredCard, selectableZone, showcase }
+ * scene = { deckX, deckY, deckCount, hoveredCard, selectableZone, showcase, bolts, flash, flashColor, guardSwapArmed }
  * showcase = carta gigante no centro da tela (ex.: Reviver se despedaçando), animada pelo CinematicPlayer.
+ * bolts = BoltSystem (raios do Relâmpago); flash 0..1 = clarão de tela; guardSwapArmed = sinal da Troca de Guarda.
  */
 export class Canvas2DRenderer {
     /**
@@ -45,6 +64,7 @@ export class Canvas2DRenderer {
         this.art = new CardArt();
         this.effects = new CardEffects();
         this.glowSprite = null;
+        this.paintEdge = new Float32Array(PAINT_SEGMENTS + 1);
 
         this.resize();
         viewport.onChange(() => this.resize());
@@ -77,6 +97,7 @@ export class Canvas2DRenderer {
 
         this.board.draw(ctx);
         this.drawDeckPile(scene);
+        if (scene.guardSwapArmed) this.drawGuardSwapSigils();
 
         // Suavização independente de FPS (equivale a 0.4 por frame a 60fps)
         const k = 1 - Math.pow(CONFIG.ANIM.RENDER_SMOOTHING, dt / FRAME_MS);
@@ -109,16 +130,92 @@ export class Canvas2DRenderer {
             ctx.translate(-width / 2, -height / 2);
 
             if (pool.type[i] === CARD_TYPES.HIDDEN) this.drawBack(ctx);
+            else if (pool.paintAnim[i] === 1) this.drawPaintingFace(ctx, i);
             else this.drawFace(ctx, pool.type[i], pool.color[i], pool.power[i], i, pool.scale[i]);
 
             if (pool.outlined[i] === 1) this.drawPlayableOutline(ctx);
             if (pool.paintSelected[i] === 1) this.drawPaintSelected(ctx);
+            else if (pool.paintable[i] === 1) this.drawPaintableOutline(ctx, i);
 
             ctx.restore();
         }
 
+        if (scene.bolts) {
+            scene.bolts.update(dt);
+            scene.bolts.draw(ctx);
+        }
+        if (scene.flash > 0) this.drawScreenFlash(scene.flash, scene.flashColor);
         if (scene.showcase) this.drawShowcase(scene.showcase);
         this.particles.draw(ctx);
+    }
+
+    /** Clarão aditivo na tela inteira (ex.: o estalo do Relâmpago). `color` = 'r, g, b'. */
+    drawScreenFlash(amount, color) {
+        const ctx = this.ctx;
+        const vp = this.viewport;
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalAlpha = Math.min(1, amount) * 0.42;
+        ctx.fillStyle = color || '#cfefff';
+        ctx.fillRect(0, 0, vp.width, vp.height);
+        ctx.restore();
+    }
+
+    /**
+     * Troca de Guarda armada (só quem usou vê, durante a preparação): em cada campo, uma órbita
+     * tracejada envolve Ataque e Defesa com duas setas correndo em sentidos opostos — o aviso de
+     * que as duas posições vão trocar. Desenhada antes das cartas (elas ficam por cima).
+     */
+    drawGuardSwapSigils() {
+        const ctx = this.ctx;
+        const t = this.time;
+        const pulse = 0.5 + 0.5 * Math.sin(t * 3.2);
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter';
+        for (let side = 0; side < 2; side++) {
+            const atk = this.board.slots[side === 0 ? ZONE_SELF_ATTACK : ZONE_OPP_ATTACK];
+            const def = this.board.slots[side === 0 ? ZONE_SELF_DEFENSE : ZONE_OPP_DEFENSE];
+            if (!atk || !def) continue;
+            const ax = atk.hitX + atk.hitW / 2;
+            const ay = atk.hitY + atk.hitH / 2;
+            const dy = def.hitY + def.hitH / 2;
+            const cx = ax;
+            const cy = (ay + dy) / 2;
+            const rx = CARD_DIMENSIONS.HEIGHT * 0.62;
+            const ry = Math.abs(dy - ay) / 2 + CARD_DIMENSIONS.HEIGHT * 0.4;
+
+            ctx.setLineDash(SWAP_DASH);
+            ctx.lineDashOffset = -t * 40 * (side === 0 ? 1 : -1);
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.28 + pulse * 0.22;
+            ctx.strokeStyle = '#7fdbff';
+            ctx.beginPath();
+            ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash(NO_DASH);
+
+            // Duas setas opostas correndo pela órbita
+            ctx.globalAlpha = 0.65 + pulse * 0.3;
+            ctx.fillStyle = '#c9f1ff';
+            for (let k = 0; k < 2; k++) {
+                const a = t * 1.6 + k * Math.PI + side * 0.8;
+                const px = cx + Math.cos(a) * rx;
+                const py = cy + Math.sin(a) * ry;
+                // Direção da tangente da elipse (derivada), pra ponta apontar no sentido do giro
+                const tx = -Math.sin(a) * rx;
+                const ty = Math.cos(a) * ry;
+                const tl = Math.sqrt(tx * tx + ty * ty) || 1;
+                const ux = tx / tl;
+                const uy = ty / tl;
+                ctx.beginPath();
+                ctx.moveTo(px + ux * 9, py + uy * 9);
+                ctx.lineTo(px - ux * 5 - uy * 6, py - uy * 5 + ux * 6);
+                ctx.lineTo(px - ux * 5 + uy * 6, py - uy * 5 - ux * 6);
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+        ctx.restore();
     }
 
     /**
@@ -251,6 +348,90 @@ export class Canvas2DRenderer {
         ctx.stroke();
     }
 
+    /** Carta que pode ser escolhida para o Pintar: traços correndo pela borda, trocando de cor em ciclo. */
+    drawPaintableOutline(ctx, seed) {
+        const hue = (this.time * PAINT_HUE_SPEED + seed * 47) % 360;
+        ctx.shadowBlur = 0;
+        ctx.setLineDash(OUTLINE_DASH);
+        ctx.lineDashOffset = -this.outlinePhase;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.roundRect(OUTLINE_POS, OUTLINE_POS, OUTLINE_W, OUTLINE_H, OUTLINE_R);
+        ctx.strokeStyle = HUE_GLOW[Math.floor(hue / HUE_STEP)];
+        ctx.lineWidth = OUTLINE.GLOW_WIDTH;
+        ctx.stroke();
+        ctx.strokeStyle = HUE_LINE[Math.floor(hue / HUE_STEP)];
+        ctx.lineWidth = OUTLINE.LINE_WIDTH;
+        ctx.stroke();
+        ctx.setLineDash(NO_DASH);
+    }
+
+    /**
+     * Pintura em tempo real (Pintar): a face antiga (paintFrom) por baixo e a nova (color) escorrendo por
+     * cima, de cima pra baixo, com a frente da tinta ondulada, gotas escorrendo à frente e um brilho
+     * molhado acompanhando a borda. Só as cartas sendo pintadas passam por aqui (2 cartas, ~0,8s).
+     */
+    drawPaintingFace(ctx, id) {
+        const pool = this.pool;
+        const w = CARD_DIMENSIONS.WIDTH;
+        const h = CARD_DIMENSIONS.HEIGHT;
+        const type = pool.type[id];
+        const power = pool.power[id];
+        const t = pool.paintT[id];
+        const amp = CONFIG.ANIM.PAINT_WAVE_AMP;
+
+        this.drawFace(ctx, type, pool.paintFrom[id], power, id, pool.scale[id]);
+        if (t <= 0) return;
+
+        // Frente da tinta: sai de cima do topo e passa do rodapé (as gotas descem além da onda)
+        const front = -amp * 3 + t * (h + amp * 6 + PAINT_DRIP_LEN);
+        const phase = this.time * 7 + id;
+        const drip = Math.min(1, t * 1.6) * PAINT_DRIP_LEN;
+        const edge = this.paintEdge;
+        for (let s = 0; s <= PAINT_SEGMENTS; s++) {
+            const x = (s / PAINT_SEGMENTS) * w;
+            let y = front + Math.sin(x * 0.11 + phase) * amp + Math.sin(x * 0.047 - phase * 0.6) * amp * 0.6;
+            for (let d = 0; d < CONFIG.ANIM.PAINT_DRIPS; d++) {
+                const dx = 14 + ((id * 37 + d * 53) % 72);
+                const k = 1 - Math.abs(x - dx) / PAINT_DRIP_WIDTH;
+                if (k > 0) y += k * k * drip * (0.6 + 0.4 * ((d + id) % 3) / 2);
+            }
+            edge[s] = y;
+        }
+
+        ctx.save();
+        ctx.beginPath();
+        ctx.moveTo(-2, -2);
+        ctx.lineTo(w + 2, -2);
+        for (let s = PAINT_SEGMENTS; s >= 0; s--) ctx.lineTo((s / PAINT_SEGMENTS) * w, edge[s]);
+        ctx.closePath();
+        ctx.clip();
+        ctx.shadowBlur = 0;
+        this.drawFace(ctx, type, pool.color[id], power, id, pool.scale[id]);
+        ctx.restore();
+
+        // Brilho da tinta molhada acompanhando a frente (recortado no formato da carta)
+        ctx.save();
+        ctx.shadowBlur = 0;
+        ctx.beginPath();
+        ctx.roundRect(0, 0, w, h, CARD_DIMENSIONS.RADIUS);
+        ctx.clip();
+        ctx.beginPath();
+        ctx.moveTo(0, edge[0]);
+        for (let s = 1; s <= PAINT_SEGMENTS; s++) ctx.lineTo((s / PAINT_SEGMENTS) * w, edge[s]);
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = COLOR_HEX[pool.color[id]] || '#ffffff';
+        ctx.globalAlpha = 0.9;
+        ctx.lineWidth = 6;
+        ctx.stroke();
+        ctx.strokeStyle = '#ffffff';
+        ctx.globalAlpha = 0.75;
+        ctx.lineWidth = 1.8;
+        ctx.stroke();
+        ctx.restore();
+    }
+
     /** Borda brilhante roxa pulsante quando a carta é selecionada para o Pintar. */
     drawPaintSelected(ctx) {
         const w = CARD_DIMENSIONS.WIDTH;
@@ -319,7 +500,7 @@ export class Canvas2DRenderer {
         const visual = CARD_VISUALS[type];
 
         if (visual) {
-            this.drawStyledFace(ctx, type, visual, seed, displayScale);
+            this.drawStyledFace(ctx, type, visual, seed, displayScale, color);
             return;
         }
 
@@ -377,17 +558,21 @@ export class Canvas2DRenderer {
         }
     }
 
-    /** Carta com visual próprio (CONFIG.CARD_VISUALS): face pintada em cache ou fundo sólido + efeito animado. */
-    drawStyledFace(ctx, type, visual, seed, displayScale) {
+    /**
+     * Carta com visual próprio (CONFIG.CARD_VISUALS): face pintada em cache ou fundo sólido + efeito animado.
+     * `visual.colored`: a carta tem cor (ex.: Relâmpago) e a face em cache é uma por cor.
+     */
+    drawStyledFace(ctx, type, visual, seed, displayScale, color = COLOR.NONE) {
         const w = CARD_DIMENSIONS.WIDTH;
         const h = CARD_DIMENSIONS.HEIGHT;
         const radius = CARD_DIMENSIONS.RADIUS;
+        const faceColor = visual.colored ? color : COLOR.NONE;
 
-        const painted = visual.painted ? this.art.paintedFace(type, this.pixelScale * displayScale) : null;
+        const painted = visual.painted ? this.art.paintedFace(type, this.pixelScale * displayScale, faceColor) : null;
         if (painted) {
             ctx.drawImage(painted, 0, 0, w, h);
         } else {
-            ctx.fillStyle = visual.background;
+            ctx.fillStyle = visual.colored ? (COLOR_HEX[color] || visual.background) : visual.background;
             ctx.beginPath();
             ctx.roundRect(0, 0, w, h, radius);
             ctx.fill();

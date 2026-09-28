@@ -21,7 +21,8 @@ import { ZONE, ZONE_COUNT, ZONE_OFFSET, mirrorZone, zoneSeat, seatZone } from '.
  * o que garante que eventos e snapshots cheguem na mesma ordem em que o host os gerou.
  */
 
-export const PROTOCOL_VERSION = 4;
+// v5: cartas Troca de Guarda e Relâmpago (tipos novos: host e convidado precisam da mesma versão)
+export const PROTOCOL_VERSION = 5;
 
 export const MSG = Object.freeze({
     SNAPSHOT: 1,
@@ -79,10 +80,18 @@ export const EVENT = Object.freeze({
     COINS_EARNED: 20,    // { amount, won }  moedas do fim da rodada (cada um recebe só as suas)
     SHOP_REFRESHED: 21,  // {}  a loja se renovou sozinha (cada jogador, a sua)
     SHOP_REROLLED: 22,   // { cost }  renovação paga (só pra quem pagou)
-    PAINT_APPLIED: 23    // { cards: [{ cardId, color }] }  (só pra quem pintou: as cartas mudaram de cor)
+    PAINT_APPLIED: 23,   // { cards: [{ cardId, color }] }  (só pra quem pintou: as cartas mudaram de cor)
+    // { self, opp, cancelled } — Troca de Guarda no início do combate, já na perspectiva de quem recebe:
+    // self/opp = 1 se Ataque e Defesa daquele lado trocam; cancelled = 1 se as duas Trocas se anularam.
+    // Quem usou a carta não é revelado. Nada trocando e nada anulado = a carta falhou (ninguém tinha Defesa).
+    GUARD_SWAP: 24,
+    // { lightningId, seat, targets: CardFace[] } — Relâmpago fulmina a carta da frente e salta em cadeia
+    // (faces reveladas, pois as cartas atingidas podem estar ocultas na Defesa)
+    LIGHTNING_STRIKE: 25
 });
 
-export const HIT_EFFECT = Object.freeze({ NONE: 0, LOCKOUT: 1, HAND_SWAP: 2 });
+// OVERLOAD: Relâmpago na vida — DIRECT_HIT ganha `burned: number[]` (cartas queimadas da mão do alvo)
+export const HIT_EFFECT = Object.freeze({ NONE: 0, LOCKOUT: 1, HAND_SWAP: 2, OVERLOAD: 3 });
 export const GAME_RESULT = Object.freeze({ NONE: 0, VICTORY: 1, DEFEAT: 2 });
 export const END_REASON = Object.freeze({ HP: 0, ABANDON: 1 });
 export const REL_SEAT = Object.freeze({ SELF: 0, OPPONENT: 1 });

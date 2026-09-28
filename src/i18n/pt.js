@@ -104,6 +104,7 @@ export const PT_BR = {
     "SHOP_HINT": "Só um item pode ficar congelado por vez — ele fica 2 moedas mais caro na renovação seguinte. Cartas compradas revendem pela metade.",
     "COINS": "Moedas",
     "TRASH_HINT": "Solte para vender",
+    "TRASH_LAST_ATTACK": "Última carta que pode atacar!",
     "CARD_NUMBER": "Carta {n}",
     "CARD_PLUS2": "+2",
     "CARD_PLUS4": "+4",
@@ -123,5 +124,15 @@ export const PT_BR = {
     "DESC_SHIELD": "Consumível: recebe metade do dano até a próxima rodada.",
     "DESC_REVIVE": "Consumível: sobrevive a um golpe fatal nas próximas 5 rodadas. 1x por partida.",
     "CARD_PAINT": 'Pintar',
-    "DESC_PAINT": 'Escolha 2 cartas da sua mão e pinte-as de qualquer cor. (Somente Fase de Preparo)'
+    "DESC_PAINT": 'Escolha 2 cartas da sua mão e pinte-as de qualquer cor. (Somente Fase de Preparo)',
+    "PAINT_ALERT": "PINTAR!",
+    "PAINT_PICK_CARDS": "PINTAR: ESCOLHA {n} CARTA(S) DA SUA MÃO",
+    "PAINT_PICK_COLOR": "ESCOLHA A NOVA COR",
+    "CARD_GUARD_SWAP": "Troca de Guarda",
+    "DESC_GUARD_SWAP": "Consumível: no início do combate, Ataque e Defesa trocam de lugar nos dois campos.",
+    "GUARD_SWAP_ALERT": "TROCA DE GUARDA!",
+    "GUARD_SWAP_CANCELLED": "TROCAS ANULADAS!",
+    "CARD_LIGHTNING": "Relâmpago",
+    "DESC_LIGHTNING": "Fulmina a carta inimiga e salta para mais uma. Vence o Bloqueio. Na vida: queima 2 cartas da mão.",
+    "HIT_OVERLOAD": "SOBRECARGA!"
 };

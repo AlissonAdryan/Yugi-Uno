@@ -68,8 +68,104 @@ const FX_PRESETS = {
             }
         ],
         sparkles: { count: 7, color: '#ffffff', minSize: 1.8, maxSize: 3.6, minRate: 2, maxRate: 3.6 }
+    },
+    // Tempestade (Relâmpago): véu elétrico ciano-violeta rápido + reflexo branco, faíscas azuladas e,
+    // por cima, raios vivos que caem das bordas no anel central e fazem a carta inteira piscar
+    FOIL_STORM: {
+        angle: -0.9,
+        bands: [
+            {
+                stops: [
+                    [0, 'rgba(90,120,255,0)'], [0.3, 'rgba(120,90,255,0.22)'], [0.5, 'rgba(120,235,255,0.42)'],
+                    [0.7, 'rgba(120,90,255,0.22)'], [1, 'rgba(90,120,255,0)']
+                ],
+                width: 0.55, period: 2.1, sweep: 0.55, alpha: 1, composite: 'lighter'
+            },
+            {
+                stops: [[0, 'rgba(255,255,255,0)'], [0.5, 'rgba(235,252,255,0.85)'], [1, 'rgba(255,255,255,0)']],
+                width: 0.12, period: 1.5, sweep: 0.4, alpha: 0.85, composite: 'lighter', offset: 0.45
+            }
+        ],
+        sparkles: {
+            count: 8, color: '#8ff0ff', core: '#ffffff', minSize: 1.6, maxSize: 3.4, minRate: 4.5, maxRate: 8.5
+        },
+        extra: drawStormArcs
     }
 };
+
+// --- Raios vivos do FOIL_STORM --------------------------------------------------
+const STORM_ARCS = 2;          // raios independentes por carta
+const STORM_PERIOD = 1.45;     // s entre descargas do mesmo raio
+const STORM_VISIBLE = 0.2;     // fração do ciclo em que o raio aparece
+const STORM_FLICKER_HZ = 22;   // o zigue-zague se redesenha (tremida elétrica)
+const STORM_POINTS = 9;
+const STORM_GLOW = 'rgba(140, 230, 255, 0.55)';
+const STORM_CORE = '#ffffff';
+const STORM_FLASH = 'rgba(190, 235, 255, 1)';
+
+/**
+ * Descargas que caem de um ponto da borda até o anel do centro, com zigue-zague que treme (redesenhado
+ * STORM_FLICKER_HZ vezes por segundo) e um clarão na carta no instante do golpe. Pseudoaleatório por
+ * hash inteiro (sem Math.random, sem alocar): mesma carta, mesmo raio em todos os frames da tremida.
+ * @param {Float32Array} pts buffer de trabalho do preset (STORM_POINTS * 2)
+ */
+function drawStormArcs(ctx, w, h, time, phase, seed, pts) {
+    for (let a = 0; a < STORM_ARCS; a++) {
+        let u = time / STORM_PERIOD + phase + a * 0.53;
+        const cycle = Math.floor(u);
+        u -= cycle;
+        if (u > STORM_VISIBLE) continue;
+        const life = 1 - u / STORM_VISIBLE;
+
+        let s = (Math.imul(cycle + 7, 73856093) ^ Math.imul(seed + a * 131 + 3, 19349663)
+            ^ Math.imul(Math.floor(time * STORM_FLICKER_HZ), 83492791)) >>> 0;
+        // Ponto de partida fixo durante o ciclo (só o zigue-zague treme)
+        let e = (Math.imul(cycle + 11, 2654435761) ^ Math.imul(seed + a * 977, 40503)) >>> 0;
+        e = (Math.imul(e, 1664525) + 1013904223) >>> 0;
+        const side = e & 3;
+        e = (Math.imul(e, 1664525) + 1013904223) >>> 0;
+        const along = 0.15 + (e / 4294967296) * 0.7;
+        const x0 = side === 0 ? w * along : side === 1 ? w * along : side === 2 ? 0 : w;
+        const y0 = side === 0 ? 0 : side === 1 ? h : h * along;
+        const x1 = w * 0.5;
+        const y1 = h * 0.48;
+
+        const dx = x1 - x0;
+        const dy = y1 - y0;
+        const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const nx = -dy / len;
+        const ny = dx / len;
+        const amp = len * 0.14;
+        for (let i = 0; i < STORM_POINTS; i++) {
+            const t = i / (STORM_POINTS - 1);
+            s = (Math.imul(s, 1664525) + 1013904223) >>> 0;
+            const off = i === 0 || i === STORM_POINTS - 1 ? 0 : ((s / 4294967296) - 0.5) * 2 * amp * Math.sin(t * Math.PI);
+            pts[i * 2] = x0 + dx * t + nx * off;
+            pts[i * 2 + 1] = y0 + dy * t + ny * off;
+        }
+
+        ctx.globalCompositeOperation = 'lighter';
+        // Clarão da carta inteira no instante do golpe
+        if (u < STORM_VISIBLE * 0.3) {
+            ctx.globalAlpha = 0.16 * life;
+            ctx.fillStyle = STORM_FLASH;
+            ctx.fillRect(0, 0, w, h);
+        }
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+        for (let pass = 0; pass < 2; pass++) {
+            ctx.beginPath();
+            ctx.moveTo(pts[0], pts[1]);
+            for (let i = 1; i < STORM_POINTS; i++) ctx.lineTo(pts[i * 2], pts[i * 2 + 1]);
+            ctx.globalAlpha = pass === 0 ? 0.8 * life : life;
+            ctx.strokeStyle = pass === 0 ? STORM_GLOW : STORM_CORE;
+            ctx.lineWidth = pass === 0 ? 4.5 : 1.3;
+            ctx.stroke();
+        }
+    }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+}
 
 export const CARD_FX_NAMES = Object.freeze(Object.keys(FX_PRESETS));
 
@@ -132,7 +228,10 @@ function compile(name, preset) {
         angle: preset.angle, bands, count,
         sparkleX, sparkleY, sparkleSize, sparkleRate, sparklePhase,
         sparkleColor: sp ? sp.color : '#ffffff',
-        sparkleCore: sp && sp.core ? sp.core : null
+        sparkleCore: sp && sp.core ? sp.core : null,
+        // Camada desenhada à mão por cima (ex.: raios do FOIL_STORM) com um buffer de trabalho próprio
+        extra: preset.extra || null,
+        scratch: preset.extra ? new Float32Array(64) : null
     };
 }
 
@@ -209,6 +308,7 @@ export class CardEffects {
                 ctx.fill();
             }
         }
+        if (fx.extra) fx.extra(ctx, w, h, time, phase, seed | 0, fx.scratch);
         ctx.restore();
     }
 }

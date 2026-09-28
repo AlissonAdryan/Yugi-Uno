@@ -4,8 +4,8 @@ import { ServerCombat } from './server-combat.js';
 import { ServerShop } from './server-shop.js';
 import { DeckSystem } from '../systems/deck-system.js';
 import {
-    canPlayOnCombatSlot, colorBit, colorCount, consumableBlockReason, handLimitExcess, isConsumable,
-    pickColorFromMask, roundDrawsFor, isValidCombo, cardTypeName, purchaseBlockReason, roundCoinsFor, sellValue
+    canPlayOnCombatSlot, colorBit, colorCount, consumableBlockReason, countAttackOptions, handLimitExcess, isConsumable,
+    isPaintable, leavesNoAttack, pickColorFromMask, roundDrawsFor, isValidCombo, cardTypeName, purchaseBlockReason, roundCoinsFor, sellValue
 } from '../systems/rules.js';
 import {
     SEAT, ZONE_OFFSET, isCombatOffset, isValidZone, mirrorZone, seatZone, zoneOffset, zoneSeat
@@ -157,6 +157,10 @@ export class ServerEngine {
         // O Escudo protege até a rodada seguinte começar; a Cura já resolveu no fim do combate
         s.shieldActive.fill(0);
         s.healActive.fill(0);
+        // Pintar é só da preparação: uma seleção que ficou aberta não atravessa para a rodada seguinte
+        s.paintPending.fill(0);
+        // A Troca de Guarda é consumida no combate; isto só garante que nada atravesse uma rodada sem combate
+        s.guardSwap.fill(0);
         s.round++;
         s.phase = GAME_STATES.PLAYING;
         this.markDirty();
@@ -479,6 +483,10 @@ export class ServerEngine {
         if (s.zone(seat, ZONE_OFFSET.USE).length > 0) return 'USE_SLOT_BUSY';
         const blocked = consumableBlockReason(type, s.statusOf(seat));
         if (blocked) return blocked;
+        // Sem 2 cartas coloridas na mão a seleção nunca poderia ser concluída (e o turno ficaria preso)
+        if (type === CARD_TYPES.PAINT && this.paintableInHand(seat, cardId) < CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) {
+            return 'PAINT_NOT_ENOUGH_CARDS';
+        }
 
         // O oponente só vê o verso caindo no slot USE e explodindo: qual consumível foi usado é secreto
         s.moveCard(cardId, seatZone(seat, ZONE_OFFSET.USE));
@@ -508,14 +516,46 @@ export class ServerEngine {
                 s.paintPending[seat] = 1;
                 console.log(`[Server] P${seat + 1} usou Pintar: aguardando seleção de 2 cartas e 1 cor.`);
                 break;
+            case CARD_TYPES.GUARD_SWAP:
+                s.guardSwap[seat] = 1;
+                console.log(`[Server] P${seat + 1} usou Troca de Guarda: Ataque e Defesa trocam no início do combate.`);
+                break;
         }
         this.markDirty();
         return null;
     }
 
+    /** Cartas da mão que o Pintar pode recolorir (ignorando `exceptId`, ex.: a própria carta Pintar). */
+    paintableInHand(seat, exceptId = -1) {
+        const s = this.state;
+        const hand = s.zone(seat, ZONE_OFFSET.HAND);
+        let count = 0;
+        for (let i = 0; i < hand.length; i++) {
+            if (hand[i] !== exceptId && isPaintable(s.color[hand[i]])) count++;
+        }
+        return count;
+    }
+
+    /**
+     * Cartas do jogador que ainda poderiam ir pro Ataque nesta rodada (mão + Ataque + Defesa, que pode ser
+     * recolhida). Ver rules.countAttackOptions.
+     * @param {number} seat
+     * @param {number} [exceptId] carta ignorada (a que está sendo vendida)
+     * @param {number[]|null} [paintIds] cartas contadas como já pintadas de `paintColor`
+     * @param {number} [paintColor]
+     */
+    attackOptions(seat, exceptId = -1, paintIds = null, paintColor = COLOR.NONE) {
+        const s = this.state;
+        const color = s.activeColor[seat];
+        return countAttackOptions(s, s.zone(seat, ZONE_OFFSET.HAND), color, exceptId, paintIds, paintColor)
+            + countAttackOptions(s, s.zone(seat, ZONE_OFFSET.ATTACK), color, exceptId, paintIds, paintColor)
+            + countAttackOptions(s, s.zone(seat, ZONE_OFFSET.DEFENSE), color, exceptId, paintIds, paintColor);
+    }
+
     /** Pintar: jogador seleciona 2 cartas da mão e 1 cor básica para recolorir. */
     paintSelect(seat, cards, color) {
         const s = this.state;
+        if (s.phase !== GAME_STATES.PLAYING) return 'WRONG_PHASE';
         if (!s.paintPending[seat]) return 'PAINT_NOT_PENDING';
         if (!Array.isArray(cards) || cards.length !== CONFIG.CONSUMABLES.PAINT_CARDS_NEEDED) return 'PAINT_WRONG_COUNT';
         if (!Number.isInteger(color) || !CONFIG.BASIC_COLORS.includes(color)) return 'INVALID_COLOR';
@@ -526,7 +566,12 @@ export class ServerEngine {
         for (const cardId of cards) {
             if (!this.isInHand(seat, cardId)) return 'NOT_IN_HAND';
             // Não pode pintar cartas que já são pretas (consumíveis sem cor: +4, trocar cor, etc.)
-            if (s.color[cardId] === CONFIG.COLOR.BLACK || s.color[cardId] === CONFIG.COLOR.NONE) return 'CANNOT_PAINT_COLORLESS';
+            if (!isPaintable(s.color[cardId])) return 'CANNOT_PAINT_COLORLESS';
+        }
+        // Pintar a última opção de Ataque pra outra cor travaria o turno (Finalizar exige um Ataque)
+        if (leavesNoAttack(this.attackOptions(seat), this.attackOptions(seat, -1, cards, color))) {
+            console.warn(`[Server] P${seat + 1} tentou pintar a última carta que podia atacar nesta rodada: recusado.`);
+            return 'PAINT_LEAVES_NO_ATTACK';
         }
 
         s.paintPending[seat] = 0;
@@ -551,6 +596,11 @@ export class ServerEngine {
         if (!this.isInHand(seat, cardId)) return 'NOT_IN_HAND';
         const coins = sellValue(s.type[cardId], s.power[cardId], s.cardFlags[cardId]);
         if (coins <= 0) return 'NOT_SELLABLE';
+        // Nunca deixa o jogador sem nenhuma carta pro Ataque (o turno ficaria impossível de finalizar)
+        if (leavesNoAttack(this.attackOptions(seat), this.attackOptions(seat, cardId))) {
+            console.warn(`[Server] P${seat + 1} tentou vender a última carta que podia atacar nesta rodada: recusado.`);
+            return 'LAST_ATTACK_OPTION';
+        }
 
         // O valor é secreto: só quem vendeu recebe `coins`; o oponente vê o verso indo pra lixeira
         this.emitTo(seat, EVENT.CARD_SOLD, { cardId, seat, coins });
@@ -625,6 +675,7 @@ export class ServerEngine {
         const phaseError = this.canPrepare(seat);
         if (phaseError) return phaseError;
         if (s.zone(seat, ZONE_OFFSET.ATTACK).length === 0) return 'ATTACK_REQUIRED';
+        if (s.paintPending[seat]) return 'PAINT_PENDING';
 
         s.ready[seat] = 1;
         this.markDirty();

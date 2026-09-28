@@ -95,6 +95,7 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 ### 6.2 O Bloqueio (Block)
 * **Colisão (Combate de Mesa):** O Bloqueio é a defesa suprema (representado por um ícone de proibido/bloqueado). Quando colide contra uma carta inimiga (seja uma carta numérica forte ou fraca), ambas se destroem mutuamente. Se colidir contra uma pilha de cartas (criada por +2 ou +4), o Block anula **todas as cartas presentes na pilha adversária** de uma única vez, sacrificando-se e limpando o campo naquele slot inteiro.
 * **Colisão Especial (Block vs Reverse):** Ambas as cartas são imunes aos efeitos secundários uma da outra. Se chocarem na mesa, elas se anulam e se destroem instantaneamente (empate limpo).
+* **Contra o Relâmpago:** O Relâmpago é mais rápido e fulmina o Block antes de ele agir (§6.10).
 * **Dano Direto na Vida (Lock-Out de Turno):** Caso um Block cruze o campo inteiro e atinja os Pontos de Vida inimigos, ele **não causa dano numérico (-X ♥)**. Em vez disso, ele aplica uma maldição de "Lock-Out". Um símbolo vermelho circular permanecerá gravado sobre o **Slot de Defesa** daquele inimigo, impedindo fisicamente que o oponente utilize aquele slot na rodada de ataques seguinte, arruinando sua defesa passiva temporariamente.
 
 ### 6.3 O Reverso (Reverse)
@@ -134,7 +135,35 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 * **Ordem com o Escudo:** O Escudo reduz o golpe primeiro; o Reviver só age se o dano já reduzido ainda for letal.
 
 ### 6.8 Consumíveis dentro de Invocações
-* Qualquer consumível (Trocar Cor, Cura, Escudo, Reviver) puxado por um +2/+4 não ativa seu efeito: luta como uma carta de valor 0 e vai para o fundo da pilha recém-puxada (§6.1).
+* Qualquer consumível (Trocar Cor, Cura, Escudo, Reviver, Pintar, Troca de Guarda) puxado por um +2/+4 não ativa seu efeito: luta como uma carta de valor 0 e vai para o fundo da pilha recém-puxada (§6.1).
+
+### 6.9 Consumível - Pintar (Paint)
+* **Visual:** Carta preta com uma paleta de pintura em néon e efeito holográfico animado. Sem cor.
+* **Ativação:** Slot USE, durante a Preparação. Só pode ser usada com **pelo menos 2 cartas coloridas na mão** (sem contar a própria Pintar); senão ela treme e volta para a mão.
+* **Efeito:** Ao ser usada, aparece "PINTAR!" em tinta arco-íris e as cartas coloridas da mão ganham um contorno arco-íris. O jogador escolhe **2 cartas** (clicando de novo desmarca) e em seguida a **nova cor** num seletor igual ao do Trocar Cor. Clicar fora do seletor desfaz a seleção das cartas.
+* **Pintura:** As duas cartas sobem da mão e a tinta nova escorre sobre elas de cima para baixo, com gotas pingando, até cobrir a carta inteira. Tipo e valor não mudam, só a cor.
+* **Restrições:** Não pinta cartas sem cor (+4, consumíveis). Pela mesma proteção da lixeira (§8.2), cores que tirariam a última carta que pode atacar ficam cinza no seletor (a cor da rodada sempre fica disponível). Enquanto a pintura não for concluída, o jogador não pode finalizar o turno. Uma pintura que não foi concluída não passa para a rodada seguinte.
+* **Segredo:** O oponente só vê o verso da carta explodindo no slot USE; nunca sabe quais cartas foram pintadas nem de que cor.
+
+### 6.10 Relâmpago (Lightning) — Especial de Campo Laminado
+* **Visual:** Carta **com cor** (vermelha, azul, verde ou amarela) com um raio incandescente dentro de um anel de energia, moldura dupla elétrica e um laminado próprio de **tempestade**: véu elétrico varrendo a carta, faíscas e raios vivos que caem das bordas no anel, fazendo a carta piscar.
+* **Jogada:** É jogada no Ataque ou na Defesa como Block e Reverso, obedecendo à cor da rodada. Vale Espelho de Defesa e Combo (Relâmpagos idênticos, mesma cor).
+* **Colisão (Relâmpago em Cadeia):** Ao chocar com a carta da frente inimiga, o Relâmpago a fulmina e o raio **salta para mais uma carta**: a próxima da mesma pilha inimiga (combo/invocação) ou, se não houver, a do topo da **Defesa** inimiga (revelada no instante do golpe). As cartas atingidas são destruídas e o Relâmpago se descarrega (também é destruído). Não há subtração de valores.
+* **Contra o Block:** O Relâmpago é mais rápido — fulmina o Block antes de ele agir (e ainda salta para a próxima carta). É o counter natural do Block.
+* **Contra o Reverso:** O Reverso age primeiro e **puxa o Relâmpago** junto com a pilha (Roubo Simples ou Inversão Total, §6.3). O Relâmpago passa a lutar pelo dono do Reverso.
+* **Relâmpago x Relâmpago:** Os dois se anulam (destruição mútua).
+* **Dano Direto na Vida (Sobrecarga):** Não causa dano numérico (-X ♥). Raios caem sobre **2 cartas aleatórias da mão do oponente**, que são queimadas (destruídas). Não dá direito à escolha de cor.
+* **Cinemática:** A carta se carrega crepitando, dispara um raio de verdade até a carta inimiga (estalo de trovão + clarão de tela) e o raio salta para a próxima.
+
+### 6.11 Consumível - Troca de Guarda (Guard Swap)
+* **Visual:** Carta preta com uma carta em pé (Ataque) e uma deitada (Defesa) envoltas por duas setas girando. Sem laminado: só a moldura de aço-ciano com cantos chanfrados a diferencia. Sem cor.
+* **Ativação:** Slot USE, durante a Preparação. O oponente só vê o verso explodindo.
+* **Efeito secreto (só quem usou vê):** A energia corre até o campo inimigo, as cartas de lá estremecem e aparece "TROCA DE GUARDA!". Enquanto a preparação durar, uma órbita tracejada com setas gira em volta do Ataque e da Defesa dos dois campos, lembrando que a troca está armada.
+* **Efeito (início do combate, antes de qualquer revelação):** Em **cada campo que tiver Ataque e Defesa**, as duas pilhas **trocam de lugar inteiras** (o combo é preservado): o que estava no Ataque vai para a Defesa e o que estava na Defesa vai para o Ataque. Um campo sem Defesa fica como está. A carta que foi para a Defesa pode voltar para a mão sem nunca ser revelada (§3.3).
+* **Estratégia:** Quem usou sabe da troca e pode esconder a carta forte na Defesa; o oponente que guardou uma carta na Defesa "por segurança" a vê ir para a linha de frente.
+* **Os dois veem a troca:** As pilhas sobem, fazem meia-volta em órbita (girando de pé para deitada e vice-versa) e assentam no slot oposto. Ninguém fica sabendo quem usou a carta.
+* **Duas Trocas se anulam:** Se os dois jogadores usarem Troca de Guarda na mesma rodada, as pilhas giram até se chocarem e voltam ao lugar ("TROCAS ANULADAS!"). Um jogador só pode ter uma Troca armada por vez.
+* **Falha:** Se nenhum campo tiver Defesa, a carta não tem o que trocar e se desfaz.
 
 ## 7. Revanche
 - Ao fim da partida, a tela de Vitória/Derrota oferece o botão **Revanche**, acima de "Voltar ao Menu".
@@ -153,9 +182,10 @@ Cada jogador tem sua própria carteira de **moedas**, visível só para ele (ao 
 ### 8.2 Lixeira (vender cartas)
 - Acima da vida de cada jogador existe uma **lixeira**. Durante a preparação (antes de finalizar o turno), arraste uma carta da mão até ela para destruí-la e receber moedas.
 - **Cartas de número** valem o seu **valor atual** em moedas (um 7 vale 7).
-- **Cartas especiais** têm valor próprio, configurável: +2 = 2, +4 = 4, Block = 3, Reverso = 3, Trocar Cor = 2, Cura = 2, Escudo = 2, Reviver = 4.
+- **Cartas especiais** têm valor próprio, configurável: +2 = 2, +4 = 4, Block = 3, Reverso = 3, Trocar Cor = 2, Cura = 2, Escudo = 2, Reviver = 5, Pintar = 3, Troca de Guarda = 3, Relâmpago = 5.
 - **Cartas compradas na loja revendem pela metade** (arredondado para baixo). Sem isso, comprar um 9 por 8 e vendê-lo por 9 daria dinheiro infinito.
 - Ao passar a carta sobre a lixeira, aparece quanto ela vale. O oponente vê o verso da carta indo para a lixeira dele, mas não o valor.
+- **Proteção contra travar o turno:** como Finalizar Turno exige uma carta no Ataque, **não é possível vender a última carta que ainda pode atacar nesta rodada** (carta não consumível na cor da rodada, contando mão, Ataque e Defesa). Ao passar essa carta sobre a lixeira, a tampa tranca em vermelho com o aviso "Última carta que pode atacar!"; se soltar, a lixeira treme e a carta volta para a mão. Quem já não tinha nenhuma opção de Ataque continua podendo vender (não piora nada).
 
 ### 8.3 Loja
 - Botão com ícone de carrinho no topo da tela. A loja **só abre durante a preparação** e fecha sozinha quando o combate começa.
