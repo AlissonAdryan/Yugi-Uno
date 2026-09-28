@@ -176,7 +176,7 @@ export class AISystem {
         const canDefend = v.countInZone(ZONE.SELF_DEFENSE) === 0 && !v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED);
         if (this.plan.wantsDefense && canDefend && this.defensePlayable.length > 0) {
             this.plan.wantsDefense = false;
-            const pick = this.defensePlayable[Math.floor(Math.random() * this.defensePlayable.length)];
+            const pick = this.pickDefenseCard();
             return { t: INPUT.PLAY_CARD, cardId: v.ids[pick], zone: ZONE.SELF_DEFENSE };
         }
 
@@ -266,6 +266,15 @@ export class AISystem {
                 return v.selfHP <= AI.SHIELD_BELOW_HP || Math.random() < AI.SHIELD_RANDOM_CHANCE;
             case CARD_TYPES.REVIVE:
                 return v.selfHP <= AI.REVIVE_BELOW_HP;
+            case CARD_TYPES.AMBUSH: {
+                // A armadilha só serve com um número na Defesa: se usar, garante que vai montar a Defesa
+                const hasNumber = this.defensePlayable.some((i) => v.type[i] === CARD_TYPES.NUMBER);
+                const use = hasNumber && !v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED) && Math.random() < AI.AMBUSH_CHANCE;
+                if (use) this.plan.wantsDefense = true;
+                return use;
+            }
+            case CARD_TYPES.CURSE:
+                return Math.random() < AI.CURSE_CHANCE;
             case CARD_TYPES.GUARD_SWAP:
                 // Só vale com Defesa disponível: a CPU monta a jogada invertida (ver decide/pickSwapPlay)
                 return !v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED) && this.defensePlayable.length >= 2
@@ -301,6 +310,20 @@ export class AISystem {
         this.plan.wantsDefense = false;
         console.log(`[AISystem:${this.label}] Troca de Guarda armada: ${v.power[strongest]} escondido na Defesa.`);
         return { t: INPUT.PLAY_CARD, cardId: v.ids[strongest], zone: ZONE.SELF_DEFENSE };
+    }
+
+    /** Carta da Defesa: com Emboscada armada, o número mais forte (é quem ganha o +3); senão, ao acaso. */
+    pickDefenseCard() {
+        const v = this.view;
+        if (v.selfStatus & CONFIG.STATUS.AMBUSH) {
+            let best = -1;
+            for (const i of this.defensePlayable) {
+                if (v.type[i] !== CARD_TYPES.NUMBER) continue;
+                if (best < 0 || v.power[i] > v.power[best]) best = i;
+            }
+            if (best >= 0) return best;
+        }
+        return this.defensePlayable[Math.floor(Math.random() * this.defensePlayable.length)];
     }
 
     randomAttack() {

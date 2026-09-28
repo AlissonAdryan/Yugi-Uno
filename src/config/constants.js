@@ -21,6 +21,10 @@ const CARD_TYPES = Object.freeze({
     PAINT: 9,
     GUARD_SWAP: 10,  // consumível: Ataque e Defesa trocam de lugar no início do combate
     LIGHTNING: 11,   // especial de campo com cor (laminado): fulmina em cadeia, vence o Block
+    GHOST: 12,       // especial de campo com cor: atravessa a carta inimiga e fere a vida (dano fixo)
+    MIRROR: 13,      // especial de campo com cor (laminado): copia o valor inimigo +1; dano na vida volta pro dono
+    AMBUSH: 14,      // consumível: a Defesa ganha +3 ao entrar na linha de frente
+    CURSE: 15,       // consumível laminado: na próxima rodada, 2 cartas da mão inimiga enfraquecem/corrompem
     HIDDEN: 255
 });
 
@@ -31,7 +35,10 @@ const STATUS = Object.freeze({
     REVIVE_ACTIVE: 4,
     REVIVE_USED: 8,
     PAINT_PENDING: 16,
-    GUARD_SWAP: 32   // Troca de Guarda armada: dispara no início do próximo combate
+    GUARD_SWAP: 32,  // Troca de Guarda armada: dispara no início do próximo combate
+    AMBUSH: 64,      // Emboscada armada: dispara quando a Defesa entrar na linha de frente neste combate
+    CURSE_PENDING: 128, // Maldição plantada: dispara no início da próxima rodada
+    CURSE_SPENT: 256    // as Maldições da partida acabaram (CONFIG.CURSE.MAX_PER_MATCH)
 });
 
 /*
@@ -80,8 +87,8 @@ export const CONFIG = Object.freeze({
 
     // O código normaliza pelo total, então os pesos não precisam somar 100
     CARD_SPAWN_WEIGHTS: Object.freeze({
-        NUMBER: 70,
-        SPECIAL_BASE: 30,
+        NUMBER: 75,
+        SPECIAL_BASE: 25,
         SPECIALS: Object.freeze({
             PLUS2: 10,
             PLUS4: 5,
@@ -93,7 +100,11 @@ export const CONFIG = Object.freeze({
             REVIVE: 1,
             PAINT: 5,
             GUARD_SWAP: 5,
-            LIGHTNING: 4
+            LIGHTNING: 3,
+            GHOST: 5,
+            MIRROR: 3,
+            AMBUSH: 5,
+            CURSE: 2
         })
     }),
     
@@ -118,7 +129,11 @@ export const CONFIG = Object.freeze({
         PAINT: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 7, shopWeight: 6 }),
         GUARD_SWAP: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 7, shopWeight: 7 }),
         // Laminado raro: mais caro que Block/Reverso porque vence o Block e fulmina 2 cartas
-        LIGHTNING: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 13, shopWeight: 4 })
+        LIGHTNING: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 13, shopWeight: 4 }),
+        GHOST: Object.freeze({ tags: ALL_TAGS, sell: 3, price: 5, shopWeight: 8 }),
+        MIRROR: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 7, shopWeight: 4 }),
+        AMBUSH: Object.freeze({ tags: ALL_TAGS, sell: 2, price: 4, shopWeight: 9 }),
+        CURSE: Object.freeze({ tags: ALL_TAGS, sell: 5, price: 9, shopWeight: 3 })
     }),
 
     // Resolução virtual de referência: altura mínima para mãos + tabuleiro com respiro (~870px ocupados)
@@ -194,7 +209,31 @@ export const CONFIG = Object.freeze({
     }),
 
     // Especiais sem cor (podem ser jogadas em qualquer cor e não contam no sorteio de cores em comum)
-    COLORLESS_SPECIALS: Object.freeze(['PLUS4', 'CHANGE_COLOR', 'HEAL', 'SHIELD', 'REVIVE', 'PAINT', 'GUARD_SWAP']),
+    COLORLESS_SPECIALS: Object.freeze(['PLUS4', 'CHANGE_COLOR', 'HEAL', 'SHIELD', 'REVIVE', 'PAINT', 'GUARD_SWAP', 'AMBUSH', 'CURSE']),
+
+    // Fantasma (GAME_RULES §6.12): dano fixo na vida ao atravessar (Escudo e Reviver valem normalmente)
+    GHOST: Object.freeze({
+        DAMAGE: 3
+    }),
+
+    // Espelho Sombrio (GAME_RULES §6.13): quanto ele passa do valor copiado (vence por isso e fica com isso)
+    MIRROR: Object.freeze({
+        COPY_BONUS: 1
+    }),
+
+    // Emboscada (GAME_RULES §6.14): bônus temporário da Defesa (só cartas de número)
+    AMBUSH: Object.freeze({
+        BONUS: 3
+    }),
+
+    // Maldição (GAME_RULES §6.15): cartas atingidas, quanto perdem (mínimo MIN_POWER), usos por partida
+    CURSE: Object.freeze({
+        TARGETS: 2,
+        POWER_LOSS: 3,
+        MIN_POWER: 1,
+        CORRUPT_POWER: 1,
+        MAX_PER_MATCH: 2
+    }),
 
     // Relâmpago (GAME_RULES §6.10): quantas cartas o raio fulmina no choque (a da frente + saltos) e
     // quantas cartas da mão do alvo ele queima ao atingir a vida (Sobrecarga)
@@ -226,14 +265,21 @@ export const CONFIG = Object.freeze({
         // Sem laminado de propósito: só a moldura de aço-ciano recortada a diferencia dos outros consumíveis
         [CARD_TYPES.GUARD_SWAP]: Object.freeze({ background: '#07090e', border: '#7fdbff', painted: true }),
         // colored: a face pintada em cache é uma por cor (a carta tem cor e segue a cor da rodada)
-        [CARD_TYPES.LIGHTNING]: Object.freeze({ background: '#2c3e50', border: '#fffbe0', painted: true, colored: true, fx: 'FOIL_STORM' })
+        [CARD_TYPES.LIGHTNING]: Object.freeze({ background: '#2c3e50', border: '#fffbe0', painted: true, colored: true, fx: 'FOIL_STORM' }),
+        // Normais com vida própria (sem laminado): neblina e silhueta pulsando / olho que pisca
+        [CARD_TYPES.GHOST]: Object.freeze({ background: '#1a0a2e', border: '#b9b3c9', painted: true, colored: true, fx: 'ETHEREAL' }),
+        [CARD_TYPES.AMBUSH]: Object.freeze({ background: '#0a1a0a', border: '#39ff14', painted: true, fx: 'AMBUSH_EYE' }),
+        // Laminados novos: obsidiana espelhada e tempestade roxa contida
+        [CARD_TYPES.MIRROR]: Object.freeze({ background: '#08060d', border: '#c9c3dd', painted: true, colored: true, fx: 'FOIL_MIRROR' }),
+        [CARD_TYPES.CURSE]: Object.freeze({ background: '#0d0015', border: '#a45cff', painted: true, fx: 'FOIL_CURSE' })
     }),
 
     // Contorno animado (sentido horário) nas cartas da mão que podem ser jogadas agora. Só visual e só local.
     PLAYABLE_OUTLINE: Object.freeze({
         // Tipos que nunca recebem o contorno, mesmo quando jogáveis
         EXCLUDED_TYPES: Object.freeze([
-            CARD_TYPES.CHANGE_COLOR, CARD_TYPES.HEAL, CARD_TYPES.SHIELD, CARD_TYPES.REVIVE, CARD_TYPES.PAINT, CARD_TYPES.GUARD_SWAP
+            CARD_TYPES.CHANGE_COLOR, CARD_TYPES.HEAL, CARD_TYPES.SHIELD, CARD_TYPES.REVIVE, CARD_TYPES.PAINT, CARD_TYPES.GUARD_SWAP,
+            CARD_TYPES.AMBUSH, CARD_TYPES.CURSE
         ]),
         COLOR: '#7df9ff',
         GLOW_COLOR: 'rgba(0, 229, 255, 0.35)',
@@ -285,6 +331,16 @@ export const CONFIG = Object.freeze({
         LIGHTNING: 1350,
         // Sobrecarga (Relâmpago na vida): tempo extra além do DIRECT_HIT pros raios queimarem a mão
         OVERLOAD_EXTRA: 450,
+        // Fantasma: vira neblina, atravessa a carta inimiga e se recompõe gigante sobre a vida
+        GHOST_PASS: 1650,
+        // Espelho Sombrio: absorve o valor inimigo (glitch), avança com estilhaços e estilhaça o alvo
+        MIRROR_CLASH: 1650,
+        // Espelho na vida: golpe no alvo e, meio segundo depois, o reflexo no dono
+        MIRROR_HIT: 1900,
+        // Emboscada disparando: fios constringem a Defesa e o número sobe
+        AMBUSH: 1250,
+        // Maldição disparando no início da rodada (correntes, rachaduras e o valor caindo)
+        CURSE: 2300,
         // Moedas do fim da rodada e renovação da loja (pausa curta pra a animação respirar)
         ROUND_ECONOMY: 500
     }),
@@ -343,6 +399,30 @@ export const CONFIG = Object.freeze({
         LIGHTNING_REVEAL: 110,
         LIGHTNING_BOLT_LIFE: 300,
         LIGHTNING_FADE: 260,
+        // Fantasma (soma <= TIMINGS.GHOST_PASS)
+        GHOST_FADE: 260,
+        GHOST_DRIFT: 620,
+        GHOST_LOOM: 380,
+        GHOST_BURST: 260,
+        GHOST_ALPHA: 0.32,
+        GHOST_LOOM_SCALE: 2.1,
+        // Espelho Sombrio (soma <= TIMINGS.MIRROR_CLASH)
+        MIRROR_ABSORB: 420,
+        MIRROR_GLITCH: 200,
+        MIRROR_BONUS: 200,
+        MIRROR_LIFT: 200,
+        MIRROR_DASH: 190,
+        MIRROR_RETURN: 280,
+        MIRROR_RECOIL_DELAY: 500,
+        // Emboscada (soma <= TIMINGS.AMBUSH)
+        AMBUSH_BIND: 380,
+        AMBUSH_PULSE: 260,
+        AMBUSH_RISE: 420,
+        // Maldição (soma <= TIMINGS.CURSE)
+        CURSE_CHAINS: 520,
+        CURSE_SHAKE: 520,
+        CURSE_DROP: 360,
+        CURSE_SHATTER: 520,
         MUSIC_FADE_S: 0.9
     }),
 
@@ -357,6 +437,8 @@ export const CONFIG = Object.freeze({
         SHIELD_RANDOM_CHANCE: 0.25,
         REVIVE_BELOW_HP: 14,
         GUARD_SWAP_CHANCE: 0.45,
+        AMBUSH_CHANCE: 0.5,
+        CURSE_CHANCE: 0.6,
         // Economia: compra itens especiais/9 se sobrar moeda; vende números fracos com mão cheia
         BUY_CHANCE: 0.65,
         SELL_WHEN_HAND_AT_LEAST: 11,

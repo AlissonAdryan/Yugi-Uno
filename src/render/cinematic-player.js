@@ -1,10 +1,13 @@
 import { CONFIG } from '../config/constants.js';
 import { Easing } from './animator.js';
 import { PARTICLE_TYPES } from './particle-system.js';
-import { EVENT, GAME_RESULT, HIT_EFFECT, REL_SEAT } from '../network/protocol.js';
+import { EVENT, GAME_RESULT, HIT_EFFECT, MIRROR_RESULT, REL_SEAT } from '../network/protocol.js';
 import { SFX } from '../config/sound-presets.js';
 import { ZONE, zoneSeat } from '../utils/zones.js';
 import { i18n } from '../i18n/index.js';
+import {
+    ambush, ambushArmedFx, curseArmedFx, curseInstant, curseTriggered, ghostPass, mirrorClash, mirrorHit, revealFlourish
+} from './cinematics-arcane.js';
 
 const { ANIM, CARD_DIMENSIONS, COLOR, CARD_TYPES } = CONFIG;
 const HALF_W = CARD_DIMENSIONS.WIDTH / 2;
@@ -20,7 +23,9 @@ const CONSUMABLE_FX = Object.freeze({
     [CARD_TYPES.SHIELD]: Object.freeze({ color: '#00e5ff', sound: SFX.SHIELD_UP, toLife: true }),
     [CARD_TYPES.REVIVE]: Object.freeze({ color: '#ffd700', sound: SFX.REVIVE_USE, toLife: true }),
     [CARD_TYPES.PAINT]: Object.freeze({ color: '#7b68ee', sound: SFX.PAINT_USE, toLife: false }),
-    [CARD_TYPES.GUARD_SWAP]: Object.freeze({ color: '#7fdbff', sound: SFX.GUARD_SWAP_USE, toLife: false })
+    [CARD_TYPES.GUARD_SWAP]: Object.freeze({ color: '#7fdbff', sound: SFX.GUARD_SWAP_USE, toLife: false }),
+    [CARD_TYPES.AMBUSH]: Object.freeze({ color: '#39ff14', sound: SFX.AMBUSH_USE, toLife: false }),
+    [CARD_TYPES.CURSE]: Object.freeze({ color: '#a020f0', sound: SFX.CURSE_USE, toLife: false })
 });
 const PAINT_SPLASH_COLORS = Object.freeze(CONFIG.BASIC_COLORS.map((c) => CONFIG.COLOR_HEX[c]));
 const SWAP_COLOR = '#7fdbff';
@@ -72,8 +77,10 @@ export class CinematicPlayer {
      *           particles: import('./particle-system.js').ParticleSystem, hud: import('../ui/hud.js').Hud,
      *           audio: import('../audio/audio-engine.js').AudioEngine }} deps
      */
-    constructor({ pool, animator, particles, hud, board, viewport, audio, showcase, bolts, scene }) {
+    constructor({ pool, animator, particles, hud, board, viewport, audio, showcase, bolts, scene, fx }) {
         this.pool = pool;
+        // Anéis, correntes, fios, vinheta e aparições da mesa (FxLayer)
+        this.fx = fx || null;
         // Raios do Relâmpago (BoltSystem) e a cena, onde fica o clarão de tela (scene.flash)
         this.bolts = bolts;
         this.scene = scene;
@@ -114,6 +121,11 @@ export class CinematicPlayer {
             case EVENT.PAINT_APPLIED: return this.paintApplied(evt.cards);
             case EVENT.GUARD_SWAP: return this.guardSwap(evt);
             case EVENT.LIGHTNING_STRIKE: return this.lightningStrike(evt);
+            case EVENT.GHOST_PASS: return ghostPass(this, evt);
+            case EVENT.MIRROR_CLASH: return mirrorClash(this, evt);
+            case EVENT.MIRROR_HIT: return mirrorHit(this, evt);
+            case EVENT.AMBUSH: return ambush(this, evt);
+            case EVENT.CURSE_TRIGGERED: return curseTriggered(this, evt);
         }
     }
 
@@ -144,7 +156,22 @@ export class CinematicPlayer {
             case EVENT.LIGHTNING_STRIKE:
                 this.remove(evt.lightningId);
                 for (const face of evt.targets) this.remove(face.id);
+                if (evt.burned) for (const id of evt.burned) this.remove(id);
                 break;
+            case EVENT.GHOST_PASS:
+                for (const pass of evt.passes) {
+                    this.remove(pass.ghostId);
+                    if (pass.dissolveId >= 0) this.remove(pass.dissolveId);
+                }
+                break;
+            case EVENT.MIRROR_CLASH:
+                this.remove(evt.targetId);
+                if (evt.result === MIRROR_RESULT.PARADOX) this.remove(evt.mirrorId);
+                else if (this.pool.isActive(evt.mirrorId)) this.pool.power[evt.mirrorId] = CONFIG.MIRROR.COPY_BONUS;
+                break;
+            case EVENT.MIRROR_HIT: this.remove(evt.cardId); break;
+            case EVENT.AMBUSH: if (this.pool.isActive(evt.cardId)) this.pool.power[evt.cardId] = evt.to; break;
+            case EVENT.CURSE_TRIGGERED: curseInstant(this, evt); break;
             case EVENT.GAME_OVER: this.showGameOverScreen(evt.result, evt.reason); break;
             case EVENT.CARD_SOLD: this.remove(evt.cardId); break;
             case EVENT.PAINT_APPLIED:
@@ -235,6 +262,7 @@ export class CinematicPlayer {
             jobs.push((async () => {
                 await this.tween(id, { scale: 1.2 }, ANIM.FLIP_HALF);
                 this.applyFace(face);
+                revealFlourish(this, face);
                 this.particles.emitBurst(this.centerX(id), this.centerY(id), '#ffffff', 15, 150, PARTICLE_TYPES.STAR);
                 await this.tween(id, { scale: 1.0 }, ANIM.FLIP_HALF);
             })());
@@ -370,6 +398,8 @@ export class CinematicPlayer {
             }
             this.hud.showPaintAlert();
         }
+        if (isSelf && type === CARD_TYPES.AMBUSH) ambushArmedFx(this, x, y);
+        if (isSelf && type === CARD_TYPES.CURSE) curseArmedFx(this, x, y);
         if (isSelf && type === CARD_TYPES.GUARD_SWAP) {
             // Só quem usou vê: a energia corre até o campo inimigo e as cartas de lá "estremecem"
             for (let i = 0; i < 3; i++) this.particles.emitBurst(x, y, SWAP_COLOR, 18, 260 + i * 120, PARTICLE_TYPES.SPARK, 1.1);
@@ -619,8 +649,10 @@ export class CinematicPlayer {
     /**
      * Relâmpago em Cadeia (os dois veem): a carta se carrega crepitando, dispara um raio na carta da frente
      * inimiga e o raio salta dela para a próxima (combo ou Defesa, revelada no instante do golpe), cada
-     * golpe com estalo de trovão e clarão de tela. Por fim o Relâmpago se descarrega e some.
-     * @param {{ lightningId: number, seat: number, targets: import('../network/protocol.js').CardFace[] }} evt
+     * golpe com estalo de trovão e clarão de tela. Se o campo inimigo acabar antes dos saltos, o raio
+     * segue até a mão do alvo e queima as cartas de `burned` (Sobrecarga parcial). Por fim o Relâmpago
+     * se descarrega e some.
+     * @param {{ lightningId: number, seat: number, targets: import('../network/protocol.js').CardFace[], burned?: number[] }} evt
      */
     async lightningStrike(evt) {
         const pool = this.pool;
@@ -663,6 +695,14 @@ export class CinematicPlayer {
             await sleep(ANIM.LIGHTNING_HOP);
         }
 
+        // Saltos que sobraram atravessam até a vida: o alvo é o dono da mão oposta ao Relâmpago
+        if (evt.burned && evt.burned.length > 0) {
+            const selfIsTarget = evt.seat === REL_SEAT.OPPONENT;
+            this.hud.showFloatingText(i18n.t('HIT_OVERLOAD'), selfIsTarget, 'overload');
+            if (selfIsTarget) this.hud.flashDamage();
+            await this.burnHand(evt.burned, sx, sy);
+        }
+
         if (pool.isActive(id)) {
             const x = this.centerX(id);
             const y = this.centerY(id);
@@ -678,9 +718,14 @@ export class CinematicPlayer {
      * do alvo, que queimam. O dono vê as próprias cartas; o atacante vê só os versos.
      */
     async overloadBurn(evt, selfIsTarget, fromX) {
-        const pool = this.pool;
         const fromY = selfIsTarget ? this.viewport.height * 0.62 : this.viewport.height * 0.38;
-        const burned = evt.burned || [];
+        await this.burnHand(evt.burned || [], fromX, fromY);
+        await sleep(ANIM.LIGHTNING_FADE);
+    }
+
+    /** Raios partindo de (fromX, fromY) queimam, uma a uma, as cartas `burned` da mão do alvo. */
+    async burnHand(burned, fromX, fromY) {
+        const pool = this.pool;
         for (let k = 0; k < burned.length; k++) {
             const id = burned[k];
             if (!pool.isActive(id)) continue;
@@ -694,7 +739,6 @@ export class CinematicPlayer {
             this.zap(id);
             await sleep(ANIM.LIGHTNING_HOP * 0.5);
         }
-        await sleep(ANIM.LIGHTNING_FADE);
     }
 
     /**
@@ -956,12 +1000,12 @@ export class CinematicPlayer {
         } else {
             text = `-${evt.damage} ♥`;
             this.audio.play(SFX.DAMAGE);
-            // `absorbed` só chega para o alvo (o Escudo é secreto pro atacante)
-            if (selfIsTarget && evt.absorbed > 0) {
+            // `absorbed` agora chega para ambos, revelando o segredo no momento do impacto
+            if (evt.absorbed > 0) {
                 variant = 'shielded';
-                this.hud.flashShield();
+                this.hud.flashShield(selfIsTarget);
                 this.audio.play(SFX.SHIELD_HIT);
-                const p = this.hpPoint(true);
+                const p = this.hpPoint(selfIsTarget);
                 this.particles.emitBurst(p.x, p.y, '#7df9ff', 45, 280, PARTICLE_TYPES.STAR);
             }
             if (evt.guarded) {
@@ -1009,6 +1053,7 @@ export class CinematicPlayer {
         this.fireworksTimer = null;
         this.gameOverShown = false;
         if (this.bolts) this.bolts.clear();
+        if (this.fx) this.fx.clear();
         if (this.scene) this.scene.flash = 0;
         if (this.showcase) {
             this.showcase.cardVisible = false;

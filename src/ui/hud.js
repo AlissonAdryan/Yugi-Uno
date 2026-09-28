@@ -6,7 +6,7 @@ import { i18n } from '../i18n/index.js';
 
 const COLOR_ALERT_MS = 1500;
 // Estilos do alerta central por carta especial (ver showSpecialAlert e style.css)
-const SPECIAL_ALERT_CLASSES = Object.freeze(['alert-paint', 'alert-swap', 'alert-storm']);
+const SPECIAL_ALERT_CLASSES = Object.freeze(['alert-paint', 'alert-swap', 'alert-storm', 'alert-ambush', 'alert-curse']);
 const FLOATING_TEXT_MS = 1500;
 // Deve bater com a duração de `transition: opacity` de .plasma-layer--incoming em style.css
 const BG_FADE_MS = 1500;
@@ -75,8 +75,10 @@ export class Hud {
             selfHP: -1, oppHP: -1, phase: null, phaseVariant: '', endVisible: null, endEnabled: null, bgColor: -1, banner: null, rematch: '',
             status: -1, reviveRounds: -1
         };
-        this.el.shield = this.el.selfHpBox.querySelector('.hp-shield');
-        this.el.shieldRipple = this.el.selfHpBox.querySelector('.hp-shield-ripple');
+        this.el.selfShield = this.el.selfHpBox.querySelector('.hp-shield');
+        this.el.selfShieldRipple = this.el.selfHpBox.querySelector('.hp-shield-ripple');
+        this.el.oppShield = this.el.oppHpBox.querySelector('.hp-shield');
+        this.el.oppShieldRipple = this.el.oppHpBox.querySelector('.hp-shield-ripple');
         this.el.reviveBadge = this.el.selfHpBox.querySelector('.hp-revive-badge');
         this.el.selfTrash = document.getElementById('self-trash');
         this.el.oppTrash = document.getElementById('opp-trash');
@@ -358,7 +360,7 @@ export class Hud {
     /**
      * Texto grande no centro da tela com o estilo de uma carta especial (reinicia a animação).
      * @param {string} text já traduzido
-     * @param {'alert-paint'|'alert-swap'|'alert-storm'} variant classe de estilo (style.css)
+     * @param {'alert-paint'|'alert-swap'|'alert-storm'|'alert-ambush'|'alert-curse'} variant classe de estilo (style.css)
      */
     showSpecialAlert(text, variant) {
         const alert = this.el.colorAlert;
@@ -382,7 +384,7 @@ export class Hud {
     /**
      * @param {string} text
      * @param {boolean} isSelfTarget
-     * @param {string} [variant] '' | 'heal' | 'shielded' | 'guarded' | 'overload' (cor do texto)
+     * @param {string} [variant] '' | 'heal' | 'shielded' | 'guarded' | 'overload' | 'ghost' | 'mirror' (cor do texto)
      */
     showFloatingText(text, isSelfTarget, variant = '') {
         const node = document.createElement('div');
@@ -411,6 +413,8 @@ export class Hud {
         box.classList.toggle('status-heal', (status & STATUS.HEAL) !== 0);
         box.classList.toggle('status-shield', (status & STATUS.SHIELD) !== 0);
         box.classList.toggle('status-revive', (status & STATUS.REVIVE_ACTIVE) !== 0);
+        // Maldição plantada: a caveira pulsa sobre a vida do oponente (só quem amaldiçoou recebe o status)
+        this.el.oppHpBox.classList.toggle('curse-marked', (status & STATUS.CURSE_PENDING) !== 0);
         if (reviveRounds !== this.cache.reviveRounds) this.el.reviveBadge.textContent = reviveRounds > 0 ? String(reviveRounds) : '';
         this.cache.status = status;
         this.cache.reviveRounds = reviveRounds;
@@ -434,9 +438,11 @@ export class Hud {
         timers[cls] = setTimeout(() => el.classList.remove(cls), ms);
     }
 
-    flashShield() {
-        this.pulseClass(this.el.shield, 'hit', 500);
-        this.pulseClass(this.el.shieldRipple, 'hit', 650);
+    flashShield(isSelf) {
+        const shield = isSelf ? this.el.selfShield : this.el.oppShield;
+        const ripple = isSelf ? this.el.selfShieldRipple : this.el.oppShieldRipple;
+        this.pulseClass(shield, 'hit', 500);
+        this.pulseClass(ripple, 'hit', 650);
     }
 
     playHealBurst(isSelf) {

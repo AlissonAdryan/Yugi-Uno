@@ -15,6 +15,7 @@ import {
     encodeSnapshot, localizeEvent, snapshotsEqual, writeSnapshotSeq
 } from '../network/protocol.js';
 import { NET_EVENT } from '../network/network-system.js';
+import { triggerCurses } from './cards/curse.js';
 
 const { GAME_STATES, TIMINGS, COLOR, CARD_TYPES } = CONFIG;
 const SEATS = [SEAT.P1, SEAT.P2];
@@ -159,8 +160,13 @@ export class ServerEngine {
         s.healActive.fill(0);
         // Pintar é só da preparação: uma seleção que ficou aberta não atravessa para a rodada seguinte
         s.paintPending.fill(0);
-        // A Troca de Guarda é consumida no combate; isto só garante que nada atravesse uma rodada sem combate
+        // A Troca de Guarda e a Emboscada são consumidas no combate; isto só garante que nada atravesse
+        // uma rodada sem combate
         s.guardSwap.fill(0);
+        s.clearAmbush();
+        // Maldições plantadas na rodada anterior disparam agora: depois do sorteio, antes da preparação
+        // (os eventos saem antes do snapshot de PLAYING, então ninguém joga uma carta prestes a mudar)
+        triggerCurses(this);
         s.round++;
         s.phase = GAME_STATES.PLAYING;
         this.markDirty();
@@ -519,6 +525,15 @@ export class ServerEngine {
             case CARD_TYPES.GUARD_SWAP:
                 s.guardSwap[seat] = 1;
                 console.log(`[Server] P${seat + 1} usou Troca de Guarda: Ataque e Defesa trocam no início do combate.`);
+                break;
+            case CARD_TYPES.AMBUSH:
+                s.ambush[seat] = 1;
+                console.log(`[Server] P${seat + 1} armou uma Emboscada: a Defesa ganha +${CONFIG.AMBUSH.BONUS} se entrar na linha de frente.`);
+                break;
+            case CARD_TYPES.CURSE:
+                s.cursePending[seat] = 1;
+                s.curseUses[seat]++;
+                console.log(`[Server] P${seat + 1} plantou uma Maldição em P${2 - seat} (uso ${s.curseUses[seat]}/${CONFIG.CURSE.MAX_PER_MATCH}): dispara na próxima rodada.`);
                 break;
         }
         this.markDirty();

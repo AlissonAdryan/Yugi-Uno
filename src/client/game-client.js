@@ -6,6 +6,7 @@ import { Canvas2DRenderer } from '../render/canvas2d-renderer.js';
 import { CinematicPlayer } from '../render/cinematic-player.js';
 import { ParticleSystem, PARTICLE_TYPES } from '../render/particle-system.js';
 import { BoltSystem } from '../render/bolt-system.js';
+import { FxLayer } from '../render/fx-layer.js';
 import { BoardSystem } from '../systems/board-system.js';
 import { InputSystem } from '../systems/input-system.js';
 import { LayoutSystem } from '../systems/layout-system.js';
@@ -14,6 +15,7 @@ import { SAMPLES, SFX } from '../config/sound-presets.js';
 import { isConsumable, isPaintable, sellValue } from '../systems/rules.js';
 import { ColorPicker } from '../ui/color-picker.js';
 import { ShopPanel } from '../ui/shop-panel.js';
+import { CardInfoPanel } from '../ui/card-info.js';
 import { CLIENT_ZONE, ZONE } from '../utils/zones.js';
 import {
     EVENT, INPUT, MSG, SNAPSHOT_FLAGS, SnapshotView, decodeSnapshot, isBinaryMessage, isSeqAfter
@@ -64,13 +66,16 @@ export class GameClient {
         };
         // Raios do Relâmpago (pool fixo) e a cena lida pelo renderer a cada frame
         this.bolts = new BoltSystem();
+        // Anéis, correntes, fios, vinheta e aparições das cartas arcanas (pool fixo)
+        this.fx = new FxLayer(this.pool);
         this.scene = {
-            deckX: 0, deckY: 0, deckCount: 0, hoveredCard: -1, selectableZone: -1, showcase: this.showcase,
-            bolts: this.bolts, flash: 0, flashColor: '#cfefff', guardSwapArmed: false
+            deckX: 0, deckY: 0, deckCount: 0, hoveredCard: -1, draggedCard: -1, selectableZone: -1, showcase: this.showcase,
+            bolts: this.bolts, fx: this.fx, flash: 0, flashColor: '#cfefff', guardSwapArmed: false, ambushArmed: false
         };
         this.cinematics = new CinematicPlayer({
             pool: this.pool, animator: this.animator, particles: this.particles, hud: this.hud, board: this.board,
-            viewport: this.viewport, audio: this.audio, showcase: this.showcase, bolts: this.bolts, scene: this.scene
+            viewport: this.viewport, audio: this.audio, showcase: this.showcase, bolts: this.bolts, scene: this.scene,
+            fx: this.fx
         });
         this.colorPicker = new ColorPicker(audio);
 
@@ -82,6 +87,10 @@ export class GameClient {
         // Lixeira em coordenadas virtuais (lida uma vez por arrasto) e se o ponteiro está sobre ela
         this.trashZone = { x0: 0, y0: 0, x1: 0, y1: 0 };
         this.overTrash = false;
+        // Campo "?" (canto inferior esquerdo): soltar uma carta nele abre as informações dela. Só UI local.
+        this.cardInfo = new CardInfoPanel({ audio, viewport });
+        this.infoZone = { x0: 0, y0: 0, x1: 0, y1: 0 };
+        this.overInfo = false;
 
         this.canvas = document.getElementById(CONFIG.CANVAS_ID);
         this.renderer = null;
@@ -116,6 +125,7 @@ export class GameClient {
         // A loja desenha as prévias com o mesmo pintor do jogo (ícones, laminado animado, tudo igual)
         this.shopPanel.painter = (ctx, type, color, power, seed, density) =>
             this.renderer.drawCardInto(ctx, type, color, power, seed, density);
+        this.cardInfo.painter = this.shopPanel.painter;
 
         this.setupInput();
         this.hud.onEndTurn(() => this.toggleReady());
@@ -292,11 +302,15 @@ export class GameClient {
             this.board.highlightZone = -1;
             this.hud.setTrashState('idle');
             this.overTrash = false;
+            this.cardInfo.setDragState('idle');
+            this.overInfo = false;
         }
 
         this.scene.deckCount = v.deckCount;
         // Troca de Guarda armada: só quem usou recebe o status (o sinal some quando ela dispara no combate)
         this.scene.guardSwapArmed = (v.selfStatus & CONFIG.STATUS.GUARD_SWAP) !== 0;
+        // Emboscada armada: fios verdes em volta da própria Defesa (só quem usou recebe o status)
+        this.scene.ambushArmed = (v.selfStatus & CONFIG.STATUS.AMBUSH) !== 0;
         this.board.setLocked(ZONE.SELF_DEFENSE, v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED));
         this.board.setLocked(ZONE.OPP_DEFENSE, v.hasFlag(SNAPSHOT_FLAGS.OPP_DEFENSE_LOCKED));
         this.hud.setHP(v.selfHP, v.oppHP);
@@ -347,6 +361,7 @@ export class GameClient {
         this.cinematics.reset();
         this.hud.hideGameOver();
         this.colorPicker.hide();
+        this.cardInfo.hide();
         this.shopPanel.setAvailable(false);
         this.input.cancelDrag();
         this.board.highlightZone = -1;
@@ -648,6 +663,24 @@ export class GameClient {
         this.overTrash = false;
         this.hud.setTrashState('armed');
         this.audio.play(SFX.TRASH_ARM);
+
+        // O campo "?" também acorda (e o painel aberto fecha: o jogador está pegando outra carta)
+        const info = this.cardInfo.zoneRect();
+        const infoPad = 14;
+        this.infoZone.x0 = vp.toVirtual(info.left - infoPad);
+        this.infoZone.y0 = vp.toVirtual(info.top - infoPad);
+        this.infoZone.x1 = vp.toVirtual(info.right + infoPad);
+        this.infoZone.y1 = vp.toVirtual(info.bottom + infoPad);
+        this.overInfo = false;
+        this.cardInfo.hide();
+        this.cardInfo.setDragState('armed');
+    }
+
+    isPointerOverInfo() {
+        const z = this.infoZone;
+        const x = this.input.pointerX;
+        const y = this.input.pointerY;
+        return x >= z.x0 && x <= z.x1 && y >= z.y0 && y <= z.y1;
     }
 
     isPointerOverTrash() {
@@ -661,6 +694,19 @@ export class GameClient {
         const pool = this.pool;
         pool.targetX[id] = x;
         pool.targetY[id] = y;
+
+        const overInfo = this.isPointerOverInfo();
+        if (overInfo !== this.overInfo) {
+            this.overInfo = overInfo;
+            if (overInfo) this.audio.play(SFX.HOVER);
+        }
+        this.cardInfo.setDragState(overInfo ? 'hover' : 'armed');
+        if (overInfo) {
+            this.hud.setTrashState('armed');
+            this.board.highlightZone = -1;
+            pool.rotation[id] = 0;
+            return;
+        }
 
         const over = this.isPointerOverTrash();
         if (over !== this.overTrash) {
@@ -787,6 +833,17 @@ export class GameClient {
         const zone = this.board.getZoneAt(pool.targetX[id] + HALF_W, pool.targetY[id] + HALF_H);
 
         const canDrop = this.canPrepare() && pool.isActive(id) && pool.zone[id] === ZONE.SELF_HAND;
+        const onInfo = this.overInfo || this.isPointerOverInfo();
+        this.overInfo = false;
+        this.cardInfo.setDragState('idle');
+        if (onInfo && pool.isActive(id)) {
+            // Carta solta no "?": só mostra as informações e volta pra mão (nada vai pro servidor)
+            this.overTrash = false;
+            this.hud.setTrashState('idle');
+            this.cardInfo.show(pool.type[id], pool.color[id], pool.power[id], id);
+            this.relayout();
+            return;
+        }
         const onTrash = this.overTrash || this.isPointerOverTrash();
         this.overTrash = false;
         this.hud.setTrashState('idle');
@@ -890,6 +947,7 @@ export class GameClient {
         this.scene.deckX = this.layout.deckX;
         this.scene.deckY = this.layout.deckY;
         this.scene.hoveredCard = this.hoveredCard;
+        this.scene.draggedCard = this.input.draggedCard;
         this.renderer.draw(this.scene, dt);
     }
 }

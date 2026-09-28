@@ -1,4 +1,5 @@
 import { CONFIG } from '../config/constants.js';
+import { paintAmbushFace, paintCurseFace, paintGhostFace, paintMirrorFace } from './card-art-arcane.js';
 
 const { CARD_TYPES, CARD_DIMENSIONS } = CONFIG;
 const TAU = Math.PI * 2;
@@ -672,7 +673,11 @@ const PAINTERS = Object.freeze({
     [CARD_TYPES.REVIVE]: paintReviveFace,
     [CARD_TYPES.PAINT]: paintPaintFace,
     [CARD_TYPES.GUARD_SWAP]: paintGuardSwapFace,
-    [CARD_TYPES.LIGHTNING]: paintLightningFace
+    [CARD_TYPES.LIGHTNING]: paintLightningFace,
+    [CARD_TYPES.GHOST]: paintGhostFace,
+    [CARD_TYPES.MIRROR]: paintMirrorFace,
+    [CARD_TYPES.AMBUSH]: paintAmbushFace,
+    [CARD_TYPES.CURSE]: paintCurseFace
 });
 
 /**

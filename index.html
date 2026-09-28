@@ -160,7 +160,14 @@
                 </div>
                 <span id="opponent-name" class="player-name" data-i18n="OPPONENT">OPONENTE</span>
                 <span id="opponent-hp" class="hp-value">30</span>
+                <!-- Maldição plantada (só quem amaldiçoou vê): caveira pulsando até disparar na próxima rodada -->
+                <span class="hp-curse-badge" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M12 2C7 2 4 5.6 4 10c0 2.5 1.1 4.3 2.8 5.3V19a1 1 0 0 0 1 1h1.4v-2h1.6v2h2.4v-2h1.6v2h1.4a1 1 0 0 0 1-1v-3.7C18.9 14.3 20 12.5 20 10c0-4.4-3-8-8-8Zm-3.3 11a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4Zm6.6 0a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4Z"/></svg>
+                </span>
                 <div class="hp-fx hp-fx--front" aria-hidden="true">
+                    <span class="hp-shield"></span>
+                    <span class="hp-shield-ripple"></span>
+                    <span class="hp-gold-sheen"></span>
                     <span class="hp-divine-beam"></span>
                 </div>
                 <!-- Lixeira do oponente (só mostra as cartas dele sendo vendidas: verso, sem valor) -->
@@ -200,6 +207,27 @@
                     <span class="trash-value"><svg class="ico-coin"><use href="#ico-coin"/></svg><b></b></span>
                     <span class="trash-hint" data-i18n="TRASH_HINT">Solte para vender</span>
                     <span class="trash-hint trash-hint--blocked" data-i18n="TRASH_LAST_ATTACK">Última carta que pode atacar!</span>
+                </div>
+            </div>
+
+            <!-- Informações da carta (card-info.js): solte uma carta da mão no "?" pra ver o que ela faz (só você vê) -->
+            <button id="card-info-zone" class="card-info-zone" type="button" aria-label="Informações da carta" data-i18n="CARD_INFO_OPEN" data-i18n-attr="aria-label">
+                <span class="card-info-zone-icon" aria-hidden="true">?</span>
+                <span class="card-info-hint" data-i18n="CARD_INFO_HINT">Solte uma carta aqui para ver o que ela faz</span>
+            </button>
+            <div id="card-info" class="card-info" hidden>
+                <div class="card-info-backdrop"></div>
+                <div class="card-info-panel card-info-float" role="dialog" aria-modal="true">
+                    <canvas class="card-info-card"></canvas>
+                    <div class="card-info-text">
+                        <div class="card-info-tags">
+                            <span class="card-info-category"></span>
+                            <span class="card-info-foil" data-i18n="CARD_INFO_FOIL" hidden>Laminada</span>
+                        </div>
+                        <h3 class="card-info-name"></h3>
+                        <p class="card-info-desc"></p>
+                    </div>
+                    <button class="card-info-close" type="button" aria-label="Fechar" data-i18n="CLOSE" data-i18n-attr="aria-label">&times;</button>
                 </div>
             </div>
 

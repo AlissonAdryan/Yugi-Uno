@@ -175,6 +175,8 @@ body {
 .shop-float,
 .settings-content,
 .rematch-notice,
+.card-info-zone,
+.card-info-float,
 .color-picker-float {
     zoom: var(--ui-scale, 1);
 }
@@ -895,6 +897,102 @@ body {
     color: transparent;
     text-shadow: none;
     filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 18px rgba(143, 240, 255, 0.85));
+}
+
+/* --- Emboscada (verde-néon) e Maldição (roxo-néon tremendo e gotejando) --- */
+#color-alert.alert-ambush {
+    background: linear-gradient(180deg, #eaffdf 10%, #6dff4a 45%, #39ff14 65%, #0f7a04 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 18px rgba(57, 255, 20, 0.8));
+}
+
+#color-alert.alert-curse {
+    background: linear-gradient(180deg, #f6e8ff 5%, #c77dff 40%, #8a2be2 70%, #3c0070 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 20px rgba(160, 32, 240, 0.9));
+}
+
+/* Letras tremendo: só transform (Pilar 2), sobre a pose do .show */
+#color-alert.alert-curse.show { animation: curseTremble 0.11s steps(2, jump-none) infinite; }
+
+/* Gotas roxas escorrendo das letras */
+#color-alert.alert-curse::after {
+    content: '';
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    top: 78%;
+    height: 40px;
+    background:
+        radial-gradient(4px 9px at 12% 20%, #b05cff 60%, transparent 62%),
+        radial-gradient(3px 7px at 31% 10%, #9b3cff 60%, transparent 62%),
+        radial-gradient(4px 10px at 55% 25%, #c77dff 60%, transparent 62%),
+        radial-gradient(3px 8px at 73% 12%, #a64dff 60%, transparent 62%),
+        radial-gradient(4px 9px at 90% 22%, #b05cff 60%, transparent 62%);
+    opacity: 0;
+    transform: translateY(-6px);
+}
+
+#color-alert.alert-curse.show::after { animation: curseDrip 1.4s ease-in 0.15s forwards; }
+
+@keyframes curseTremble {
+    0% { transform: translate(-50%, -50%) scale(1.2) translate(-2px, 1px) rotate(-0.6deg); }
+    50% { transform: translate(-50%, -50%) scale(1.2) translate(2px, -1px) rotate(0.6deg); }
+    100% { transform: translate(-50%, -50%) scale(1.2) translate(-1px, -2px) rotate(-0.3deg); }
+}
+
+@keyframes curseDrip {
+    0% { opacity: 0; transform: translateY(-6px) scaleY(0.6); }
+    20% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(34px) scaleY(1.4); }
+}
+
+.damage-text.ghost {
+    color: #e6dcff;
+    text-shadow: 0 0 20px #000, 0 0 36px #b388ff, 0 0 60px #6a3cff;
+}
+
+.damage-text.mirror {
+    color: #f3eeff;
+    text-shadow: 0 0 18px #000, 0 0 30px #7a3cff, 0 0 50px #c9c3dd;
+}
+
+/* Caveira da Maldição sobre a vida do oponente (só quem amaldiçoou tem o status) */
+.hp-curse-badge {
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    width: 26px;
+    height: 26px;
+    color: #d9a6ff;
+    pointer-events: none;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.hp-curse-badge svg {
+    width: 100%;
+    height: 100%;
+    fill: currentColor;
+    filter: drop-shadow(0 0 6px rgba(160, 32, 240, 0.95));
+}
+
+.curse-marked .hp-curse-badge {
+    opacity: 1;
+    transform: scale(1);
+    animation: cursePulse 1.6s ease-in-out infinite;
+}
+
+@keyframes cursePulse {
+    0%, 100% { transform: scale(1); opacity: 0.85; }
+    50% { transform: scale(1.18); opacity: 1; }
 }
 
 .damage-text.overload {
@@ -2519,4 +2617,210 @@ body {
 .shop-btn.deny-btn .shop-btn-icon,
 .shop-reroll.deny-btn {
     animation: denyShake 0.4s ease-out;
+}
+
+/* =========================================
+   INFORMAÇÕES DA CARTA (card-info.js)
+   Campo "?" no canto inferior esquerdo (só o jogador local): solte uma carta nele e o painel abre na
+   frente com a carta, a categoria, o nome e a descrição. Só transform/opacity animam (Pilar 2).
+   ========================================= */
+.card-info-zone {
+    position: absolute;
+    left: 26px;
+    bottom: 26px;
+    width: 58px;
+    height: 58px;
+    padding: 0;
+    border-radius: 50%;
+    border: 2px dashed rgba(255, 255, 255, 0.35);
+    background: radial-gradient(circle at 35% 30%, rgba(70, 60, 120, 0.75), rgba(10, 8, 22, 0.8));
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    z-index: 60;
+    transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.25s ease;
+}
+
+.card-info-zone-icon {
+    display: block;
+    font-family: 'Righteous', sans-serif;
+    font-size: 30px;
+    line-height: 54px;
+    text-align: center;
+}
+
+.card-info-zone:hover { transform: scale(1.06); }
+
+/* Arrastando uma carta: o campo "acorda" e respira */
+.card-info-zone.armed {
+    border-style: solid;
+    border-color: rgba(125, 249, 255, 0.85);
+    color: #bff9ff;
+    box-shadow: 0 0 14px rgba(0, 229, 255, 0.45);
+    animation: cardInfoBreath 1s ease-in-out infinite;
+}
+
+/* Carta em cima: acende e cresce */
+.card-info-zone.hover {
+    border-style: solid;
+    border-color: #7df9ff;
+    color: #ffffff;
+    box-shadow: 0 0 22px rgba(0, 229, 255, 0.8);
+    transform: scale(1.22);
+    animation: none;
+}
+
+.card-info-hint {
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    width: max-content;
+    max-width: 230px;
+    margin-top: -10px;
+    font-family: 'Righteous', sans-serif;
+    font-size: 13px;
+    line-height: 18px;
+    text-align: left;
+    color: #bff9ff;
+    text-shadow: 0 1px 3px #000;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateX(-6px);
+    transition: opacity 0.2s ease, transform 0.25s ease;
+}
+
+.card-info-zone.armed .card-info-hint,
+.card-info-zone.hover .card-info-hint,
+.card-info-zone.hint .card-info-hint {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+@keyframes cardInfoBreath {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.08); }
+}
+
+.card-info {
+    position: absolute;
+    inset: 0;
+    z-index: 175;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: auto;
+}
+
+.card-info-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.45);
+    animation: pickerFadeIn 0.25s ease-out;
+}
+
+.card-info-panel {
+    --accent: #7df9ff;
+    --category: #7df9ff;
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    width: 440px;
+    max-width: calc(100vw - 32px);
+    padding: 18px 22px 18px 18px;
+    border-radius: 16px;
+    background: rgba(12, 10, 24, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4), 0 18px 40px rgba(0, 0, 0, 0.55), 0 0 28px color-mix(in srgb, var(--accent) 30%, transparent);
+    animation: cardInfoIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.card-info.closing .card-info-backdrop { animation: pickerFadeOut 0.22s ease-in forwards; }
+.card-info.closing .card-info-panel { animation: cardInfoOut 0.22s ease-in forwards; }
+
+.card-info-card {
+    flex: none;
+    width: 116px;
+    height: 174px;
+    border-radius: 10px;
+    filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.6));
+}
+
+.card-info-text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.card-info-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.card-info-category,
+.card-info-foil {
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-family: 'Righteous', sans-serif;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.card-info-category {
+    color: var(--category);
+    background: color-mix(in srgb, var(--category) 16%, transparent);
+    border: 1px solid color-mix(in srgb, var(--category) 55%, transparent);
+}
+
+.card-info-foil {
+    color: #1a1400;
+    background: linear-gradient(90deg, #ffe680, #fff7c9, #d9b44a);
+}
+
+.card-info-foil[hidden] { display: none; }
+
+.card-info-name {
+    margin: 0;
+    font-family: 'Righteous', sans-serif;
+    font-size: 24px;
+    line-height: 1.15;
+    color: #ffffff;
+    text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 70%, transparent);
+}
+
+.card-info-desc {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: rgba(235, 235, 245, 0.88);
+}
+
+.card-info-close {
+    position: absolute;
+    top: 8px;
+    right: 10px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.75);
+    font-size: 20px;
+    line-height: 28px;
+    cursor: pointer;
+}
+
+.card-info-close:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
+
+@keyframes cardInfoIn {
+    from { opacity: 0; transform: translateY(14px) scale(0.92); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cardInfoOut {
+    from { opacity: 1; transform: scale(1); }
+    to { opacity: 0; transform: scale(0.94); }
 }

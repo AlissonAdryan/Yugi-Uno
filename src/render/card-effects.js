@@ -1,3 +1,5 @@
+import { ARCANE_PRESETS } from './card-effects-arcane.js';
+
 const TAU = Math.PI * 2;
 
 /**
@@ -90,7 +92,9 @@ const FX_PRESETS = {
             count: 8, color: '#8ff0ff', core: '#ffffff', minSize: 1.6, maxSize: 3.4, minRate: 4.5, maxRate: 8.5
         },
         extra: drawStormArcs
-    }
+    },
+    // Fantasma, Emboscada, Espelho Sombrio e Maldição (card-effects-arcane.js)
+    ...ARCANE_PRESETS
 };
 
 // --- Raios vivos do FOIL_STORM --------------------------------------------------
@@ -262,8 +266,10 @@ export class CardEffects {
      * @param {string} name chave de FX_PRESETS
      * @param {number} time segundos (relógio global de animação)
      * @param {number} seed id da carta: defasa a animação para cartas iguais não piscarem em sincronia
+     * @param {number} [color] cor da carta (camadas que tingem pela cor, ex.: veias do Espelho)
+     * @param {boolean} [held] a carta está na mão do jogador sob o ponteiro (ex.: runas acesas)
      */
-    draw(ctx, name, w, h, radius, time, seed) {
+    draw(ctx, name, w, h, radius, time, seed, color = 0, held = false) {
         const fx = this.get(name);
         if (!fx) return;
         const diag = Math.sqrt(w * w + h * h);
@@ -308,7 +314,12 @@ export class CardEffects {
                 ctx.fill();
             }
         }
-        if (fx.extra) fx.extra(ctx, w, h, time, phase, seed | 0, fx.scratch);
+        if (fx.extra) {
+            // O laço das faíscas deixa o alfa da última faísca (às vezes ~0): a camada extra começa limpa
+            ctx.globalAlpha = 1;
+            ctx.globalCompositeOperation = 'source-over';
+            fx.extra(ctx, w, h, time, phase, seed | 0, fx.scratch, color, held);
+        }
         ctx.restore();
     }
 }

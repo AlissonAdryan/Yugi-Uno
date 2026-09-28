@@ -440,6 +440,153 @@ export const SOUND_PRESETS = Object.freeze({
         echo: { delay: 0.09, feedback: 0.3, mix: 0.25 }
     },
 
+    // --- Fantasma ---------------------------------------------------------------
+    // Atravessando: sussurro reverberante (ruído em formantes de voz subindo/descendo) + tom etéreo
+    GHOST_PASS: {
+        duration: 0.95, volume: 0.1,
+        envelope: { attack: 0.18, decay: 0.2, sustain: 0.6, release: 0.35 },
+        layers: [
+            { kind: 'noise', color: 'pink', gain: 0.7, filter: { type: 'bandpass', freq: 700, freqEnd: 1900, q: 7 }, tremolo: { rate: 6, depth: 0.5 } },
+            { kind: 'noise', color: 'white', gain: 0.35, filter: { type: 'bandpass', freq: 2600, freqEnd: 1200, q: 9 }, tremolo: { rate: 9, depth: 0.6 } },
+            { kind: 'tone', wave: 'sine', freq: 'E5', freqEnd: 'B4', gain: 0.25, vibrato: { rate: 5, depth: 35 } },
+            { kind: 'tone', wave: 'triangle', freq: 'G5', gain: 0.12, detune: 14, vibrato: { rate: 4.2, depth: 30 } }
+        ],
+        echo: { delay: 0.23, feedback: 0.5, mix: 0.42 }
+    },
+    // Chegando na vida: "whoosh" grave e fundo
+    GHOST_HIT: {
+        duration: 0.7, volume: 0.11,
+        envelope: { attack: 0.04, decay: 0.25, sustain: 0.3, release: 0.35 },
+        layers: [
+            { kind: 'noise', color: 'brown', gain: 0.9, filter: { type: 'lowpass', freq: 1800, freqEnd: 120 } },
+            { kind: 'noise', color: 'pink', gain: 0.5, duration: 0.4, filter: { type: 'bandpass', freq: 300, freqEnd: 2400, q: 1.8 } },
+            { kind: 'tone', wave: 'sine', freq: 90, freqEnd: 32, gain: 0.8, sweepTime: 0.55 }
+        ],
+        echo: { delay: 0.18, feedback: 0.35, mix: 0.3 }
+    },
+
+    // --- Espelho Sombrio ---------------------------------------------------------
+    // Cópia: tinido cristalino subindo (o valor sendo absorvido)
+    MIRROR_COPY: {
+        duration: 0.14, volume: 0.1,
+        envelope: { attack: 0.001, decay: 0.09, sustain: 0.25, release: 0.07 },
+        layers: [
+            { kind: 'fm', freq: 'E6', modRatio: 3.5, modIndex: 3, modIndexEnd: 0.2 },
+            { kind: 'tone', wave: 'sine', freq: 'B6', gain: 0.35, tremolo: { rate: 24, depth: 0.3 } }
+        ],
+        sequence: { step: 0.06, semitones: [0, 3, 7, 10, 15] },
+        echo: { delay: 0.14, feedback: 0.45, mix: 0.38 }
+    },
+    // Vidro se estilhaçando
+    MIRROR_SHATTER: {
+        duration: 0.6, volume: 0.12,
+        envelope: { attack: 0.001, decay: 0.22, sustain: 0.2, release: 0.35 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.9, duration: 0.28, filter: { type: 'highpass', freq: 2800, freqEnd: 6500 } },
+            { kind: 'noise', color: 'pink', gain: 0.5, duration: 0.12, filter: { type: 'lowpass', freq: 3500, freqEnd: 500 } },
+            {
+                kind: 'fm', freq: 'G7', modRatio: 2.76, modIndex: 5, modIndexEnd: 0.1, gain: 0.35,
+                envelope: { attack: 0.001, decay: 0.12, sustain: 0, release: 0.15 }
+            }
+        ],
+        notes: [
+            { at: 0, semitones: 0 }, { at: 0.05, semitones: 5, volume: 0.6 }, { at: 0.1, semitones: -2, volume: 0.45 },
+            { at: 0.16, semitones: 8, volume: 0.35 }, { at: 0.23, semitones: 1, volume: 0.25 }
+        ],
+        echo: { delay: 0.09, feedback: 0.3, mix: 0.3 }
+    },
+    // Dano espelhado voltando pro dono: eco sombrio grave
+    MIRROR_RECOIL: {
+        duration: 0.9, volume: 0.11, distortion: 0.2,
+        envelope: { attack: 0.01, decay: 0.3, sustain: 0.35, release: 0.45 },
+        filter: { type: 'lowpass', freq: 1400, freqEnd: 300, q: 1.5 },
+        layers: [
+            { kind: 'tone', wave: 'sawtooth', freq: 'D3', freqEnd: 'A2', detune: -12 },
+            { kind: 'tone', wave: 'sawtooth', freq: 'D3', freqEnd: 'A2', detune: 12, gain: 0.8 },
+            { kind: 'tone', wave: 'sine', freq: 70, freqEnd: 40, gain: 0.8 },
+            { kind: 'fm', freq: 'D6', modRatio: 2.76, modIndex: 3, modIndexEnd: 0, gain: 0.15, delay: 0.05 }
+        ],
+        echo: { delay: 0.26, feedback: 0.5, mix: 0.45 }
+    },
+
+    // --- Emboscada ---------------------------------------------------------------
+    // Armada (só quem usou ouve): chiado de fumaça tóxica + nota venenosa
+    AMBUSH_USE: {
+        duration: 0.6, volume: 0.09,
+        envelope: { attack: 0.05, decay: 0.25, sustain: 0.3, release: 0.25 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.6, filter: { type: 'bandpass', freq: 4200, freqEnd: 1500, q: 2 } },
+            { kind: 'tone', wave: 'triangle', freq: 'F#4', freqEnd: 'C4', gain: 0.3, vibrato: { rate: 7, depth: 20 } }
+        ],
+        echo: { delay: 0.12, feedback: 0.3, mix: 0.25 }
+    },
+    // Disparo: mola de armadilha estalando + rugido grave
+    AMBUSH_TRIGGER: {
+        duration: 0.8, volume: 0.12, distortion: 0.35,
+        envelope: { attack: 0.001, decay: 0.3, sustain: 0.35, release: 0.35 },
+        layers: [
+            {
+                kind: 'tone', wave: 'square', freq: 'C6', freqEnd: 'C4', sweepTime: 0.09, gain: 0.5, duration: 0.14,
+                envelope: { attack: 0.001, decay: 0.1, sustain: 0, release: 0.04 }
+            },
+            { kind: 'noise', color: 'white', gain: 0.5, duration: 0.04, filter: { type: 'highpass', freq: 3000 } },
+            { kind: 'tone', wave: 'sawtooth', freq: 55, freqEnd: 42, gain: 0.8, delay: 0.08, tremolo: { rate: 26, depth: 0.55 } },
+            { kind: 'noise', color: 'brown', gain: 0.7, delay: 0.08, filter: { type: 'lowpass', freq: 500, freqEnd: 180 } }
+        ],
+        echo: { delay: 0.11, feedback: 0.25, mix: 0.2 }
+    },
+
+    // --- Maldição ----------------------------------------------------------------
+    // Plantada (só quem usou ouve): sussurro maligno sobre um zumbido grave
+    CURSE_USE: {
+        duration: 1.1, volume: 0.1,
+        envelope: { attack: 0.2, decay: 0.25, sustain: 0.55, release: 0.45 },
+        layers: [
+            { kind: 'noise', color: 'pink', gain: 0.6, filter: { type: 'bandpass', freq: 900, freqEnd: 500, q: 8 }, tremolo: { rate: 11, depth: 0.7 } },
+            { kind: 'noise', color: 'white', gain: 0.3, filter: { type: 'bandpass', freq: 2200, freqEnd: 3200, q: 10 }, tremolo: { rate: 7, depth: 0.6 } },
+            { kind: 'tone', wave: 'sawtooth', freq: 'A1', gain: 0.35, detune: 8, filter: { type: 'lowpass', freq: 400 } },
+            { kind: 'tone', wave: 'sine', freq: 'Eb3', freqEnd: 'A2', gain: 0.3, vibrato: { rate: 3, depth: 25 } }
+        ],
+        echo: { delay: 0.3, feedback: 0.5, mix: 0.45 }
+    },
+    // Disparo: risada sombria abafada ("ha" descendo)
+    CURSE_LAUGH: {
+        duration: 0.13, volume: 0.1, distortion: 0.15,
+        envelope: { attack: 0.01, decay: 0.08, sustain: 0.3, release: 0.05 },
+        filter: { type: 'lowpass', freq: 1500, q: 1.5 },
+        layers: [
+            { kind: 'tone', wave: 'sawtooth', freq: 'G3', gain: 0.6, vibrato: { rate: 18, depth: 30 } },
+            { kind: 'noise', color: 'pink', gain: 0.4, filter: { type: 'bandpass', freq: 800, q: 4 } }
+        ],
+        notes: [
+            { at: 0, semitones: 0 }, { at: 0.16, semitones: -1 }, { at: 0.32, semitones: -3 },
+            { at: 0.48, semitones: -5 }, { at: 0.66, semitones: -8, duration: 0.3 }
+        ],
+        echo: { delay: 0.2, feedback: 0.45, mix: 0.4 }
+    },
+    // Correntes: elos metálicos batendo
+    CURSE_CHAINS: {
+        duration: 0.07, volume: 0.1, pitchJitter: 1.5,
+        envelope: { attack: 0.001, decay: 0.05, sustain: 0.1, release: 0.03 },
+        layers: [
+            { kind: 'fm', freq: 'A5', modRatio: 3.3, modIndex: 6, modIndexEnd: 1 },
+            { kind: 'noise', color: 'white', gain: 0.4, filter: { type: 'bandpass', freq: 5000, q: 2 } }
+        ],
+        sequence: { step: 0.06, semitones: [0, -3, 2, -5, 1, -2, 4, -4] },
+        echo: { delay: 0.08, feedback: 0.3, mix: 0.25 }
+    },
+    // Estalo de ossos (a carta racha e o valor cai)
+    CURSE_CRACK: {
+        duration: 0.35, volume: 0.12, distortion: 0.3,
+        envelope: { attack: 0.001, decay: 0.12, sustain: 0.1, release: 0.15 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.9, duration: 0.05, filter: { type: 'bandpass', freq: 1800, q: 1.5 } },
+            { kind: 'noise', color: 'brown', gain: 0.7, duration: 0.15, filter: { type: 'lowpass', freq: 900, freqEnd: 200 } },
+            { kind: 'tone', wave: 'square', freq: 180, freqEnd: 60, gain: 0.3, duration: 0.08 }
+        ],
+        notes: [{ at: 0, semitones: 0 }, { at: 0.07, semitones: 3, volume: 0.6 }]
+    },
+
     // --- Economia (lixeira, moedas, loja) --------------------------------------
     // Moeda caindo: dois "tlins" metálicos curtinhos
     COIN: {

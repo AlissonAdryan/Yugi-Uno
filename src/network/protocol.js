@@ -21,8 +21,8 @@ import { ZONE, ZONE_COUNT, ZONE_OFFSET, mirrorZone, zoneSeat, seatZone } from '.
  * o que garante que eventos e snapshots cheguem na mesma ordem em que o host os gerou.
  */
 
-// v5: cartas Troca de Guarda e Relâmpago (tipos novos: host e convidado precisam da mesma versão)
-export const PROTOCOL_VERSION = 5;
+// v5: Troca de Guarda e Relâmpago. v6: Fantasma, Espelho Sombrio, Emboscada e Maldição (status em 16 bits)
+export const PROTOCOL_VERSION = 6;
 
 export const MSG = Object.freeze({
     SNAPSHOT: 1,
@@ -85,10 +85,28 @@ export const EVENT = Object.freeze({
     // self/opp = 1 se Ataque e Defesa daquele lado trocam; cancelled = 1 se as duas Trocas se anularam.
     // Quem usou a carta não é revelado. Nada trocando e nada anulado = a carta falhou (ninguém tinha Defesa).
     GUARD_SWAP: 24,
-    // { lightningId, seat, targets: CardFace[] } — Relâmpago fulmina a carta da frente e salta em cadeia
-    // (faces reveladas, pois as cartas atingidas podem estar ocultas na Defesa)
-    LIGHTNING_STRIKE: 25
+    // { lightningId, seat, targets: CardFace[], burned: number[] } — Relâmpago fulmina a carta da frente e
+    // salta em cadeia (faces reveladas, pois as cartas atingidas podem estar ocultas na Defesa). Salto que
+    // sobra sem carta no campo inimigo vai na vida: `burned` = cartas queimadas da mão do alvo.
+    LIGHTNING_STRIKE: 25,
+    // { passes: [{ ghostId, seat, throughId, dissolveId, damage, guarded, absorbed? }] } — Fantasma(s) atravessam
+    // a carta da frente (throughId, -1 = campo vazio) e ferem a vida. `seat` de cada passe já vem relativo;
+    // `absorbed` (Escudo) só vai para quem levou o golpe. dissolveId = Espelho que se desfez sem ter o que copiar.
+    GHOST_PASS: 26,
+    // { mirrorId, targetId, seat, copied, result } — result 0 = copiou (valor inimigo + bônus) e venceu;
+    // 1 = paradoxo (Espelho x Espelho / x Block): os dois se estilhaçam
+    MIRROR_CLASH: 27,
+    // { cardId, seat, damage, recoil, guarded, recoilGuarded, absorbed?, recoilAbsorbed? } — Espelho na vida:
+    // `damage` no alvo e `recoil` (o reflexo) no dono. Cada `*Absorbed` só vai para quem o Escudo protegeu.
+    MIRROR_HIT: 28,
+    // { cardId, seat, from, to } — Emboscada disparou: a carta de Defesa (agora na frente) ganhou o bônus
+    AMBUSH: 29,
+    // { seat, cards: [{ id, type?, color?, power?, fromType?, fromColor?, fromPower? }] } — Maldição disparou na mão
+    // do alvo. Só o alvo recebe as faces (antes/depois); quem amaldiçoou recebe só os ids (versos brilhando).
+    CURSE_TRIGGERED: 30
 });
+
+export const MIRROR_RESULT = Object.freeze({ WIN: 0, PARADOX: 1 });
 
 // OVERLOAD: Relâmpago na vida — DIRECT_HIT ganha `burned: number[]` (cartas queimadas da mão do alvo)
 export const HIT_EFFECT = Object.freeze({ NONE: 0, LOCKOUT: 1, HAND_SWAP: 2, OVERLOAD: 3 });
@@ -140,10 +158,11 @@ export function localizeEvent(event, viewerSeat) {
 // 13 u8 descartes próprios | 14 u8 descartes do oponente | 15 u8 resultado
 // 16 u16 cartas no baralho | 18 u16 quantidade de cartas | 20 u16 último input processado (ack)
 // 22 u8 cores que podem ser escolhidas (máscara de colorBit; só chega para quem está escolhendo)
-// 23 u8 status próprio (CONFIG.STATUS: Cura/Escudo/Reviver ativos, Reviver já usado)
+// 23 u8 status próprio, byte baixo (CONFIG.STATUS: Cura/Escudo/Reviver ativos, Reviver já usado...)
 // 24 u8 rodadas restantes do Reviver próprio
 // 25 u16 moedas próprias | 27 u8 rodadas até a loja renovar | 28 u8 custo da renovação paga
-// 29 loja própria: SLOTS x 6 bytes (u8 tipo | u8 cor | i8 poder | u8 preço | u8 preço cheio | u8 flags)
+// 29 u8 status próprio, byte alto (CONFIG.STATUS >= 256, ex.: Maldições esgotadas)
+// 30 loja própria: SLOTS x 6 bytes (u8 tipo | u8 cor | i8 poder | u8 preço | u8 preço cheio | u8 flags)
 // Carta (8 bytes): u16 id | u8 zona relativa | u8 ordem na zona | u8 tipo | u8 cor | i8 poder | u8 marcas
 // (marcas = CONFIG.CARD_FLAGS, só nas próprias cartas)
 // A cor ativa do oponente NÃO é enviada (o uso de Trocar Cor é secreto), nem as cores em comum para
@@ -151,7 +170,7 @@ export function localizeEvent(event, viewerSeat) {
 // (Cura/Escudo/Reviver usados continuam secretos até o efeito aparecer em combate), nem as moedas e
 // a loja do oponente.
 
-const SHOP_OFFSET = 29;
+const SHOP_OFFSET = 30;
 const SHOP_ITEM_BYTES = 6;
 const HEADER_BYTES = SHOP_OFFSET + CONFIG.SHOP.SLOTS * SHOP_ITEM_BYTES;
 const CARD_BYTES = 8;
@@ -322,7 +341,9 @@ export function encodeSnapshot(state, viewerSeat, seq, ackSeq, scratch) {
     scratch.setUint16(18, count);
     scratch.setUint16(20, ackSeq);
     scratch.setUint8(22, viewerChooses ? state.colorChoices : 0);
-    scratch.setUint8(23, state.statusOf(viewerSeat));
+    const status = state.statusOf(viewerSeat);
+    scratch.setUint8(23, status & 0xff);
+    scratch.setUint8(29, (status >> 8) & 0xff);
     scratch.setUint8(24, state.reviveRounds[viewerSeat]);
     scratch.setUint16(25, state.coins[viewerSeat]);
     scratch.setUint8(27, state.shopRoundsLeft);
@@ -391,7 +412,7 @@ export function decodeSnapshot(data, view) {
     view.cardCount = count;
     view.ackSeq = dv.getUint16(20);
     view.colorChoices = dv.getUint8(22);
-    view.selfStatus = dv.getUint8(23);
+    view.selfStatus = dv.getUint8(23) | (dv.getUint8(29) << 8);
     view.reviveRounds = dv.getUint8(24);
     view.coins = dv.getUint16(25);
     view.shopRoundsLeft = dv.getUint8(27);

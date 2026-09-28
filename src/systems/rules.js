@@ -15,7 +15,13 @@ export const CLASH_KIND = Object.freeze({
     A_REVERSES: 4,
     B_REVERSES: 5,
     A_LIGHTNING: 6,
-    B_LIGHTNING: 7
+    B_LIGHTNING: 7,
+    A_GHOST: 8,         // o Fantasma de A atravessa a carta de B
+    B_GHOST: 9,
+    GHOST_BOTH: 10,     // dois Fantasmas: os dois atravessam
+    A_MIRROR: 11,       // o Espelho de A copia o valor de B +1 e vence
+    B_MIRROR: 12,
+    MIRROR_PARADOX: 13  // Espelho x Espelho / Espelho x Block: anulação com estilhaços
 });
 
 /** Cartas sem cor vinculada (+4, Trocar Cor) podem ser jogadas em qualquer cor e não contam no sorteio. */
@@ -104,7 +110,51 @@ export function summonCount(type) {
 export function isConsumable(type) {
     return type === CARD_TYPES.CHANGE_COLOR || type === CARD_TYPES.HEAL
         || type === CARD_TYPES.SHIELD || type === CARD_TYPES.REVIVE
-        || type === CARD_TYPES.PAINT || type === CARD_TYPES.GUARD_SWAP;
+        || type === CARD_TYPES.PAINT || type === CARD_TYPES.GUARD_SWAP
+        || type === CARD_TYPES.AMBUSH || type === CARD_TYPES.CURSE;
+}
+
+/** Categoria da carta para o jogador (painel de informações). */
+export const CARD_CATEGORY = Object.freeze({ ATTACK: 0, SPECIAL_ATTACK: 1, CONSUMABLE: 2 });
+
+/**
+ * Número = carta de ataque; especiais que vão pro Ataque/Defesa (+2, +4, Block, Reverso, Relâmpago,
+ * Fantasma, Espelho) = ataque especial; o resto vai pro slot USE = consumível.
+ * @returns {number} CARD_CATEGORY.*
+ */
+export function cardCategory(type) {
+    if (isConsumable(type)) return CARD_CATEGORY.CONSUMABLE;
+    return type === CARD_TYPES.NUMBER ? CARD_CATEGORY.ATTACK : CARD_CATEGORY.SPECIAL_ATTACK;
+}
+
+/**
+ * Carta que a Maldição pode atingir e o que ela vira (GAME_RULES §6.15). Consumíveis são imunes; um
+ * número já no mínimo não perde nada (a Maldição prefere cartas que de fato sofrem).
+ * @param {number} type
+ * @param {number} power
+ */
+export function isCurseTarget(type, power) {
+    if (isConsumable(type) || type === CARD_TYPES.HIDDEN) return false;
+    if (type === CARD_TYPES.NUMBER) return power > CONFIG.CURSE.MIN_POWER;
+    return true;
+}
+
+/**
+ * Face amaldiçoada: número perde POWER_LOSS (mínimo MIN_POWER); especial é corrompida em Número 1 na
+ * cor da rodada. Escreve em `out` ({ type, color, power }) para não alocar.
+ */
+export function cursedFace(type, color, power, roundColor, out) {
+    const { CURSE } = CONFIG;
+    if (type === CARD_TYPES.NUMBER) {
+        out.type = type;
+        out.color = color;
+        out.power = Math.max(CURSE.MIN_POWER, power - CURSE.POWER_LOSS);
+    } else {
+        out.type = CARD_TYPES.NUMBER;
+        out.color = CONFIG.BASIC_COLORS.includes(roundColor) ? roundColor : color;
+        out.power = CURSE.CORRUPT_POWER;
+    }
+    return out;
 }
 
 /**
@@ -159,6 +209,11 @@ export function consumableBlockReason(type, status) {
         case CARD_TYPES.REVIVE: return (status & STATUS.REVIVE_USED) ? 'REVIVE_ALREADY_USED' : null;
         // Duas Trocas do mesmo jogador se anulariam: a segunda só desperdiçaria a primeira
         case CARD_TYPES.GUARD_SWAP: return (status & STATUS.GUARD_SWAP) ? 'GUARD_SWAP_ALREADY_ACTIVE' : null;
+        case CARD_TYPES.AMBUSH: return (status & STATUS.AMBUSH) ? 'AMBUSH_ALREADY_ACTIVE' : null;
+        // Uma Maldição plantada por vez (a segunda só desperdiçaria a primeira) e no máximo 2 por partida
+        case CARD_TYPES.CURSE:
+            if (status & STATUS.CURSE_SPENT) return 'CURSE_LIMIT_REACHED';
+            return (status & STATUS.CURSE_PENDING) ? 'CURSE_ALREADY_PENDING' : null;
         default: return null;
     }
 }
@@ -250,15 +305,14 @@ export function resolveNumberClash(powerA, powerB) {
 }
 
 /** Especiais que agem no choque de mesa (em vez de lutar com número). */
-function isFieldSpecial(type) {
-    return type === CARD_TYPES.BLOCK || type === CARD_TYPES.REVERSE || type === CARD_TYPES.LIGHTNING;
+export function isFieldSpecial(type) {
+    return type === CARD_TYPES.BLOCK || type === CARD_TYPES.REVERSE || type === CARD_TYPES.LIGHTNING
+        || type === CARD_TYPES.GHOST || type === CARD_TYPES.MIRROR;
 }
 
-/** Efeito do especial `type` quando ele age sozinho contra uma carta comum. */
-function soloClashKind(type, isA) {
-    if (type === CARD_TYPES.BLOCK) return isA ? CLASH_KIND.A_BLOCKS : CLASH_KIND.B_BLOCKS;
-    if (type === CARD_TYPES.REVERSE) return isA ? CLASH_KIND.A_REVERSES : CLASH_KIND.B_REVERSES;
-    return isA ? CLASH_KIND.A_LIGHTNING : CLASH_KIND.B_LIGHTNING;
+/** Choque em que um dos lados age (A_* quando `aActs`, senão B_*). */
+function actor(aActs, kindA, kindB) {
+    return aActs ? kindA : kindB;
 }
 
 /**
@@ -266,23 +320,51 @@ function soloClashKind(type, isA) {
  * Consumíveis que cheguem ao combate via invocação se comportam como número de valor 0 — o efeito
  * deles só existe quando usados no slot USE.
  *
- * Especial contra especial (GAME_RULES §6.2/§6.10): o Relâmpago é mais rápido que o Block (fulmina
- * antes do Block agir), mas o Reverso puxa o Relâmpago junto com a pilha. Block x Reverso e dois
- * especiais iguais se anulam.
+ * Prioridade entre especiais (GAME_RULES §6), avaliada nesta ordem:
+ *   1. Relâmpago: fulmina tudo (Block, Fantasma, Espelho, números) — só o Reverso o puxa antes.
+ *   2. Fantasma: intangível, atravessa tudo o que sobrou (Block, Reverso, Espelho, números).
+ *   3. Reverso: rouba/inverte (inclusive o Espelho, que não tem tempo de copiar). Reverso x Block anula.
+ *   4. Block: anula a pilha; Block x Espelho é paradoxo (os dois se anulam).
+ *   5. Espelho: copia o número +1 e vence; Espelho x Espelho é paradoxo.
+ *   Especiais iguais se anulam.
  */
 export function classifyClash(typeA, typeB) {
-    const aSpecial = isFieldSpecial(typeA);
-    const bSpecial = isFieldSpecial(typeB);
+    const T = CARD_TYPES;
+    if (!isFieldSpecial(typeA) && !isFieldSpecial(typeB)) return CLASH_KIND.NUMBERS;
 
-    if (!aSpecial && !bSpecial) return CLASH_KIND.NUMBERS;
-    if (aSpecial && bSpecial) {
-        if (typeA === CARD_TYPES.LIGHTNING && typeB === CARD_TYPES.BLOCK) return CLASH_KIND.A_LIGHTNING;
-        if (typeB === CARD_TYPES.LIGHTNING && typeA === CARD_TYPES.BLOCK) return CLASH_KIND.B_LIGHTNING;
-        if (typeA === CARD_TYPES.REVERSE && typeB === CARD_TYPES.LIGHTNING) return CLASH_KIND.A_REVERSES;
-        if (typeB === CARD_TYPES.REVERSE && typeA === CARD_TYPES.LIGHTNING) return CLASH_KIND.B_REVERSES;
-        return CLASH_KIND.MUTUAL_DESTRUCTION;
+    // 1. Relâmpago
+    const aL = typeA === T.LIGHTNING;
+    const bL = typeB === T.LIGHTNING;
+    if (aL || bL) {
+        if (aL && bL) return CLASH_KIND.MUTUAL_DESTRUCTION;
+        const other = aL ? typeB : typeA;
+        if (other === T.REVERSE) return actor(!aL, CLASH_KIND.A_REVERSES, CLASH_KIND.B_REVERSES);
+        return actor(aL, CLASH_KIND.A_LIGHTNING, CLASH_KIND.B_LIGHTNING);
     }
-    return aSpecial ? soloClashKind(typeA, true) : soloClashKind(typeB, false);
+    // 2. Fantasma
+    const aG = typeA === T.GHOST;
+    const bG = typeB === T.GHOST;
+    if (aG && bG) return CLASH_KIND.GHOST_BOTH;
+    if (aG || bG) return actor(aG, CLASH_KIND.A_GHOST, CLASH_KIND.B_GHOST);
+    // 3. Reverso
+    const aR = typeA === T.REVERSE;
+    const bR = typeB === T.REVERSE;
+    if (aR || bR) {
+        if (aR && bR) return CLASH_KIND.MUTUAL_DESTRUCTION;
+        if ((aR ? typeB : typeA) === T.BLOCK) return CLASH_KIND.MUTUAL_DESTRUCTION;
+        return actor(aR, CLASH_KIND.A_REVERSES, CLASH_KIND.B_REVERSES);
+    }
+    // 4. Block
+    const aB = typeA === T.BLOCK;
+    const bB = typeB === T.BLOCK;
+    if (aB || bB) {
+        if (aB && bB) return CLASH_KIND.MUTUAL_DESTRUCTION;
+        if ((aB ? typeB : typeA) === T.MIRROR) return CLASH_KIND.MIRROR_PARADOX;
+        return actor(aB, CLASH_KIND.A_BLOCKS, CLASH_KIND.B_BLOCKS);
+    }
+    // 5. Espelho
+    if (typeA === T.MIRROR && typeB === T.MIRROR) return CLASH_KIND.MIRROR_PARADOX;
+    return actor(typeA === T.MIRROR, CLASH_KIND.A_MIRROR, CLASH_KIND.B_MIRROR);
 }
 
 /** Máscara com as 4 cores básicas (ex.: seletor de cor do Pintar, que aceita qualquer uma). */

@@ -36,6 +36,15 @@ export class ServerState {
         this.reviveGuard = new Uint8Array(2);   // 1 = o Reviver já salvou nesta rodada: vida não passa de 1 pra baixo
         this.paintPending = new Uint8Array(2);  // 1 = o jogador usou Pintar e precisa selecionar cartas/cor
         this.guardSwap = new Uint8Array(2);     // 1 = Troca de Guarda armada (dispara no início do combate)
+        // Emboscada: armada / carta a reforçar já na frente (Troca de Guarda levou a Defesa pro Ataque) /
+        // carta reforçada neste combate e seu valor original (o bônus é temporário: some quando ela volta pra mão)
+        this.ambush = new Uint8Array(2);
+        this.ambushTarget = new Int16Array(2).fill(-1);
+        this.ambushBoosted = new Int16Array(2).fill(-1);
+        this.ambushBase = new Int16Array(2);
+        // Maldição: plantada pelo assento (atinge o outro na próxima rodada) e usos na partida
+        this.cursePending = new Uint8Array(2);
+        this.curseUses = new Uint8Array(2);
 
         // Economia (moedas privadas, loja por assento). Itens da loja em SoA: índice = assento * SLOTS + espaço
         this.cardFlags = new Uint8Array(capacity); // CONFIG.CARD_FLAGS por carta (ex.: RESALE)
@@ -82,6 +91,9 @@ export class ServerState {
         this.reviveGuard.fill(0);
         this.paintPending.fill(0);
         this.guardSwap.fill(0);
+        this.clearAmbush();
+        this.cursePending.fill(0);
+        this.curseUses.fill(0);
         this.cardFlags.fill(0);
         this.coins.fill(CONFIG.SHOP.STARTING_COINS);
         this.rerollCost.fill(CONFIG.SHOP.REROLL_BASE_COST);
@@ -118,7 +130,18 @@ export class ServerState {
         if (this.reviveUsed[seat]) bits |= STATUS.REVIVE_USED;
         if (this.paintPending[seat]) bits |= STATUS.PAINT_PENDING;
         if (this.guardSwap[seat]) bits |= STATUS.GUARD_SWAP;
+        if (this.ambush[seat]) bits |= STATUS.AMBUSH;
+        if (this.cursePending[seat]) bits |= STATUS.CURSE_PENDING;
+        if (this.curseUses[seat] >= CONFIG.CURSE.MAX_PER_MATCH) bits |= STATUS.CURSE_SPENT;
         return bits;
+    }
+
+    /** Emboscadas armadas/pendentes voltam ao zero (fim do combate ou nova rodada). */
+    clearAmbush() {
+        this.ambush.fill(0);
+        this.ambushTarget.fill(-1);
+        this.ambushBoosted.fill(-1);
+        this.ambushBase.fill(0);
     }
 
     handSize(seat) {

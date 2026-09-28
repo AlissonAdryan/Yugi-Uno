@@ -19,6 +19,15 @@ export class CardPool {
         this.paintAnim = new Uint8Array(capacity);
         this.paintFrom = new Uint8Array(capacity);
         this.paintT = new Float32Array(capacity);
+        // Estados visuais das cinemáticas (zero = carta normal): opacidade (Fantasma), rachaduras 0..1
+        // (Maldição), brilho 0..1 na cor CARD_GLOW[glowKind] (Maldição/Emboscada), glitch 0..1 (Espelho)
+        // e a tinta do número do Espelho (0 branco, 1 vermelho-sangue do valor copiado)
+        this.alpha = new Float32Array(capacity).fill(1);
+        this.crack = new Float32Array(capacity);
+        this.glow = new Float32Array(capacity);
+        this.glowKind = new Uint8Array(capacity);
+        this.glitch = new Float32Array(capacity);
+        this.numberTint = new Uint8Array(capacity);
 
         // Face e posição lógica (zona relativa) como o jogador local as conhece
         this.zone = new Uint8Array(capacity);
@@ -65,6 +74,7 @@ export class CardPool {
         this.paintable[id] = 0;
         this.paintSelected[id] = 0;
         this.paintAnim[id] = 0;
+        this.resetFx(id);
         this.x[id] = x;
         this.y[id] = y;
         this.targetX[id] = x;
@@ -84,6 +94,17 @@ export class CardPool {
         this.paintable[id] = 0;
         this.paintSelected[id] = 0;
         this.paintAnim[id] = 0;
+        this.resetFx(id);
+    }
+
+    /** Volta a carta ao visual normal (sem transparência, rachadura, brilho ou glitch). */
+    resetFx(id) {
+        this.alpha[id] = 1;
+        this.crack[id] = 0;
+        this.glow[id] = 0;
+        this.glowKind[id] = 0;
+        this.glitch[id] = 0;
+        this.numberTint[id] = 0;
     }
 
     /** Ordena os ids ativos por zIndex (insertion sort estável, sem alocação; dados quase ordenados). */

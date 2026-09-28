@@ -20,7 +20,8 @@ const MESSAGE_MS = 2200;
 // Cor de destaque por tipo (números usam a própria cor da carta)
 const ACCENT = Object.freeze({
     PLUS2: '#b36bff', PLUS4: '#9b59b6', BLOCK: '#ff5b5b', REVERSE: '#1abc9c', CHANGE_COLOR: '#f39c12',
-    HEAL: '#2ecc71', SHIELD: '#00e5ff', REVIVE: '#ffd700', PAINT: '#9b84ff', GUARD_SWAP: '#7fdbff', LIGHTNING: '#fff3a0'
+    HEAL: '#2ecc71', SHIELD: '#00e5ff', REVIVE: '#ffd700', PAINT: '#9b84ff', GUARD_SWAP: '#7fdbff', LIGHTNING: '#fff3a0',
+    GHOST: '#b388ff', MIRROR: '#c9c3dd', AMBUSH: '#39ff14', CURSE: '#c77dff'
 });
 
 // Motivo de recusa do servidor/cliente -> chave de tradução da mensagem

@@ -135,7 +135,7 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 * **Ordem com o Escudo:** O Escudo reduz o golpe primeiro; o Reviver só age se o dano já reduzido ainda for letal.
 
 ### 6.8 Consumíveis dentro de Invocações
-* Qualquer consumível (Trocar Cor, Cura, Escudo, Reviver, Pintar, Troca de Guarda) puxado por um +2/+4 não ativa seu efeito: luta como uma carta de valor 0 e vai para o fundo da pilha recém-puxada (§6.1).
+* Qualquer consumível (Trocar Cor, Cura, Escudo, Reviver, Pintar, Troca de Guarda, Emboscada, Maldição) puxado por um +2/+4 não ativa seu efeito: luta como uma carta de valor 0 e vai para o fundo da pilha recém-puxada (§6.1).
 
 ### 6.9 Consumível - Pintar (Paint)
 * **Visual:** Carta preta com uma paleta de pintura em néon e efeito holográfico animado. Sem cor.
@@ -149,6 +149,7 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 * **Visual:** Carta **com cor** (vermelha, azul, verde ou amarela) com um raio incandescente dentro de um anel de energia, moldura dupla elétrica e um laminado próprio de **tempestade**: véu elétrico varrendo a carta, faíscas e raios vivos que caem das bordas no anel, fazendo a carta piscar.
 * **Jogada:** É jogada no Ataque ou na Defesa como Block e Reverso, obedecendo à cor da rodada. Vale Espelho de Defesa e Combo (Relâmpagos idênticos, mesma cor).
 * **Colisão (Relâmpago em Cadeia):** Ao chocar com a carta da frente inimiga, o Relâmpago a fulmina e o raio **salta para mais uma carta**: a próxima da mesma pilha inimiga (combo/invocação) ou, se não houver, a do topo da **Defesa** inimiga (revelada no instante do golpe). As cartas atingidas são destruídas e o Relâmpago se descarrega (também é destruído). Não há subtração de valores.
+* **Salto na vida:** Se o inimigo só tiver a carta da frente (sem combo e sem Defesa), o salto que sobra atravessa até a vida e **queima 1 carta aleatória da mão** do oponente (uma Sobrecarga parcial, sem dano numérico).
 * **Contra o Block:** O Relâmpago é mais rápido — fulmina o Block antes de ele agir (e ainda salta para a próxima carta). É o counter natural do Block.
 * **Contra o Reverso:** O Reverso age primeiro e **puxa o Relâmpago** junto com a pilha (Roubo Simples ou Inversão Total, §6.3). O Relâmpago passa a lutar pelo dono do Reverso.
 * **Relâmpago x Relâmpago:** Os dois se anulam (destruição mútua).
@@ -158,12 +159,62 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 ### 6.11 Consumível - Troca de Guarda (Guard Swap)
 * **Visual:** Carta preta com uma carta em pé (Ataque) e uma deitada (Defesa) envoltas por duas setas girando. Sem laminado: só a moldura de aço-ciano com cantos chanfrados a diferencia. Sem cor.
 * **Ativação:** Slot USE, durante a Preparação. O oponente só vê o verso explodindo.
-* **Efeito secreto (só quem usou vê):** A energia corre até o campo inimigo, as cartas de lá estremecem e aparece "TROCA DE GUARDA!". Enquanto a preparação durar, uma órbita tracejada com setas gira em volta do Ataque e da Defesa dos dois campos, lembrando que a troca está armada.
-* **Efeito (início do combate, antes de qualquer revelação):** Em **cada campo que tiver Ataque e Defesa**, as duas pilhas **trocam de lugar inteiras** (o combo é preservado): o que estava no Ataque vai para a Defesa e o que estava na Defesa vai para o Ataque. Um campo sem Defesa fica como está. A carta que foi para a Defesa pode voltar para a mão sem nunca ser revelada (§3.3).
-* **Estratégia:** Quem usou sabe da troca e pode esconder a carta forte na Defesa; o oponente que guardou uma carta na Defesa "por segurança" a vê ir para a linha de frente.
+* **Efeito secreto (só quem usou vê):** A energia corre até o campo inimigo, as cartas de lá estremecem e aparece "TROCA DE GUARDA!". Enquanto a preparação durar, uma órbita tracejada com setas gira em volta do Ataque e da Defesa do oponente, lembrando que a troca está armada.
+* **Efeito (início do combate, antes de qualquer revelação):** No **campo do oponente**, se ele tiver Ataque e Defesa, as duas pilhas **trocam de lugar inteiras** (o combo é preservado): o que estava no Ataque vai para a Defesa e o que estava na Defesa vai para o Ataque. Sem Defesa, nada muda. A carta que foi para a Defesa pode voltar para a mão sem nunca ser revelada (§3.3).
+* **Estratégia:** O oponente que guardou uma carta na Defesa "por segurança" a vê ir para a linha de frente, e a carta que ele escolheu para atacar fica escondida atrás.
+* **Com a Emboscada do oponente:** Se ele tiver armado uma Emboscada, o bônus acompanha a antiga Defesa até a frente (§6.14).
 * **Os dois veem a troca:** As pilhas sobem, fazem meia-volta em órbita (girando de pé para deitada e vice-versa) e assentam no slot oposto. Ninguém fica sabendo quem usou a carta.
 * **Duas Trocas se anulam:** Se os dois jogadores usarem Troca de Guarda na mesma rodada, as pilhas giram até se chocarem e voltam ao lugar ("TROCAS ANULADAS!"). Um jogador só pode ter uma Troca armada por vez.
 * **Falha:** Se nenhum campo tiver Defesa, a carta não tem o que trocar e se desfaz.
+
+### 6.12 Fantasma (Ghost) — Especial de Campo
+* **Visual:** Carta **com cor**, de fundo roxo profundo para preto com neblina etérea. No centro, uma silhueta de carta fantasmagórica e translúcida, de bordas desfocadas e base se desfazendo em fiapos, envolta por uma **aura na cor da carta**. Moldura fina de prata envelhecida com cantos se dissolvendo em fumaça. Sem laminado, mas viva: a neblina se move, a silhueta e a aura respiram e a moldura dá uma micro-tremida a cada 2 s.
+* **Jogada:** Ataque ou Defesa, obedecendo à cor da rodada. Vale Espelho de Defesa e Combo (Fantasmas idênticos, mesma cor).
+* **Colisão:** O Fantasma **atravessa** a carta da frente inimiga sem tocá-la (ela fica intacta no campo) e causa **3 de dano fixo** direto na vida do oponente. Depois se dissipa (não volta para a mão). A carta inimiga intacta segue o combate normalmente contra a sua próxima carta, a sua Defesa ou a sua vida.
+* **Atravessa tudo:** pilhas (combo/invocações), **Block** (não bloqueia o que não pode tocar) e **Reverso** (não rouba o que é intangível) — todos ficam no campo.
+* **Contra o Relâmpago:** O Relâmpago fulmina o Fantasma normalmente. É o counter natural.
+* **Contra o Espelho Sombrio:** O Fantasma atravessa e o Espelho, sem o que copiar, se desfaz.
+* **Fantasma x Fantasma:** Os dois atravessam ao mesmo tempo e os dois causam 3 de dano. (Se os dois golpes forem letais ao mesmo tempo, o vencedor é sorteado.)
+* **Na vida:** Com o campo inimigo vazio, causa os mesmos 3 de dano fixo.
+* **Dano de verdade:** Conta como dano numérico: o Escudo reduz à metade, o Reviver segura, conta para a Cura e para a escolha de cor do perdedor.
+* **Cinemática:** Na revelação, uma onda de distorção pulsa da carta. Ao atacar, ela fica translúcida, vira neblina roxa à deriva, atravessa a carta inimiga (que estremece), se recompõe **gigante e translúcida sobre a vida** do oponente e explode em partículas etéreas. Sussurro reverberante ao atravessar e um "whoosh" grave no golpe.
+
+### 6.13 Espelho Sombrio (Dark Mirror) — Especial de Campo Laminado
+* **Visual:** Carta **com cor** de obsidiana polida. No centro, um espelho oval escuro que mostra um "?" distorcido — ou o valor que ele copiou. A cor da carta aparece como **veias de luz** rachando a obsidiana. Moldura dupla prata-negra com **runas gravadas**.
+* **Laminado próprio (espelho sombrio):** um reflexo escuro gira dentro do espelho, véus prata e roxos varrem a carta, as veias pulsam na cor e as runas cintilam como estrelas distantes. Com a carta **sob o seu cursor na mão, as runas acendem todas em roxo**.
+* **Jogada:** Ataque ou Defesa, obedecendo à cor da rodada. Vale Espelho de Defesa e Combo (cada Espelho copia sozinho a carta que enfrentar).
+* **Colisão com número:** Copia o valor inimigo **+1** e vence por 1: a inimiga se estilhaça e o Espelho sobrevive valendo **1**. Contra consumíveis invocados (valor 0) ele também vence. Como cada choque é uma cópia nova, ele vence todas as cartas de número que enfrentar.
+* **Contra especiais:** Espelho x Espelho e Espelho x Block são **paradoxos**: os dois se estilhaçam. O **Reverso** age antes e rouba/inverte a pilha com o Espelho. O **Relâmpago** fulmina o Espelho antes da cópia. Contra o **Fantasma** ele se desfaz. +2/+4 explodem antes; o Espelho copia a carta invocada que de fato lutar.
+* **Dano Direto (vida) — dano espelhado:** Causa na vida do oponente o valor que carrega e, **meio segundo depois, o mesmo dano volta para o próprio dono**. O Escudo e o Reviver de cada lado valem normalmente. Se o golpe já matar o oponente, não há reflexo (a partida acaba). Se o reflexo matar o dono, o oponente vence. Um Espelho que nunca copiou nada (valor 0) não tem o que refletir: só racha e se desfaz. O Espelho não volta para a mão.
+* **Cinemática:** Na revelação, um clarão espelhado com glitch. Na cópia, energia escura corre da carta inimiga até o espelho, o número dela aparece em **vermelho-sangue**, glitch digital, e pulsa para o +1 em branco. O Espelho avança deixando **estilhaços de vidro** flutuando e a inimiga se estilhaça como um espelho quebrado. Na vida, um clarão escuro no alvo e, meio segundo depois, o mesmo clarão no dono, com estilhaços voando de volta.
+
+### 6.14 Consumível - Emboscada (Ambush)
+* **Visual:** Carta preto-esverdeada com teia translúcida verde-tóxica, um **olho semiaberto** num triângulo invertido cercado de arame farpado. O olho vigia em volta e **pisca a cada 3 s**. Moldura fina verde-veneno com garras nos cantos. Sem laminado, sem cor.
+* **Ativação:** Slot USE, durante a Preparação. O oponente só vê o verso explodindo. Quem usou vê fumaça tóxica e fios verdes correndo até o próprio slot de Defesa, que fica com fios espinhosos pulsando em volta enquanto a armadilha estiver armada.
+* **Efeito:** Quando a carta do **topo da sua Defesa entrar na linha de frente** (o seu Ataque caiu, ou houve empate na frente), ela ganha **+3 de força** antes de lutar. Os dois veem a armadilha disparar: fios verdes constringem a carta, o número salta (ex.: 5 → 8) com um clarão verde, partículas sobem em espiral e aparece **"EMBOSCADA!"**.
+* **Temporário:** Se a carta reforçada sobreviver e voltar para a mão, ela nunca fica acima do valor original (ex.: 5+3 = 8 contra um 1 sobra 7, mas volta como 5).
+* **Desperdiçada (em segredo):** Sem Defesa, se o Ataque vencer sozinho ou se o topo da Defesa não for uma carta de número (Block, Reverso, Relâmpago, Fantasma, Espelho, +2, +4).
+* **Combo na Defesa:** Só a carta do topo ganha o +3.
+* **Com a Troca de Guarda do oponente:** Se ele trocar o seu campo, o bônus acompanha a antiga Defesa: ela ganha +3 logo depois da revelação, já na posição de Ataque.
+* **Limite:** Uma Emboscada armada por vez.
+
+### 6.15 Consumível - Maldição (Curse) — Laminado
+* **Visual:** Carta preto-púrpura com crânios e correntes translúcidos no fundo, uma **caveira** de olhos em **fogo roxo** dentro de um pentagrama invertido feito de correntes. Moldura dupla roxa e prata envelhecida com inscrições arcanas. Sem cor.
+* **Laminado próprio (tempestade roxa contida):** névoa roxa rodando dentro da carta, **mini-relâmpagos roxos** piscando de vez em quando, os crânios do fundo girando, o fogo dos olhos tremulando, as inscrições pulsando e correntes balançando nos cantos.
+* **Ativação:** Slot USE, durante a Preparação. O oponente só vê o verso explodindo. Quem usou vê chamas roxas formando uma **caveira gigante translúcida** que se dissipa, ouve um sussurro maligno e passa a ver uma caveira pulsando sobre a vida do oponente até a maldição disparar.
+* **Quando dispara:** No **início da próxima rodada**, logo após o sorteio (ou escolha) da cor e **antes** da preparação abrir — ninguém chega a jogar uma carta prestes a mudar.
+* **Efeito:** Até **2 cartas aleatórias da mão do oponente** entre as que de fato sofrem: **números perdem 3** (mínimo 1); **especiais** (Block, Reverso, +2, +4, Relâmpago, Fantasma, Espelho) são **corrompidas** e viram Número 1 na cor da rodada. **Consumíveis são imunes**, e números que já estão em 1 são poupados. Se a mão não tiver nada que sofra, a Maldição se perde (só quem usou vê).
+* **Revelação:** Os dois veem: a tela escurece em roxo, correntes emergem da borda e envolvem as cartas atingidas, que tremem e racham com fissuras roxas, o valor cai com um estalo de ossos e as correntes se estilhaçam. O oponente vê as próprias cartas mudando; quem amaldiçoou só vê os versos brilhando em roxo, sem saber quais eram. **"MALDIÇÃO!"** aparece em roxo-néon tremendo e gotejando.
+* **Limites:** Uma Maldição plantada por vez (uma segunda carta treme e volta para a mão enquanto a primeira não disparar) e **no máximo 2 por partida** (a terceira treme e volta).
+* **Contra-jogo:** O Pintar pode repintar cartas corrompidas; mãos grandes diluem o impacto.
+
+### 6.16 Prioridade entre Especiais de Campo
+Quando duas especiais se chocam, vale a primeira regra da lista que se aplicar:
+1. **Relâmpago** fulmina qualquer uma (Block, Fantasma, Espelho, números) — só o **Reverso** age antes dele e o puxa. Relâmpago x Relâmpago se anulam.
+2. **Fantasma** atravessa todas as outras (Block, Reverso, Espelho). Fantasma x Fantasma: os dois atravessam.
+3. **Reverso** rouba/inverte (inclusive o Espelho). Reverso x Block e Reverso x Reverso se anulam.
+4. **Block** anula a pilha. Block x Block se anulam; Block x Espelho é paradoxo (os dois se estilhaçam).
+5. **Espelho** copia o número +1 e vence. Espelho x Espelho é paradoxo.
 
 ## 7. Revanche
 - Ao fim da partida, a tela de Vitória/Derrota oferece o botão **Revanche**, acima de "Voltar ao Menu".
@@ -182,7 +233,7 @@ Cada jogador tem sua própria carteira de **moedas**, visível só para ele (ao 
 ### 8.2 Lixeira (vender cartas)
 - Acima da vida de cada jogador existe uma **lixeira**. Durante a preparação (antes de finalizar o turno), arraste uma carta da mão até ela para destruí-la e receber moedas.
 - **Cartas de número** valem o seu **valor atual** em moedas (um 7 vale 7).
-- **Cartas especiais** têm valor próprio, configurável: +2 = 2, +4 = 4, Block = 3, Reverso = 3, Trocar Cor = 2, Cura = 2, Escudo = 2, Reviver = 5, Pintar = 3, Troca de Guarda = 3, Relâmpago = 5.
+- **Cartas especiais** têm valor próprio, configurável: +2 = 2, +4 = 4, Block = 3, Reverso = 3, Trocar Cor = 2, Cura = 2, Escudo = 2, Reviver = 5, Pintar = 3, Troca de Guarda = 3, Relâmpago = 5, Fantasma = 3, Espelho Sombrio = 5, Emboscada = 2, Maldição = 5.
 - **Cartas compradas na loja revendem pela metade** (arredondado para baixo). Sem isso, comprar um 9 por 8 e vendê-lo por 9 daria dinheiro infinito.
 - Ao passar a carta sobre a lixeira, aparece quanto ela vale. O oponente vê o verso da carta indo para a lixeira dele, mas não o valor.
 - **Proteção contra travar o turno:** como Finalizar Turno exige uma carta no Ataque, **não é possível vender a última carta que ainda pode atacar nesta rodada** (carta não consumível na cor da rodada, contando mão, Ataque e Defesa). Ao passar essa carta sobre a lixeira, a tampa tranca em vermelho com o aviso "Última carta que pode atacar!"; se soltar, a lixeira treme e a carta volta para a mão. Quem já não tinha nenhuma opção de Ataque continua podendo vender (não piora nada).
