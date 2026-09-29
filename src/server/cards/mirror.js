@@ -1,6 +1,6 @@
 import { CONFIG } from '../../config/constants.js';
 import { EVENT, MIRROR_RESULT } from '../../network/protocol.js';
-import { SEAT } from '../../utils/zones.js';
+import { SEAT, ZONE_OFFSET } from '../../utils/zones.js';
 import { reviveSave } from './revive.js';
 
 const { TIMINGS } = CONFIG;
@@ -55,23 +55,25 @@ export async function resolveMirrorDirectHit(combat, attacker, target, cardId) {
     let copiedHandCardId = -1;
     let copiedValue = 0;
 
-    // Se o Espelho não tem valor copiado (campo vazio), copia de uma carta aleatória da mão
-    if (raw === 0) {
-        const hand = Array.from(s.zone(target, combat.engine.ZONE_OFFSET.HAND));
-        const numericCards = hand.filter(id => s.type[id] === CONFIG.CARD_TYPES.NUMBER);
-
-        if (numericCards.length > 0) {
-            copiedHandCardId = numericCards[Math.floor(Math.random() * numericCards.length)];
-            copiedValue = Math.max(0, s.power[copiedHandCardId]);
-            const bonus = CONFIG.MIRROR.COPY_BONUS;
-            raw = copiedValue + bonus;
-            console.log(`[ServerCombat] Espelho de P${attacker + 1} encontrou alvo vazio. Copiando da mão a carta ${copiedHandCardId} (valor ${copiedValue} + ${bonus} = ${raw}) antes de atacar.`);
-        } else {
-            raw = 1;
-            console.log(`[ServerCombat] Espelho de P${attacker + 1} encontrou alvo vazio e oponente sem números. Dano fixo de 1.`);
-        }
-        s.power[cardId] = raw; // Salva o novo poder
+    // Sempre tenta copiar de uma carta aleatória da mão do alvo antes de atacar a vida
+    const hand = Array.from(s.zone(target, ZONE_OFFSET.HAND));
+    const numericCards = hand.filter(id => s.type[id] === CONFIG.CARD_TYPES.NUMBER);
+    
+    if (numericCards.length > 0) {
+        copiedHandCardId = numericCards[Math.floor(Math.random() * numericCards.length)];
+        copiedValue = Math.max(0, s.power[copiedHandCardId]);
+        const bonus = CONFIG.MIRROR.COPY_BONUS;
+        raw = copiedValue + bonus;
+        console.log(`[ServerCombat] Espelho de P${attacker + 1} vai atacar a vida. Copiando da mão a carta ${copiedHandCardId} (valor ${copiedValue} + ${bonus} = ${raw}).`);
+    } else {
+        // Se o oponente não tiver nenhuma carta numérica na mão, o dano vai para 1,
+        // a não ser que ele já tivesse um valor acumulado maior (ex: derrotou alguém).
+        // A regra diz "Se o oponente não tiver carta numérica, então ele mantem em 1 mesmo o dano que vai causar",
+        // o que implica forçar para 1.
+        raw = 1;
+        console.log(`[ServerCombat] Espelho de P${attacker + 1} vai atacar a vida e oponente sem números. Dano fixo de 1.`);
     }
+    s.power[cardId] = raw; // Salva o novo poder
 
     // Calcula os dois golpes, emite e só então aplica (o snapshot nunca mostra a vida caindo antes da animação)
     const hit = combat.previewLifeHit(target, raw);
