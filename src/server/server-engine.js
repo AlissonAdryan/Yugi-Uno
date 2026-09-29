@@ -102,7 +102,8 @@ export class ServerEngine {
             }
         }
 
-        const common = s.handColorMask(SEAT.P1, colorBit) & s.handColorMask(SEAT.P2, colorBit);
+        let common = s.handColorMask(SEAT.P1, colorBit) & s.handColorMask(SEAT.P2, colorBit);
+        
         if (common !== 0) {
             // Só abre a escolha se houver o que escolher; com uma única cor em comum, ela já é a cor
             if (s.colorChooser >= 0 && colorCount(common) > 1) {

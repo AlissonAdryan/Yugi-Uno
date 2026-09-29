@@ -152,9 +152,10 @@ export const EN = {
     "FUSION_ALERT": "FUSION!",
     "CURSE_ALERT": "CURSE!",
     "CARD_INFO_OPEN": "Card info",
-    "CARD_INFO_HINT": "Drop a card here to see what it does",
+    "CARD_INFO_HINT": "View description",
     "CARD_INFO_FOIL": "Foil",
     "CATEGORY_ATTACK": "Attack card",
     "CATEGORY_SPECIAL_ATTACK": "Special attack",
-    "CATEGORY_CONSUMABLE": "Consumable"
+    "CATEGORY_CONSUMABLE": "Consumable",
+    "DISCARD_CONFIRM": "CONFIRM DISCARD"
 };

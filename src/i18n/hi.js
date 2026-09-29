@@ -149,9 +149,10 @@ export const HI = {
     "FUSION_ALERT": "संलयन!",
     "CURSE_ALERT": "श्राप!",
     "CARD_INFO_OPEN": "कार्ड जानकारी",
-    "CARD_INFO_HINT": "कार्ड यहाँ छोड़ें और देखें कि वह क्या करता है",
+    "CARD_INFO_HINT": "विवरण देखें",
     "CARD_INFO_FOIL": "फ़ॉइल",
     "CATEGORY_ATTACK": "अटैक कार्ड",
     "CATEGORY_SPECIAL_ATTACK": "विशेष अटैक",
-    "CATEGORY_CONSUMABLE": "उपभोग्य"
+    "CATEGORY_CONSUMABLE": "उपभोग्य",
+    "DISCARD_CONFIRM": "डिस्कार्ड की पुष्टि करें"
 };

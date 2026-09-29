@@ -149,9 +149,10 @@ export const ES = {
     "FUSION_ALERT": "¡FUSIÓN!",
     "CURSE_ALERT": "¡MALDICIÓN!",
     "CARD_INFO_OPEN": "Información de la carta",
-    "CARD_INFO_HINT": "Suelta una carta aquí para ver qué hace",
+    "CARD_INFO_HINT": "Ver descripción",
     "CARD_INFO_FOIL": "Laminada",
     "CATEGORY_ATTACK": "Carta de ataque",
     "CATEGORY_SPECIAL_ATTACK": "Ataque especial",
-    "CATEGORY_CONSUMABLE": "Consumible"
+    "CATEGORY_CONSUMABLE": "Consumible",
+    "DISCARD_CONFIRM": "CONFIRMAR DESCARTE"
 };

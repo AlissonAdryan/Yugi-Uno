@@ -149,9 +149,10 @@ export const KO = {
     "FUSION_ALERT": "융합!",
     "CURSE_ALERT": "저주!",
     "CARD_INFO_OPEN": "카드 정보",
-    "CARD_INFO_HINT": "카드를 여기에 놓으면 효과를 볼 수 있습니다",
+    "CARD_INFO_HINT": "설명 보기",
     "CARD_INFO_FOIL": "포일",
     "CATEGORY_ATTACK": "공격 카드",
     "CATEGORY_SPECIAL_ATTACK": "특수 공격",
-    "CATEGORY_CONSUMABLE": "소모품"
+    "CATEGORY_CONSUMABLE": "소모품",
+    "DISCARD_CONFIRM": "버리기 확인"
 };

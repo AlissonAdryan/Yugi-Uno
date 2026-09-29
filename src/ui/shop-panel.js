@@ -382,7 +382,7 @@ export class ShopPanel {
     /** Backbuffer das prévias bate 1:1 com os pixels reais (escala da HUD x densidade da tela). */
     resizeCanvases() {
         const dpr = Math.min(window.devicePixelRatio || 1, CONFIG.VIEW.MAX_DPR);
-        this.cardDensity = (CARD_CSS_WIDTH / CARD_UNITS.WIDTH) * this.viewport.uiScale * dpr;
+        this.cardDensity = (CARD_CSS_WIDTH / CARD_UNITS.WIDTH) * (this.viewport.uiScale * 1.25) * dpr;
         for (const s of this.slots) {
             s.canvas.width = Math.round(CARD_UNITS.WIDTH * this.cardDensity);
             s.canvas.height = Math.round(CARD_UNITS.HEIGHT * this.cardDensity);

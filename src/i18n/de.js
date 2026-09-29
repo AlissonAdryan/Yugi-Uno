@@ -149,9 +149,10 @@ export const DE = {
     "FUSION_ALERT": "FUSION!",
     "CURSE_ALERT": "FLUCH!",
     "CARD_INFO_OPEN": "Karteninfo",
-    "CARD_INFO_HINT": "Lege eine Karte hier ab, um zu sehen, was sie macht",
+    "CARD_INFO_HINT": "Beschreibung anzeigen",
     "CARD_INFO_FOIL": "Folie",
     "CATEGORY_ATTACK": "Angriffskarte",
     "CATEGORY_SPECIAL_ATTACK": "Spezialangriff",
-    "CATEGORY_CONSUMABLE": "Verbrauchbar"
+    "CATEGORY_CONSUMABLE": "Verbrauchbar",
+    "DISCARD_CONFIRM": "ABWERFEN BESTÄTIGEN"
 };

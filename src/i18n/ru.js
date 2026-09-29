@@ -149,9 +149,10 @@ export const RU = {
     "FUSION_ALERT": "СЛИЯНИЕ!",
     "CURSE_ALERT": "ПРОКЛЯТИЕ!",
     "CARD_INFO_OPEN": "Информация о карте",
-    "CARD_INFO_HINT": "Перетащите карту сюда, чтобы узнать, что она делает",
+    "CARD_INFO_HINT": "Показать описание",
     "CARD_INFO_FOIL": "Голографическая",
     "CATEGORY_ATTACK": "Карта атаки",
     "CATEGORY_SPECIAL_ATTACK": "Особая атака",
-    "CATEGORY_CONSUMABLE": "Расходник"
+    "CATEGORY_CONSUMABLE": "Расходник",
+    "DISCARD_CONFIRM": "ПОДТВЕРДИТЬ СБРОС"
 };

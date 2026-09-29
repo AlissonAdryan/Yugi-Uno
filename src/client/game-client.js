@@ -107,6 +107,12 @@ export class GameClient {
         this.inputSeq = 0;
         this.pendingInputs = [];
         this.paintSelection = [];
+        this.discardSelection = [];
+        
+        this.discardConfirmBtn = document.getElementById('discard-confirm-btn');
+        if (this.discardConfirmBtn) {
+            this.discardConfirmBtn.addEventListener('click', () => this.confirmDiscard());
+        }
 
         network.on(NET_EVENT.SERVER_MESSAGE, (msg) => this.enqueue(msg));
     }
@@ -454,6 +460,17 @@ export class GameClient {
     refreshControls() {
         const v = this.view;
         const phase = v.phase;
+        
+        if (phase !== GAME_STATES.FORCED_DISCARDING) {
+            if (this.discardSelection.length > 0) {
+                for (const id of this.discardSelection) {
+                    this.pool.paintSelected[id] = 0;
+                    this.animator.to(id, { hoverOffsetY: 0 }, ANIM.HOVER, Easing.QuadOut, null, null, this.pool);
+                }
+                this.discardSelection = [];
+            }
+            if (this.discardConfirmBtn) this.discardConfirmBtn.hidden = true;
+        }
         const selfReady = this.isSelfReady();
         const oppReady = v.hasFlag(SNAPSHOT_FLAGS.OPP_READY);
         const discardsLeft = v.selfDiscards - this.countPending(INPUT.DISCARD);
@@ -606,6 +623,20 @@ export class GameClient {
         this.hoveredCard = -1;
     }
 
+    confirmDiscard() {
+        if (!this.isDiscarding() || this.view.phase !== GAME_STATES.FORCED_DISCARDING) return;
+        if (this.discardSelection.length !== this.view.selfDiscards) return;
+        
+        for (const id of this.discardSelection) {
+            this.sendInput(INPUT.DISCARD, id);
+            this.animator.to(id, { hoverOffsetY: 0, scale: 0.7 }, ANIM.HOVER, Easing.QuadOut, null, null, this.pool);
+            this.pool.paintSelected[id] = 0;
+        }
+        this.discardSelection = [];
+        if (this.discardConfirmBtn) this.discardConfirmBtn.hidden = true;
+        this.audio.play(SFX.CLICK);
+    }
+
     onCardPress(id) {
         const pool = this.pool;
         const zone = pool.zone[id];
@@ -626,12 +657,34 @@ export class GameClient {
 
         if (this.isDiscarding()) {
             if (zone !== ZONE.SELF_HAND) return false;
-            for (const p of this.pendingInputs) if (p.t === INPUT.DISCARD && p.id === id) return false;
-            console.log(`[Client] Descartando carta ${id}.`);
-            this.audio.play(SFX.HOVER);
-            this.sendInput(INPUT.DISCARD, id);
-            this.animator.to(id, { scale: 0.7 }, ANIM.HOVER, Easing.QuadOut, null, null, pool);
-            return false;
+            if (this.view.phase === GAME_STATES.FORCED_DISCARDING) {
+                const idx = this.discardSelection.indexOf(id);
+                if (idx >= 0) {
+                    this.discardSelection.splice(idx, 1);
+                    pool.paintSelected[id] = 0;
+                    this.animator.to(id, { hoverOffsetY: 0 }, ANIM.HOVER, Easing.QuadOut, null, null, pool);
+                    this.audio.play(SFX.HOVER);
+                } else {
+                    if (this.discardSelection.length < this.view.selfDiscards) {
+                        this.discardSelection.push(id);
+                        pool.paintSelected[id] = 1;
+                        this.animator.to(id, { hoverOffsetY: -30 }, ANIM.HOVER, Easing.QuadOut, null, null, pool);
+                        this.audio.play(SFX.HOVER);
+                    }
+                }
+                
+                if (this.discardConfirmBtn) {
+                    this.discardConfirmBtn.hidden = (this.discardSelection.length !== this.view.selfDiscards);
+                }
+                return false;
+            } else {
+                for (const p of this.pendingInputs) if (p.t === INPUT.DISCARD && p.id === id) return false;
+                console.log(`[Client] Descartando carta ${id}.`);
+                this.audio.play(SFX.HOVER);
+                this.sendInput(INPUT.DISCARD, id);
+                this.animator.to(id, { scale: 0.7 }, ANIM.HOVER, Easing.QuadOut, null, null, pool);
+                return false;
+            }
         }
 
         if (!this.canPrepare()) return false;

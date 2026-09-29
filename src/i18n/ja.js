@@ -149,9 +149,10 @@ export const JA = {
     "FUSION_ALERT": "融合！",
     "CURSE_ALERT": "呪い！",
     "CARD_INFO_OPEN": "カード情報",
-    "CARD_INFO_HINT": "カードをここにドロップすると効果が見られます",
+    "CARD_INFO_HINT": "説明を見る",
     "CARD_INFO_FOIL": "ホロ",
     "CATEGORY_ATTACK": "アタックカード",
     "CATEGORY_SPECIAL_ATTACK": "特殊アタック",
-    "CATEGORY_CONSUMABLE": "消耗品"
+    "CATEGORY_CONSUMABLE": "消耗品",
+    "DISCARD_CONFIRM": "捨てるのを確認"
 };

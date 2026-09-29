@@ -149,9 +149,10 @@ export const TR = {
     "FUSION_ALERT": "FÜZYON!",
     "CURSE_ALERT": "LANET!",
     "CARD_INFO_OPEN": "Kart bilgisi",
-    "CARD_INFO_HINT": "Ne yaptığını görmek için bir kartı buraya bırak",
+    "CARD_INFO_HINT": "Açıklamayı gör",
     "CARD_INFO_FOIL": "Parlak",
     "CATEGORY_ATTACK": "Saldırı kartı",
     "CATEGORY_SPECIAL_ATTACK": "Özel saldırı",
-    "CATEGORY_CONSUMABLE": "Tüketilebilir"
+    "CATEGORY_CONSUMABLE": "Tüketilebilir",
+    "DISCARD_CONFIRM": "ATMAYI ONAYLA"
 };

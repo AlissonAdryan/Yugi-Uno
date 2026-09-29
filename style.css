@@ -162,23 +162,32 @@ body {
  * `zoom` escala tamanho, fontes e distâncias fixas juntos; percentuais de centralização continuam válidos.
  */
 .hp-container,
-#end-turn-btn,
+#discard-confirm-btn,
 #phase-message,
 #color-alert,
 .damage-text,
 .connection-banner,
 .game-over-screen > *,
-.menu-content,
 .room-card,
-.settings-btn,
-.shop-btn,
-.shop-float,
-.settings-content,
 .rematch-notice,
-.card-info-zone,
-.card-info-float,
 .color-picker-float {
     zoom: var(--ui-scale, 1);
+}
+
+/* Elementos escalados a 1.25x do padrão (a pedido do jogador) */
+.shop-float,
+.card-info-zone {
+    zoom: calc(var(--ui-scale, 1) * 1.25);
+}
+
+/* Elementos escalados a 1.5x do padrão (a pedido do jogador) */
+#end-turn-btn,
+.menu-content,
+.settings-btn,
+.shop-btn,
+.settings-content,
+.card-info-float {
+    zoom: calc(var(--ui-scale, 1) * 1.5);
 }
 
 /* Celular em pé: pede para girar (o jogo é pensado na horizontal) */
@@ -602,6 +611,19 @@ body {
     color: #999;
     box-shadow: none;
     cursor: not-allowed;
+}
+
+#discard-confirm-btn {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    pointer-events: auto;
+    z-index: 1000;
+}
+
+#discard-confirm-btn:hover:not(:disabled) {
+    transform: translate(-50%, -50%) scale(1.1);
 }
 
 /* Efeito Vinheta de Sangue (Dano) */
@@ -1741,7 +1763,7 @@ input:focus-visible + .slider {
 
 .shop-btn {
     position: absolute;
-    top: 92px;
+    top: 110px;
     right: 16px;
     width: 64px;
     height: 64px;
@@ -2607,7 +2629,6 @@ input:focus-visible + .slider {
     color: rgba(215, 200, 240, 0.65);
 }
 
-/* Telas muito baixas: a janela rola em vez de sair da tela */
 @media (max-height: 420px) {
     .shop-panel { max-height: calc(100vh / var(--ui-scale, 1) - 16px); overflow-y: auto; }
 }

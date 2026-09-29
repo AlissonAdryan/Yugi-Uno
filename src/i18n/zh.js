@@ -149,9 +149,10 @@ export const ZH = {
     "FUSION_ALERT": "融合！",
     "CURSE_ALERT": "诅咒！",
     "CARD_INFO_OPEN": "卡牌信息",
-    "CARD_INFO_HINT": "将卡牌拖到这里查看它的作用",
+    "CARD_INFO_HINT": "查看说明",
     "CARD_INFO_FOIL": "闪卡",
     "CATEGORY_ATTACK": "攻击牌",
     "CATEGORY_SPECIAL_ATTACK": "特殊攻击",
-    "CATEGORY_CONSUMABLE": "消耗品"
+    "CATEGORY_CONSUMABLE": "消耗品",
+    "DISCARD_CONFIRM": "确认弃牌"
 };

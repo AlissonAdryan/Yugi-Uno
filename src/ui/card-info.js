@@ -139,7 +139,7 @@ export class CardInfoPanel {
     /** Resolução da prévia = tamanho em CSS x escala da HUD x densidade da tela (nítida em qualquer zoom). */
     resizeCanvas() {
         const dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
-        this.density = (CARD_CSS_WIDTH / CARD_DIMENSIONS.WIDTH) * this.viewport.uiScale * dpr;
+        this.density = (CARD_CSS_WIDTH / CARD_DIMENSIONS.WIDTH) * (this.viewport.uiScale * 1.5) * dpr;
         const w = Math.round(CARD_DIMENSIONS.WIDTH * this.density);
         const h = Math.round(CARD_DIMENSIONS.HEIGHT * this.density);
         if (this.canvas.width !== w) this.canvas.width = w;

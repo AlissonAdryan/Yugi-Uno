@@ -36,8 +36,8 @@ export class Viewport {
         this.scale = Math.min(w / VIEW.DESIGN_WIDTH, h / VIEW.DESIGN_HEIGHT);
         this.width = w / this.scale;
         this.height = h / this.scale;
-        this.uiScale = Math.min(VIEW.UI_SCALE_MAX, Math.max(VIEW.UI_SCALE_MIN, this.scale));
-        const trashCorrection = this.scale / this.uiScale;
+        this.uiScale = this.scale;
+        const trashCorrection = 1.0;
 
         document.documentElement.style.setProperty('--ui-scale', this.uiScale.toFixed(4));
         document.documentElement.style.setProperty('--scene-scale', this.scale.toFixed(4));

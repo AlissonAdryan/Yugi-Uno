@@ -149,9 +149,10 @@ export const IT = {
     "FUSION_ALERT": "FUSIONE!",
     "CURSE_ALERT": "MALEDIZIONE!",
     "CARD_INFO_OPEN": "Info carta",
-    "CARD_INFO_HINT": "Rilascia una carta qui per vedere cosa fa",
+    "CARD_INFO_HINT": "Vedi descrizione",
     "CARD_INFO_FOIL": "Olografica",
     "CATEGORY_ATTACK": "Carta d’attacco",
     "CATEGORY_SPECIAL_ATTACK": "Attacco speciale",
-    "CATEGORY_CONSUMABLE": "Consumabile"
+    "CATEGORY_CONSUMABLE": "Consumabile",
+    "DISCARD_CONFIRM": "CONFERMA SCARTO"
 };

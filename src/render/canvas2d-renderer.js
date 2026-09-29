@@ -639,8 +639,18 @@ export class Canvas2DRenderer {
                 break;
             default: {
                 const label = power >= 0 && power < NUMBER_LABELS.length ? power : 0;
+                const txt = NUMBER_LABELS[label];
                 ctx.font = '50px Righteous';
-                ctx.fillText(NUMBER_LABELS[label], w / 2, h / 2 - 10);
+                ctx.fillText(txt, w / 2, h / 2 - 10);
+                if (txt === '6' || txt === '9') {
+                    ctx.beginPath();
+                    ctx.moveTo(w / 2 - 14, h / 2 + 12);
+                    ctx.lineTo(w / 2 + 14, h / 2 + 12);
+                    ctx.lineWidth = 6;
+                    ctx.lineCap = 'round';
+                    ctx.strokeStyle = '#fff';
+                    ctx.stroke();
+                }
                 ctx.font = '20px Righteous';
                 ctx.fillText(HEART_LABELS[label], w - 30, h - 20);
             }
