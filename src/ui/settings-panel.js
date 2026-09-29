@@ -64,7 +64,8 @@ export class SettingsPanel {
 
         for (const group of this.groups) {
             const key = group.buses[0];
-            const percent = saved && Number.isFinite(saved[key]) ? Math.min(100, Math.max(0, saved[key])) : 100;
+            const defaultValue = key === BUS.MASTER ? 50 : 100;
+            const percent = saved && Number.isFinite(saved[key]) ? Math.min(100, Math.max(0, saved[key])) : defaultValue;
             group.input.value = String(percent);
             this.apply(group, percent);
         }

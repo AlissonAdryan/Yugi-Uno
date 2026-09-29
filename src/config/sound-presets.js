@@ -701,7 +701,7 @@ export const SOUND_PRESETS = Object.freeze({
     },
     // Loja abrindo: sininho de porta + brilho subindo
     SHOP_OPEN: {
-        bus: BUS.UI, duration: 0.5, volume: 0.09,
+        bus: BUS.UI, duration: 0.3, volume: 0.09,
         envelope: { attack: 0.005, decay: 0.2, sustain: 0.3, release: 0.25 },
         layers: [
             { kind: 'fm', freq: 'G6', modRatio: 3.5, modIndex: 2.5, modIndexEnd: 0 },
@@ -872,7 +872,7 @@ export const SOUND_PRESETS = Object.freeze({
 /** Nomes dos sons (SFX.CLASH === 'CLASH'): evita strings soltas nas chamadas. */
 export const SFX = Object.freeze(Object.fromEntries(Object.keys(SOUND_PRESETS).map((name) => [name, name])));
 
-/** Nomes dos samples gravados registrados em CONFIG.AUDIO.SAMPLES (SAMPLES.CARD_HOVER === 'CARD_HOVER'). */
+/** Nomes dos samples gravados registrados em CONFIG.AUDIO.SAMPLES (SAMPLES.CARD_MOVE === 'CARD_MOVE'). */
 export const SAMPLES = Object.freeze(
     Object.fromEntries(Object.keys(CONFIG.AUDIO.SAMPLES).map((name) => [name, name]))
 );

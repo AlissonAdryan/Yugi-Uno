@@ -799,7 +799,7 @@ export class GameClient {
     sellCard(id) {
         const pool = this.pool;
         console.log(`[Client] Vendendo a carta ${id} na lixeira.`);
-        this.audio.playSample(SAMPLES.CARD_HOVER);
+        this.audio.playSample(SAMPLES.CARD_MOVE);
         pool.zIndex[id] = DRAG_Z_INDEX;
         this.animator.to(id, { scale: 0.8 }, 150, Easing.QuadOut, null, null, pool);
         this.sendInput(INPUT.SELL_CARD, id, CLIENT_ZONE.TRASH, 0);
@@ -819,7 +819,7 @@ export class GameClient {
             pool.paintSelected[id] = 1;
             this.particles.emitBurst(pool.x[id] + HALF_W, pool.y[id] + HALF_H, '#9b84ff', 14, 150, PARTICLE_TYPES.STAR);
         }
-        this.audio.playSample(SAMPLES.CARD_HOVER);
+        this.audio.playSample(SAMPLES.CARD_MOVE);
         // relayout -> refreshControls: atualiza a instrução, os contornos e abre/fecha o seletor de cor
         this.relayout();
     }
@@ -941,7 +941,7 @@ export class GameClient {
         }
 
         if (zone === ZONE.SELF_USE) {
-            this.audio.playSample(SAMPLES.CARD_HOVER);
+            this.audio.playSample(SAMPLES.CARD_MOVE);
             this.sendInput(INPUT.PLAY_CONSUMABLE, id, ZONE.SELF_USE, 0);
             return;
         }
@@ -951,7 +951,7 @@ export class GameClient {
             return;
         }
 
-        this.audio.playSample(SAMPLES.CARD_HOVER);
+        this.audio.playSample(SAMPLES.CARD_MOVE);
         // Previsão otimista: a carta já vai para o slot; o snapshot com o ack confirma ou corrige
         this.sendInput(INPUT.PLAY_CARD, id, zone, 0, zone);
     }

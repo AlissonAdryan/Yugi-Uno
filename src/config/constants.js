@@ -554,20 +554,20 @@ export const CONFIG = Object.freeze({
         // adicione .m4a para iOS < 18.4), `volume` própria da faixa (0..1, multiplica com o barramento MUSIC).
         MUSIC: Object.freeze({
             MAIN_THEME: Object.freeze({
-                sources: Object.freeze(['assets/audio/music/main_theme.ogg']),
-                volume: 0.1 // -90% do volume original da faixa
+                sources: Object.freeze(['assets/audio/music/main_theme.opus']),
+                volume: 0.5 // -90% do volume original da faixa
             }),
             SHOP_THEME: Object.freeze({
-                sources: Object.freeze(['assets/audio/music/shop_theme.ogg']),
-                volume: 0.1,
+                sources: Object.freeze(['assets/audio/music/shop_theme.opus']),
+                volume: 0.5,
                 optional: true
             })
         }),
         // Efeitos gravados (arquivo curto, decodificado inteiro em memória): `sources` + `volume` padrão
         // do sample (0..1, multiplica com o barramento SFX; playSample(..., { volume }) sobrescreve por disparo).
         SAMPLES: Object.freeze({
-            CARD_HOVER: Object.freeze({
-                sources: Object.freeze(['assets/audio/sfx/card_hover.ogg']),
+            CARD_MOVE: Object.freeze({
+                sources: Object.freeze(['assets/audio/sfx/card_move.opus']),
                 volume: 0.3 // -30% do volume original do arquivo
             })
         })
