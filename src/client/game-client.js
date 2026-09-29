@@ -18,7 +18,7 @@ import { ShopPanel } from '../ui/shop-panel.js';
 import { CardInfoPanel } from '../ui/card-info.js';
 import { CLIENT_ZONE, ZONE } from '../utils/zones.js';
 import {
-    EVENT, INPUT, MSG, SNAPSHOT_FLAGS, SnapshotView, decodeSnapshot, isBinaryMessage, isSeqAfter
+    EVENT, INPUT, MSG, SNAPSHOT_FLAGS, SNAPSHOT_FLAGS2, SnapshotView, decodeSnapshot, isBinaryMessage, isSeqAfter
 } from '../network/protocol.js';
 import { NET_EVENT } from '../network/network-system.js';
 import { i18n } from '../i18n/index.js';
@@ -313,6 +313,8 @@ export class GameClient {
         this.scene.ambushArmed = (v.selfStatus & CONFIG.STATUS.AMBUSH) !== 0;
         this.board.setLocked(ZONE.SELF_DEFENSE, v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED));
         this.board.setLocked(ZONE.OPP_DEFENSE, v.hasFlag(SNAPSHOT_FLAGS.OPP_DEFENSE_LOCKED));
+        this.board.setLocked(ZONE.SELF_USE, (v.flags2 & SNAPSHOT_FLAGS2.SELF_USE_LOCKED) !== 0);
+        this.board.setLocked(ZONE.OPP_USE, (v.flags2 & SNAPSHOT_FLAGS2.OPP_USE_LOCKED) !== 0);
         this.hud.setHP(v.selfHP, v.oppHP);
         this.hud.setSelfStatus(v.selfStatus, v.reviveRounds);
         this.hud.syncBackground(v.selfColor);

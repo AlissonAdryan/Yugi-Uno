@@ -45,11 +45,13 @@ export const FR = {
     // Messages
     "WAITING_OPPONENT": "EN ATTENTE DE L'ADVERSAIRE...",
     "DEFENSE_LOCKED": "VOTRE DÉFENSE EST VERROUILLÉE CE TOUR !",
+    "USE_SLOT_LOCKED": "VOTRE EMPLACEMENT CONSOMMABLE EST VERROUILLÉ CE TOUR !",
     "HAND_LIMIT": "LIMITE DE MAIN ! DONNEZ {n} CARTE(S) À L'ADVERSAIRE",
     "OPPONENT_DISCARDING": "L'ADVERSAIRE DÉFAUSSE...",
     "NO_COLOR_DISCARD": "AUCUNE COULEUR COMMUNE ! DÉFAUSSEZ {n} CARTE(S)",
     "OPPONENT_CHOOSING_COLOR": "L'ADVERSAIRE CHOISIT LA COULEUR...",
     "HIT_LOCKOUT": "BLOCAGE !",
+    "HIT_USE_LOCKOUT": "OBJET VERROUILLÉ !",
     "HIT_HAND_SWAP": "ÉCHANGE DE MAINS !",
 
     // Network
@@ -144,6 +146,7 @@ export const FR = {
     "CARD_CURSE": "Malédiction",
     "DESC_CURSE": "Consommable : à la manche suivante, 2 cartes de la main ennemie perdent 3 (les spéciales deviennent 1). 2 fois par partie.",
     "AMBUSH_ALERT": "EMBUSCADE !",
+    "FUSION_ALERT": "FUSION !",
     "CURSE_ALERT": "MALÉDICTION !",
     "CARD_INFO_OPEN": "Infos de la carte",
     "CARD_INFO_HINT": "Déposez une carte ici pour voir ce qu’elle fait",

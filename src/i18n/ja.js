@@ -45,11 +45,13 @@ export const JA = {
     // Messages
     "WAITING_OPPONENT": "相手を待っています...",
     "DEFENSE_LOCKED": "このラウンドは防御がロックされています！",
+    "USE_SLOT_LOCKED": "このラウンドは消費アイテム枠がロックされています！",
     "HAND_LIMIT": "手札上限！相手にカードを{n}枚渡してください",
     "OPPONENT_DISCARDING": "相手がカードを捨てています...",
     "NO_COLOR_DISCARD": "共通の色がありません！カードを{n}枚捨ててください",
     "OPPONENT_CHOOSING_COLOR": "相手が色を選んでいます...",
     "HIT_LOCKOUT": "ブロック！",
+    "HIT_USE_LOCKOUT": "アイテムロック！",
     "HIT_HAND_SWAP": "手札交換！",
 
     // Network
@@ -144,6 +146,7 @@ export const JA = {
     "CARD_CURSE": "呪い",
     "DESC_CURSE": "消耗品：次のラウンド、敵の手札2枚が3減る（特殊カードは1になる）。1試合2回まで。",
     "AMBUSH_ALERT": "待ち伏せ！",
+    "FUSION_ALERT": "融合！",
     "CURSE_ALERT": "呪い！",
     "CARD_INFO_OPEN": "カード情報",
     "CARD_INFO_HINT": "カードをここにドロップすると効果が見られます",

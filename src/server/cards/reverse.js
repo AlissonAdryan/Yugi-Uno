@@ -13,6 +13,41 @@ export async function resolveReverseClash(combat, seat, reverseId) {
     const s = combat.state;
     const ownZone = seatZone(seat, ATTACK);
     const oppZone = seatZone(1 - seat, ATTACK);
+
+    let fusedId = -1;
+    let fusedIndex = -1;
+    for (let i = s.zones[oppZone].length - 1; i >= 0; i--) {
+        const id = s.zones[oppZone][i];
+        if (s.fusionChild[id] !== -1 && s.fusionBase[id] > 0) {
+            fusedId = id;
+            fusedIndex = i;
+            break;
+        }
+    }
+
+    if (fusedId !== -1) {
+        const zeroId = s.fusionChild[fusedId];
+        s.fusionChild[fusedId] = -1;
+        const restoredPower = s.fusionBase[fusedId];
+        s.power[fusedId] = restoredPower;
+        s.fusionBase[fusedId] = 0;
+        
+        console.log(`[ServerCombat] Reverso de P${seat + 1} foi counterado por uma Fusão! Roubou apenas a carta 0.`);
+        combat.engine.emit(EVENT.UNFUSE, { cardId: fusedId, seat: 1 - seat, zeroId, restoredPower });
+        combat.engine.emit(EVENT.REVERSE_STEAL, { reverseId, seat });
+        
+        combat.deck.discard(reverseId);
+        
+        const victims = s.zones[oppZone].splice(fusedIndex + 1);
+        for (const id of victims) s.zones[ownZone].push(id);
+        
+        s.moveCard(zeroId, ownZone);
+        
+        combat.engine.markDirty();
+        await combat.engine.sleep(TIMINGS.REVERSE_STEAL);
+        return;
+    }
+
     const isAlone = s.zones[ownZone].length === 1;
 
     if (isAlone) {

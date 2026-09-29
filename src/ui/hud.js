@@ -6,7 +6,7 @@ import { i18n } from '../i18n/index.js';
 
 const COLOR_ALERT_MS = 1500;
 // Estilos do alerta central por carta especial (ver showSpecialAlert e style.css)
-const SPECIAL_ALERT_CLASSES = Object.freeze(['alert-paint', 'alert-swap', 'alert-storm', 'alert-ambush', 'alert-curse']);
+const SPECIAL_ALERT_CLASSES = Object.freeze(['alert-paint', 'alert-swap', 'alert-storm', 'alert-ambush', 'alert-curse', 'alert-fusion']);
 const FLOATING_TEXT_MS = 1500;
 // Deve bater com a duração de `transition: opacity` de .plasma-layer--incoming em style.css
 const BG_FADE_MS = 1500;
@@ -360,7 +360,7 @@ export class Hud {
     /**
      * Texto grande no centro da tela com o estilo de uma carta especial (reinicia a animação).
      * @param {string} text já traduzido
-     * @param {'alert-paint'|'alert-swap'|'alert-storm'|'alert-ambush'|'alert-curse'} variant classe de estilo (style.css)
+     * @param {'alert-paint'|'alert-swap'|'alert-storm'|'alert-ambush'|'alert-curse'|'alert-fusion'} variant classe de estilo (style.css)
      */
     showSpecialAlert(text, variant) {
         const alert = this.el.colorAlert;

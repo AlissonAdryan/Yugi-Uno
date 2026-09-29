@@ -118,7 +118,7 @@ export class PlayableSystem {
         const stack = this.layout.stack(zone);
         if (stack.length > 0) {
             if (stack.length >= CONFIG.COMBO_MAX_STACK) return false;
-            if (!isValidCombo(this.pool, stack[0], id)) return false;
+            if (!isValidCombo(this.pool, stack[stack.length - 1], id)) return false;
         }
         
         if (zone === ZONE.SELF_DEFENSE && this.board.locked[ZONE.SELF_DEFENSE] && stack.length === 0) return false;

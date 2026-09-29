@@ -45,11 +45,13 @@ export const TR = {
     // Messages
     "WAITING_OPPONENT": "RAKİP BEKLENİYOR...",
     "DEFENSE_LOCKED": "BU TUR SAVUNMAN KİLİTLİ!",
+    "USE_SLOT_LOCKED": "BU TUR SARF MALZEMESİ YUVAN KİLİTLİ!",
     "HAND_LIMIT": "EL LİMİTİ! RAKİBE {n} KART VER",
     "OPPONENT_DISCARDING": "RAKİP KART ATIYOR...",
     "NO_COLOR_DISCARD": "ORTAK RENK YOK! {n} KART AT",
     "OPPONENT_CHOOSING_COLOR": "RAKİP RENK SEÇİYOR...",
     "HIT_LOCKOUT": "KİLİTLENDİ!",
+    "HIT_USE_LOCKOUT": "EŞYA KİLİTLENDİ!",
     "HIT_HAND_SWAP": "ELLER DEĞİŞTİ!",
 
     // Network
@@ -144,6 +146,7 @@ export const TR = {
     "CARD_CURSE": "Lanet",
     "DESC_CURSE": "Tüketilebilir: sonraki tur rakibin elindeki 2 kart 3 azalır (özel kartlar 1 olur). Maç başına 2 kez.",
     "AMBUSH_ALERT": "PUSU!",
+    "FUSION_ALERT": "FÜZYON!",
     "CURSE_ALERT": "LANET!",
     "CARD_INFO_OPEN": "Kart bilgisi",
     "CARD_INFO_HINT": "Ne yaptığını görmek için bir kartı buraya bırak",

@@ -45,11 +45,13 @@ export const ZH = {
     // Messages
     "WAITING_OPPONENT": "等待对手中...",
     "DEFENSE_LOCKED": "本回合你的防御被锁定！",
+    "USE_SLOT_LOCKED": "本回合你的消耗品栏位被锁定！",
     "HAND_LIMIT": "手牌已达上限！请给对手 {n} 张牌",
     "OPPONENT_DISCARDING": "对手正在弃牌...",
     "NO_COLOR_DISCARD": "没有共同颜色！请弃 {n} 张牌",
     "OPPONENT_CHOOSING_COLOR": "对手正在选择颜色...",
     "HIT_LOCKOUT": "封锁！",
+    "HIT_USE_LOCKOUT": "道具封锁！",
     "HIT_HAND_SWAP": "交换手牌！",
 
     // Network
@@ -144,6 +146,7 @@ export const ZH = {
     "CARD_CURSE": "诅咒",
     "DESC_CURSE": "消耗品：下回合敌方手牌中2张牌减少3（特殊牌变为1）。每局限2次。",
     "AMBUSH_ALERT": "伏击！",
+    "FUSION_ALERT": "融合！",
     "CURSE_ALERT": "诅咒！",
     "CARD_INFO_OPEN": "卡牌信息",
     "CARD_INFO_HINT": "将卡牌拖到这里查看它的作用",

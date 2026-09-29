@@ -94,6 +94,10 @@ export function canPlayOnCombatSlot(store, cardIdx, activeColor, attackIdx) {
  */
 export function isValidCombo(store, topIdx, cardIdx) {
     if (store.type[cardIdx] === CONFIG.CARD_TYPES.PLUS4) return false;
+    if (store.type[topIdx] === CONFIG.CARD_TYPES.NUMBER && store.type[cardIdx] === CONFIG.CARD_TYPES.NUMBER && store.color[topIdx] === store.color[cardIdx]) {
+        if ((store.power[topIdx] === 1 || store.power[topIdx] === 2) && store.power[cardIdx] === 0) return true;
+        if (store.power[topIdx] === 0 && store.power[cardIdx] === 0) return false;
+    }
     return isSameCardIgnoringColor(store, topIdx, cardIdx) && store.color[topIdx] === store.color[cardIdx];
 }
 
@@ -203,6 +207,7 @@ export function countAttackOptions(store, list, activeColor, exceptIdx = -1, pai
  */
 export function consumableBlockReason(type, status) {
     const { STATUS } = CONFIG;
+    if (status & STATUS.USE_LOCKED) return 'USE_SLOT_LOCKED';
     switch (type) {
         case CARD_TYPES.HEAL: return (status & STATUS.HEAL) ? 'HEAL_ALREADY_ACTIVE' : null;
         case CARD_TYPES.SHIELD: return (status & STATUS.SHIELD) ? 'SHIELD_ALREADY_ACTIVE' : null;

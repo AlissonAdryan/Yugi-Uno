@@ -31,6 +31,7 @@ const PAINT_SPLASH_COLORS = Object.freeze(CONFIG.BASIC_COLORS.map((c) => CONFIG.
 const SWAP_COLOR = '#7fdbff';
 const STORM_COLOR = '#8ff0ff';
 const STORM_CORE = '#fff7b0';
+const AMBUSH_GREEN = '#39ff14';
 const STACK_DX = CONFIG.STACK_OFFSET.X;
 const STACK_DY = CONFIG.STACK_OFFSET.Y;
 
@@ -126,6 +127,8 @@ export class CinematicPlayer {
             case EVENT.MIRROR_HIT: return mirrorHit(this, evt);
             case EVENT.AMBUSH: return ambush(this, evt);
             case EVENT.CURSE_TRIGGERED: return curseTriggered(this, evt);
+            case EVENT.FUSION: return this.fusion(evt);
+            case EVENT.UNFUSE: return this.unfuse(evt);
         }
     }
 
@@ -150,13 +153,21 @@ export class CinematicPlayer {
             case EVENT.SUMMON:
             case EVENT.CONSUMABLE_USED: this.remove(evt.cardId); break;
             case EVENT.DIRECT_HIT:
-                if (evt.effect !== HIT_EFFECT.NONE) this.remove(evt.cardId);
+                // Golpe da Emboscada é numérico: a carta volta pra mão (o selo do slot vem pelo snapshot)
+                if (evt.destroyed || (evt.effect !== HIT_EFFECT.NONE && evt.effect !== HIT_EFFECT.USE_LOCKOUT)) this.remove(evt.cardId);
                 if (evt.burned) for (const id of evt.burned) this.remove(id);
                 break;
             case EVENT.LIGHTNING_STRIKE:
                 this.remove(evt.lightningId);
                 for (const face of evt.targets) this.remove(face.id);
                 if (evt.burned) for (const id of evt.burned) this.remove(id);
+                break;
+            case EVENT.FUSION:
+                if (this.pool.isActive(evt.underId)) this.pool.power[evt.underId] = evt.newPower;
+                this.remove(evt.topId);
+                break;
+            case EVENT.UNFUSE:
+                if (this.pool.isActive(evt.cardId)) this.pool.power[evt.cardId] = evt.restoredPower;
                 break;
             case EVENT.GHOST_PASS:
                 for (const pass of evt.passes) {
@@ -950,6 +961,8 @@ export class CinematicPlayer {
         const pool = this.pool;
         const id = evt.cardId;
         const selfIsTarget = evt.seat === REL_SEAT.OPPONENT;
+        // Carta reforçada pela Emboscada: é um golpe numérico normal (volta pra mão) + selo no slot USE do alvo
+        const ambushLock = evt.effect === HIT_EFFECT.USE_LOCKOUT;
 
         if (pool.isActive(id)) {
             const startX = pool.targetX[id];
@@ -958,14 +971,39 @@ export class CinematicPlayer {
             const recoilY = selfIsTarget ? startY - 30 : startY + 30;
             pool.zIndex[id] = 500;
 
+            if (ambushLock) {
+                // Aura tóxica subindo da carta enquanto ela "arma o bote"
+                this.particles.emitRise(this.centerX(id), this.centerY(id), AMBUSH_GREEN, 26, 45, 170, PARTICLE_TYPES.CIRCLE);
+                if (this.fx) this.fx.ring(this.centerX(id), this.centerY(id), 10, 80, ANIM.DIRECT_LIFT + ANIM.DIRECT_RECOIL, AMBUSH_GREEN, 2);
+            }
             await this.tween(id, { scale: 1.3 }, ANIM.DIRECT_LIFT);
             await this.tween(id, { targetY: recoilY }, ANIM.DIRECT_RECOIL);
+            if (ambushLock) {
+                const cx = this.centerX(id);
+                const cy = this.centerY(id);
+                this.particles.emitLine(cx, cy, cx, selfIsTarget ? this.viewport.height : 0, AMBUSH_GREEN, 26, PARTICLE_TYPES.SPARK);
+            }
             await this.tween(id, { targetY: exitY, scale: 1.0 }, ANIM.DIRECT_DASH, Easing.CubicIn);
             this.impact(evt, selfIsTarget);
 
-            if (evt.effect === HIT_EFFECT.OVERLOAD) {
+            if (evt.destroyed) {
+                // Fusão 20 instável: se despedaça no golpe em vez de voltar pra mão
+                const p = this.hpPoint(selfIsTarget);
+                this.audio.play(SFX.DESTROY);
+                this.particles.emitBurst(p.x, p.y, '#ffd23c', 50, 340, PARTICLE_TYPES.SPARK, 1.3);
+                this.particles.emitBurst(p.x, p.y, CONFIG.COLOR_HEX[pool.color[id]], 40, 260, PARTICLE_TYPES.SQUARE, 1.4);
+                if (this.fx) this.fx.ring(p.x, p.y, 10, 120, 500, '#ffd23c', 3);
+                this.remove(id);
+                if (ambushLock) await this.sealUseSlot(selfIsTarget);
+                else await sleep(ANIM.DIRECT_RETURN);
+            } else if (evt.effect === HIT_EFFECT.OVERLOAD) {
                 this.remove(id);
                 await this.overloadBurn(evt, selfIsTarget, startX + HALF_W);
+            } else if (ambushLock) {
+                await Promise.all([
+                    this.tween(id, { targetX: startX, targetY: startY }, ANIM.DIRECT_RETURN),
+                    this.sealUseSlot(selfIsTarget)
+                ]);
             } else if (evt.effect !== HIT_EFFECT.NONE) {
                 this.remove(id);
                 await sleep(ANIM.DIRECT_RETURN);
@@ -975,13 +1013,56 @@ export class CinematicPlayer {
         } else {
             this.impact(evt, selfIsTarget);
             if (evt.effect === HIT_EFFECT.OVERLOAD) await this.overloadBurn(evt, selfIsTarget, this.viewport.width / 2);
+            else if (ambushLock) await this.sealUseSlot(selfIsTarget);
         }
+    }
+
+    /**
+     * Emboscada na vida: um fio farpado sai da vida do alvo até o slot USE dele, tece uma teia de espinhos
+     * e o olho da Emboscada abre no centro. No fim, o selo animado vira o selo fixo do tabuleiro (mesmo
+     * desenho, mesmo tick: não pisca) até o bloqueio acabar.
+     */
+    async sealUseSlot(selfIsTarget) {
+        const zone = selfIsTarget ? ZONE.SELF_USE : ZONE.OPP_USE;
+        const rect = this.board.slots[zone];
+        if (!rect) return;
+        const dur = ANIM.USE_LOCK;
+        const hp = this.hpPoint(selfIsTarget);
+        const cx = rect.hitX + rect.hitW / 2;
+        const cy = rect.hitY + rect.hitH / 2;
+
+        this.audio.play(SFX.USE_LOCK_THREAD);
+        const seal = this.fx ? this.fx.seal(hp.x, hp.y, cx, cy, rect.hitW / 2, rect.hitH / 2, dur) : -1;
+        this.particles.emitBurst(hp.x, hp.y, AMBUSH_GREEN, 22, 200, PARTICLE_TYPES.SPARK);
+
+        // O fio chega: a teia começa a se fechar com um estalo tóxico
+        await sleep(dur * 0.25);
+        this.audio.play(SFX.USE_LOCK);
+        if (this.fx) this.fx.ring(cx, cy, 8, 95, dur * 0.4, AMBUSH_GREEN, 2.5);
+        this.particles.emitBurst(cx, cy, AMBUSH_GREEN, 36, 260, PARTICLE_TYPES.STAR);
+        this.particles.emitBurst(cx, cy, '#0f7a04', 20, 140, PARTICLE_TYPES.SQUARE, 1.3);
+
+        // O olho abre: pulso de luz, fumaça venenosa subindo e o aviso na tela
+        await sleep(dur * 0.4);
+        if (this.fx) {
+            this.fx.ring(cx, cy, 20, 70, dur * 0.35, '#b6ff9e', 3);
+            this.fx.ring(cx, cy, 30, 130, dur * 0.45, AMBUSH_GREEN, 1.6, 1.4);
+        }
+        this.particles.emitRise(cx, cy, '#6dff4a', 30, rect.hitW * 0.4, 110, PARTICLE_TYPES.CIRCLE);
+        this.particles.emitBurst(cx, cy, '#e9ffe0', 14, 180, PARTICLE_TYPES.STAR);
+        this.hud.showSpecialAlert(i18n.t('HIT_USE_LOCKOUT'), 'alert-ambush');
+
+        await sleep(dur * 0.35);
+        this.board.setLocked(zone, true);
+        if (this.fx) this.fx.endSeal(seal);
     }
 
     impact(evt, selfIsTarget) {
         const overload = evt.effect === HIT_EFFECT.OVERLOAD;
+        const ambushLock = evt.effect === HIT_EFFECT.USE_LOCKOUT;
+        const waveColor = overload ? STORM_COLOR : ambushLock ? AMBUSH_GREEN : '#ff0000';
         this.audio.play(SFX.DIRECT_HIT);
-        this.particles.emitDamageWave(selfIsTarget, overload ? STORM_COLOR : '#ff0000', 150, overload ? PARTICLE_TYPES.SPARK : PARTICLE_TYPES.SQUARE);
+        this.particles.emitDamageWave(selfIsTarget, waveColor, 150, overload ? PARTICLE_TYPES.SPARK : PARTICLE_TYPES.SQUARE);
         if (selfIsTarget) this.hud.flashDamage();
 
         let text;
@@ -998,8 +1079,18 @@ export class CinematicPlayer {
             text = i18n.t('HIT_HAND_SWAP');
             this.audio.play(SFX.HAND_SWAP);
         } else {
+            // NONE ou USE_LOCKOUT: os dois são golpes numéricos (o bloqueio do slot vem em sealUseSlot)
             text = `-${evt.damage} ♥`;
             this.audio.play(SFX.DAMAGE);
+            if (ambushLock) {
+                variant = 'ambush';
+                this.audio.play(SFX.AMBUSH_STING);
+                const p = this.hpPoint(selfIsTarget);
+                this.particles.emitBurst(p.x, p.y, AMBUSH_GREEN, 40, 300, PARTICLE_TYPES.STAR, 1.2);
+                this.particles.emitBurst(p.x, p.y, '#0f7a04', 24, 180, PARTICLE_TYPES.SQUARE, 1.4);
+                this.particles.emitRise(p.x, p.y, '#6dff4a', 20, 40, 140, PARTICLE_TYPES.CIRCLE);
+                if (this.fx) this.fx.ring(p.x, p.y, 16, 110, 520, AMBUSH_GREEN, 3);
+            }
             // `absorbed` agora chega para ambos, revelando o segredo no momento do impacto
             if (evt.absorbed > 0) {
                 variant = 'shielded';
@@ -1075,5 +1166,83 @@ export class CinematicPlayer {
             }, 500);
         }
         this.hud.showGameOver(result, reason);
+    }
+
+    /** O 0 do topo da pilha sobe, mergulha girando no 1/2 de baixo e ele vira 10/20 (GAME_RULES §6.16). */
+    async fusion(evt) {
+        const { topId, underId, newPower } = evt;
+        if (!this.pool.isActive(topId) || !this.pool.isActive(underId)) {
+            this.applyInstant(evt);
+            return;
+        }
+        const pool = this.pool;
+        const cx = this.centerX(underId);
+        const cy = this.centerY(underId);
+        const color = CONFIG.COLOR_HEX[pool.color[underId]];
+        // O 0 fica quase exatamente em cima do 1/2 na pilha: sobe primeiro pra fusão ser visível
+        const dir = cy < this.viewport.height / 2 ? 1 : -1;
+        const liftY = pool.targetY[topId] + dir * ANIM.FUSION_LIFT_PX;
+
+        const baseZ = pool.zIndex[underId];
+        pool.zIndex[topId] = 600;
+        pool.zIndex[underId] = 599;
+        this.audio.play(SFX.WHOOSH);
+        this.particles.emitRise(cx, cy, color, 18, 40, 160, PARTICLE_TYPES.STAR);
+        await this.tween(topId, { targetY: liftY, scale: 1.2, rotation: pool.rotation[topId] - 0.25 },
+            ANIM.FUSION_SPIN * 0.45, Easing.QuadOut);
+
+        // Mergulha girando e encolhendo até sumir dentro do número de baixo
+        this.audio.play(SFX.FUSION);
+        this.particles.emitLine(this.centerX(topId), this.centerY(topId), cx, cy, '#ffd23c', 22, PARTICLE_TYPES.STAR);
+        await this.tween(topId, {
+            targetX: pool.targetX[underId], targetY: pool.targetY[underId],
+            rotation: pool.rotation[topId] + Math.PI * 2.5, scale: 0.15, alpha: 0
+        }, ANIM.FUSION_SPIN * 0.55, Easing.CubicIn);
+
+        this.remove(topId);
+
+        // Impacto: anel de choque na cor da carta + um segundo anel dourado de "poder", com confete
+        if (this.fx) {
+            this.fx.ring(cx, cy, 6, 90, ANIM.FUSION_FLASH, color, 3);
+            this.fx.ring(cx, cy, 4, 60, ANIM.FUSION_FLASH * 0.7, '#ffd23c', 2);
+        }
+        this.particles.emitBurst(cx, cy, color, 26, 260, PARTICLE_TYPES.STAR);
+        this.particles.emitBurst(cx, cy, '#ffd23c', 22, 320, PARTICLE_TYPES.SPARK, 1.2);
+        this.particles.emitBurst(cx, cy, '#ffffff', 14, 200, PARTICLE_TYPES.CIRCLE);
+        this.hud.showSpecialAlert(i18n.t('FUSION_ALERT'), 'alert-fusion');
+
+        pool.power[underId] = newPower;
+        await this.tween(underId, { scale: 1.55 }, ANIM.FUSION_FLASH * 0.35, Easing.QuadOut);
+        await this.tween(underId, { scale: 1.0 }, ANIM.FUSION_FLASH * 0.65, Easing.BackOut);
+        pool.zIndex[underId] = baseZ;
+    }
+
+    /** Block/Reverso quebram a fusão: o número volta ao valor original e o "0" absorvido reaparece. */
+    async unfuse(evt) {
+        const { cardId, zeroId, restoredPower } = evt;
+        if (!this.pool.isActive(cardId)) {
+            this.applyInstant(evt);
+            return;
+        }
+        const pool = this.pool;
+
+        this.audio.play(SFX.UNFUSE);
+        const cx = this.centerX(cardId);
+        const cy = this.centerY(cardId);
+
+        if (this.fx) this.fx.ring(cx, cy, 8, 78, ANIM.UNFUSE * 0.75, '#ffffff', 2.5);
+        this.particles.emitBurst(cx, cy, '#ffffff', 16, 220, PARTICLE_TYPES.SQUARE);
+        this.particles.emitBurst(cx, cy, CONFIG.COLOR_HEX[pool.color[cardId]], 14, 190, PARTICLE_TYPES.STAR);
+
+        pool.power[cardId] = restoredPower;
+        await this.tween(cardId, { scale: 0.82 }, ANIM.UNFUSE * 0.25, Easing.QuadOut);
+        this.tween(cardId, { scale: 1.0 }, ANIM.UNFUSE * 0.75, Easing.BackOut);
+
+        // O "0" absorvido reaparece ejetado ao lado, bem pequeno, e "pipoca" de volta ao tamanho normal
+        pool.activate(zeroId, pool.x[cardId] - HALF_W * 0.6, pool.y[cardId]);
+        pool.scale[zeroId] = 0.3;
+        this.tween(zeroId, { scale: 1.0 }, ANIM.UNFUSE * 0.75, Easing.BackOut);
+
+        await sleep(ANIM.UNFUSE * 0.35);
     }
 }

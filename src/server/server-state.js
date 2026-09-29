@@ -15,6 +15,10 @@ export class ServerState {
         // 1 = face pública para os dois jogadores (revelada em combate)
         this.revealed = new Uint8Array(capacity);
         this.zoneOf = new Uint8Array(capacity);
+        this.fusionChild = new Int16Array(capacity);
+        this.fusionBase = new Uint8Array(capacity);
+        this.fusionChild.fill(-1);
+        this.fusionBase.fill(0);
 
         this.zones = [];
         for (let z = 0; z < ZONE_COUNT; z++) this.zones.push([]);
@@ -25,6 +29,7 @@ export class ServerState {
         this.discardsNeeded = new Uint8Array(2);
         this.drawsOwed = new Uint8Array(2);
         this.defenseLock = new Uint8Array(2);
+        this.useLock = new Uint8Array(2);
         // 1 = o assento pediu revanche (só faz sentido na fase GAME_OVER)
         this.rematch = new Uint8Array(2);
 
@@ -76,6 +81,8 @@ export class ServerState {
             deck.push(id);
             this.zoneOf[id] = ZONE.DECK;
             this.revealed[id] = 0;
+            this.fusionChild[id] = -1;
+            this.fusionBase[id] = 0;
         }
         this.hp.fill(CONFIG.STARTING_HP);
         this.activeColor.fill(CONFIG.COLOR.NONE);
@@ -83,6 +90,7 @@ export class ServerState {
         this.discardsNeeded.fill(0);
         this.drawsOwed.fill(0);
         this.defenseLock.fill(0);
+        this.useLock.fill(0);
         this.rematch.fill(0);
         this.healActive.fill(0);
         this.shieldActive.fill(0);
@@ -133,6 +141,7 @@ export class ServerState {
         if (this.ambush[seat]) bits |= STATUS.AMBUSH;
         if (this.cursePending[seat]) bits |= STATUS.CURSE_PENDING;
         if (this.curseUses[seat] >= CONFIG.CURSE.MAX_PER_MATCH) bits |= STATUS.CURSE_SPENT;
+        if (this.useLock[seat] > 0) bits |= STATUS.USE_LOCKED;
         return bits;
     }
 
@@ -168,6 +177,8 @@ export class ServerState {
 
         if (toZone === ZONE.DECK || toZone === ZONE.DISCARD || zoneOffset(toZone) === ZONE_OFFSET.HAND) {
             this.revealed[id] = 0;
+            this.fusionChild[id] = -1;
+            this.fusionBase[id] = 0;
         }
     }
 

@@ -178,6 +178,7 @@ export class ServerEngine {
         s.phase = GAME_STATES.COMBAT_RESOLUTION;
         for (const seat of SEATS) {
             if (s.defenseLock[seat] > 0) s.defenseLock[seat]--;
+            if (s.useLock[seat] > 0) s.useLock[seat]--;
         }
         this.markDirty();
 
@@ -434,7 +435,7 @@ export class ServerEngine {
 
         if (stack.length > 0) {
             if (stack.length >= CONFIG.COMBO_MAX_STACK) return 'STACK_FULL';
-            if (!isValidCombo(s, stack[0], cardId)) return 'COMBO_MISMATCH';
+            if (!isValidCombo(s, stack[stack.length - 1], cardId)) return 'COMBO_MISMATCH';
         } else {
             if (offset === ZONE_OFFSET.DEFENSE && s.defenseLock[seat] > 0) return 'DEFENSE_LOCKED';
             if (isConsumable(s.type[cardId])) return 'CONSUMABLE_ONLY_IN_USE_SLOT';

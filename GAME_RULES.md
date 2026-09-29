@@ -193,6 +193,7 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 * **Ativação:** Slot USE, durante a Preparação. O oponente só vê o verso explodindo. Quem usou vê fumaça tóxica e fios verdes correndo até o próprio slot de Defesa, que fica com fios espinhosos pulsando em volta enquanto a armadilha estiver armada.
 * **Efeito:** Quando a carta do **topo da sua Defesa entrar na linha de frente** (o seu Ataque caiu, ou houve empate na frente), ela ganha **+3 de força** antes de lutar. Os dois veem a armadilha disparar: fios verdes constringem a carta, o número salta (ex.: 5 → 8) com um clarão verde, partículas sobem em espiral e aparece **"EMBOSCADA!"**.
 * **Temporário:** Se a carta reforçada sobreviver e voltar para a mão, ela nunca fica acima do valor original (ex.: 5+3 = 8 contra um 1 sobra 7, mas volta como 5).
+* **Picada venenosa (slot USE bloqueado):** Se a carta reforçada chegar à vida do oponente, além do dano ela **bloqueia o slot de consumível dele na próxima rodada**. Os dois veem: o dano aparece em verde-veneno, um fio farpado sai da vida do alvo até o slot USE dele, tece uma teia de espinhos e o olho da Emboscada abre no centro ("ITEM BLOQUEADO!"). A teia fica sobre o slot enquanto o bloqueio durar.
 * **Desperdiçada (em segredo):** Sem Defesa, se o Ataque vencer sozinho ou se o topo da Defesa não for uma carta de número (Block, Reverso, Relâmpago, Fantasma, Espelho, +2, +4).
 * **Combo na Defesa:** Só a carta do topo ganha o +3.
 * **Com a Troca de Guarda do oponente:** Se ele trocar o seu campo, o bônus acompanha a antiga Defesa: ela ganha +3 logo depois da revelação, já na posição de Ataque.
@@ -208,7 +209,14 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 * **Limites:** Uma Maldição plantada por vez (uma segunda carta treme e volta para a mão enquanto a primeira não disparar) e **no máximo 2 por partida** (a terceira treme e volta).
 * **Contra-jogo:** O Pintar pode repintar cartas corrompidas; mãos grandes diluem o impacto.
 
-### 6.16 Prioridade entre Especiais de Campo
+### 6.16 Fusão de Combo (1+0 → 10, 2+0 → 20)
+* **Exceção ao Combo (§5.1):** um **0** pode ser empilhado em cima de um **1 ou 2 da mesma cor** (o contrário não vale, nem 0 sobre 0).
+* No início do combate, antes de lutar, o 0 do topo **se funde** com o número de baixo: o 1 vira **10**, o 2 vira **20**. O 0 é absorvido e some. Os dois veem: o 0 sobe, mergulha girando no número, um anel de choque dourado explode, o número pulsa com o valor novo e aparece **"FUSÃO!"**.
+* Vale tanto para a pilha montada pelo jogador quanto para um +2/+4 que puxe essa sequência (0 logo acima de um 1/2 da mesma cor). A carta fundida mantém a cor original.
+* **O 20 é instável:** a carta fundida a partir de um 2 causa o dano normalmente, mas ao acertar a vida do oponente ela se despedaça (vai pro descarte) em vez de voltar para a mão.
+* **Block e Reverso desfazem a fusão:** se a carta fundida enfrentar um Block ou um Reverso do adversário, ela volta a valer seu número original (1 ou 2) e o 0 absorvido reaparece. O Block destrói os dois junto com o resto da pilha; o Reverso rouba só o 0 para o próprio campo.
+
+### 6.17 Prioridade entre Especiais de Campo
 Quando duas especiais se chocam, vale a primeira regra da lista que se aplicar:
 1. **Relâmpago** fulmina qualquer uma (Block, Fantasma, Espelho, números) — só o **Reverso** age antes dele e o puxa. Relâmpago x Relâmpago se anulam.
 2. **Fantasma** atravessa todas as outras (Block, Reverso, Espelho). Fantasma x Fantasma: os dois atravessam.

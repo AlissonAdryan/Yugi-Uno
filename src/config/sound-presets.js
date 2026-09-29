@@ -113,6 +113,36 @@ export const SOUND_PRESETS = Object.freeze({
             { kind: 'tone', wave: 'sine', freq: 95, freqEnd: 28, gain: 0.8 }
         ]
     },
+    // --- Fusão de combo (1+0 -> 10, 2+0 -> 20) -----------------------------------
+    // O 0 mergulha no 1/2: arpejo ascendente de absorção + baque grave no instante do impacto
+    FUSION: {
+        duration: 0.68, volume: 0.12,
+        envelope: { attack: 0.004, decay: 0.12, sustain: 0.35, release: 0.28 },
+        layers: [
+            { kind: 'fm', freq: 'A5', modRatio: 2.4, modIndex: 3.5, modIndexEnd: 0.2 },
+            { kind: 'tone', wave: 'sine', freq: 'E6', gain: 0.3, tremolo: { rate: 20, depth: 0.3 } },
+            { kind: 'noise', color: 'white', gain: 0.4, duration: 0.1, delay: 0.02, filter: { type: 'bandpass', freq: 1200, freqEnd: 3800, q: 1.4 } },
+            { kind: 'tone', wave: 'sine', freq: 85, freqEnd: 42, gain: 0.6, delay: 0.3, duration: 0.34 }
+        ],
+        notes: [
+            { at: 0, semitones: 0 }, { at: 0.07, semitones: 4 }, { at: 0.14, semitones: 7 },
+            { at: 0.21, semitones: 12, volume: 0.95 }
+        ],
+        echo: { delay: 0.14, feedback: 0.4, mix: 0.32 }
+    },
+    // Desfusão (Block/Reverso quebram a fusão): estalo seco e as duas partes voam em direções opostas
+    UNFUSE: {
+        duration: 0.42, volume: 0.11, distortion: 0.15,
+        envelope: { attack: 0.001, decay: 0.14, sustain: 0.15, release: 0.18 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.7, duration: 0.05, filter: { type: 'highpass', freq: 2600 } },
+            { kind: 'tone', wave: 'triangle', freq: 'C5', freqEnd: 'C6', gain: 0.4, sweepTime: 0.16 },
+            { kind: 'tone', wave: 'triangle', freq: 'C4', freqEnd: 'C3', gain: 0.4, sweepTime: 0.16, delay: 0.02 },
+            { kind: 'noise', color: 'brown', gain: 0.4, duration: 0.12, delay: 0.02, filter: { type: 'lowpass', freq: 600, freqEnd: 150 } }
+        ],
+        echo: { delay: 0.1, feedback: 0.25, mix: 0.2 }
+    },
+
     SUMMON: {
         duration: 0.95, volume: 0.1,
         envelope: { attack: 0.08, decay: 0.2, sustain: 0.6, release: 0.3 },
@@ -365,7 +395,7 @@ export const SOUND_PRESETS = Object.freeze({
     // --- Troca de Guarda -------------------------------------------------------
     // Carta usada (só quem usou ouve): engrenagem metálica girando + dois "tics" subindo
     GUARD_SWAP_USE: {
-        duration: 0.6, volume: 0.1,
+        duration: 0.6, volume: 0.6,
         envelope: { attack: 0.01, decay: 0.2, sustain: 0.35, release: 0.25 },
         filter: { type: 'bandpass', freq: 900, freqEnd: 3200, q: 1.6 },
         layers: [
@@ -377,7 +407,7 @@ export const SOUND_PRESETS = Object.freeze({
     },
     // A troca no combate (os dois ouvem): varredura de ar girando nos dois sentidos + "clack" no encaixe
     GUARD_SWAP: {
-        duration: 0.85, volume: 0.1,
+        duration: 0.85, volume: 0.3,
         envelope: { attack: 0.06, decay: 0.2, sustain: 0.5, release: 0.25 },
         layers: [
             { kind: 'noise', color: 'pink', duration: 0.5, filter: { type: 'bandpass', freq: 400, freqEnd: 2600, q: 2.4 } },
@@ -392,7 +422,7 @@ export const SOUND_PRESETS = Object.freeze({
     },
     // Duas Trocas se anulando: as pilhas travam no meio do giro com um "clang" seco
     GUARD_SWAP_CANCEL: {
-        duration: 0.45, volume: 0.1, distortion: 0.2,
+        duration: 0.45, volume: 0.3, distortion: 0.2,
         envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.2 },
         layers: [
             { kind: 'fm', freq: 'C4', modRatio: 3.1, modIndex: 7, modIndexEnd: 0.3 },
@@ -443,7 +473,7 @@ export const SOUND_PRESETS = Object.freeze({
     // --- Fantasma ---------------------------------------------------------------
     // Atravessando: sussurro reverberante (ruído em formantes de voz subindo/descendo) + tom etéreo
     GHOST_PASS: {
-        duration: 0.95, volume: 0.1,
+        duration: 0.95, volume: 0.4,
         envelope: { attack: 0.18, decay: 0.2, sustain: 0.6, release: 0.35 },
         layers: [
             { kind: 'noise', color: 'pink', gain: 0.7, filter: { type: 'bandpass', freq: 700, freqEnd: 1900, q: 7 }, tremolo: { rate: 6, depth: 0.5 } },
@@ -455,7 +485,7 @@ export const SOUND_PRESETS = Object.freeze({
     },
     // Chegando na vida: "whoosh" grave e fundo
     GHOST_HIT: {
-        duration: 0.7, volume: 0.11,
+        duration: 0.7, volume: 0.4,
         envelope: { attack: 0.04, decay: 0.25, sustain: 0.3, release: 0.35 },
         layers: [
             { kind: 'noise', color: 'brown', gain: 0.9, filter: { type: 'lowpass', freq: 1800, freqEnd: 120 } },
@@ -512,7 +542,7 @@ export const SOUND_PRESETS = Object.freeze({
     // --- Emboscada ---------------------------------------------------------------
     // Armada (só quem usou ouve): chiado de fumaça tóxica + nota venenosa
     AMBUSH_USE: {
-        duration: 0.6, volume: 0.09,
+        duration: 0.6, volume: 0.5,
         envelope: { attack: 0.05, decay: 0.25, sustain: 0.3, release: 0.25 },
         layers: [
             { kind: 'noise', color: 'white', gain: 0.6, filter: { type: 'bandpass', freq: 4200, freqEnd: 1500, q: 2 } },
@@ -522,7 +552,7 @@ export const SOUND_PRESETS = Object.freeze({
     },
     // Disparo: mola de armadilha estalando + rugido grave
     AMBUSH_TRIGGER: {
-        duration: 0.8, volume: 0.12, distortion: 0.35,
+        duration: 0.8, volume: 0.1, distortion: 0.35,
         envelope: { attack: 0.001, decay: 0.3, sustain: 0.35, release: 0.35 },
         layers: [
             {
@@ -536,10 +566,56 @@ export const SOUND_PRESETS = Object.freeze({
         echo: { delay: 0.11, feedback: 0.25, mix: 0.2 }
     },
 
+    // Carta reforçada pela Emboscada acertando a vida: picada venenosa (mordida seca + chiado de veneno)
+    AMBUSH_STING: {
+        duration: 0.7, volume: 0.11, distortion: 0.3,
+        envelope: { attack: 0.001, decay: 0.22, sustain: 0.3, release: 0.35 },
+        layers: [
+            {
+                kind: 'tone', wave: 'square', freq: 'E5', freqEnd: 'E3', sweepTime: 0.07, gain: 0.55, duration: 0.1,
+                envelope: { attack: 0.001, decay: 0.07, sustain: 0, release: 0.03 }
+            },
+            { kind: 'noise', color: 'white', gain: 0.6, delay: 0.03, filter: { type: 'bandpass', freq: 6500, freqEnd: 1800, q: 3 }, tremolo: { rate: 22, depth: 0.5 } },
+            { kind: 'tone', wave: 'sawtooth', freq: 'F#2', freqEnd: 'C2', gain: 0.5, delay: 0.04, filter: { type: 'lowpass', freq: 700 } },
+            { kind: 'tone', wave: 'sine', freq: 'B5', freqEnd: 'F5', gain: 0.18, delay: 0.1, vibrato: { rate: 9, depth: 35 } }
+        ],
+        echo: { delay: 0.13, feedback: 0.3, mix: 0.25 }
+    },
+    // Fio farpado chicoteando da vida até o slot de consumível
+    USE_LOCK_THREAD: {
+        duration: 0.32, volume: 0.1,
+        envelope: { attack: 0.005, decay: 0.12, sustain: 0.4, release: 0.12 },
+        layers: [
+            { kind: 'noise', color: 'white', gain: 0.8, filter: { type: 'bandpass', freq: 900, freqEnd: 7000, q: 2.5 } },
+            { kind: 'tone', wave: 'triangle', freq: 'C4', freqEnd: 'C6', gain: 0.25, sweepCurve: 'exp' },
+            {
+                kind: 'fm', freq: 'A6', modRatio: 3.3, modIndex: 5, modIndexEnd: 1, gain: 0.25, delay: 0.24, duration: 0.07,
+                envelope: { attack: 0.001, decay: 0.05, sustain: 0, release: 0.02 }
+            }
+        ]
+    },
+    // Selo fechando no slot: arame farpado rangendo, trava pesada e o acorde sombrio do olho abrindo
+    USE_LOCK: {
+        duration: 1.1, volume: 0.12, distortion: 0.2,
+        envelope: { attack: 0.002, decay: 0.3, sustain: 0.4, release: 0.5 },
+        layers: [
+            { kind: 'fm', freq: 'D5', modRatio: 3.3, modIndex: 6, modIndexEnd: 1.5, gain: 0.35, duration: 0.45, tremolo: { rate: 30, depth: 0.6 } },
+            { kind: 'noise', color: 'pink', gain: 0.4, duration: 0.4, filter: { type: 'bandpass', freq: 3200, freqEnd: 1200, q: 6 }, tremolo: { rate: 24, depth: 0.7 } },
+            {
+                kind: 'tone', wave: 'sine', freq: 110, freqEnd: 38, gain: 0.9, delay: 0.38, duration: 0.3,
+                envelope: { attack: 0.001, decay: 0.2, sustain: 0.1, release: 0.1 }
+            },
+            { kind: 'noise', color: 'brown', gain: 0.7, delay: 0.38, duration: 0.12, filter: { type: 'lowpass', freq: 900, freqEnd: 200 } },
+            { kind: 'tone', wave: 'sawtooth', freq: 'F#3', gain: 0.22, delay: 0.55, filter: { type: 'lowpass', freq: 1400 }, vibrato: { rate: 5, depth: 12 } },
+            { kind: 'tone', wave: 'sawtooth', freq: 'C4', gain: 0.18, delay: 0.55, detune: 9, filter: { type: 'lowpass', freq: 1400 } }
+        ],
+        echo: { delay: 0.18, feedback: 0.4, mix: 0.35 }
+    },
+
     // --- Maldição ----------------------------------------------------------------
     // Plantada (só quem usou ouve): sussurro maligno sobre um zumbido grave
     CURSE_USE: {
-        duration: 1.1, volume: 0.1,
+        duration: 1.1, volume: 0.5,
         envelope: { attack: 0.2, decay: 0.25, sustain: 0.55, release: 0.45 },
         layers: [
             { kind: 'noise', color: 'pink', gain: 0.6, filter: { type: 'bandpass', freq: 900, freqEnd: 500, q: 8 }, tremolo: { rate: 11, depth: 0.7 } },
@@ -577,7 +653,7 @@ export const SOUND_PRESETS = Object.freeze({
     },
     // Estalo de ossos (a carta racha e o valor cai)
     CURSE_CRACK: {
-        duration: 0.35, volume: 0.12, distortion: 0.3,
+        duration: 0.35, volume: 0.1, distortion: 0.3,
         envelope: { attack: 0.001, decay: 0.12, sustain: 0.1, release: 0.15 },
         layers: [
             { kind: 'noise', color: 'white', gain: 0.9, duration: 0.05, filter: { type: 'bandpass', freq: 1800, q: 1.5 } },
@@ -646,7 +722,7 @@ export const SOUND_PRESETS = Object.freeze({
     },
     // Compra: "ka-ching" de caixa registradora
     SHOP_BUY: {
-        duration: 0.7, volume: 0.1,
+        duration: 0.7, volume: 0.06,
         envelope: { attack: 0.001, decay: 0.3, sustain: 0.2, release: 0.35 },
         layers: [
             { kind: 'noise', color: 'white', gain: 0.5, duration: 0.05, filter: { type: 'highpass', freq: 2000 } },

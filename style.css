@@ -554,6 +554,12 @@ body {
     text-shadow: 0 0 20px #000, 0 0 40px #00e5ff;
 }
 
+/* Golpe da carta reforçada pela Emboscada: verde-veneno */
+.damage-text.ambush {
+    color: #b6ff9e;
+    text-shadow: 0 0 20px #000, 0 0 36px #39ff14, 0 0 60px #0f7a04;
+}
+
 .damage-text.guarded {
     color: #ffd700;
     text-shadow: 0 0 20px #000, 0 0 40px #ffb300;
@@ -916,6 +922,16 @@ body {
     color: transparent;
     text-shadow: none;
     filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 20px rgba(160, 32, 240, 0.9));
+}
+
+/* Fusão de combo (1+0 -> 10, 2+0 -> 20): dourado de poder, igual ao brilho do Reviver/loja */
+#color-alert.alert-fusion {
+    background: linear-gradient(180deg, #fff7d6 8%, #ffd93c 45%, #ff9d00 70%, #a85a00 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    text-shadow: none;
+    filter: drop-shadow(0 0 8px rgba(0, 0, 0, 0.95)) drop-shadow(0 0 20px rgba(255, 200, 40, 0.9));
 }
 
 /* Letras tremendo: só transform (Pilar 2), sobre a pose do .show */

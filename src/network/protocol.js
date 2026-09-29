@@ -22,7 +22,8 @@ import { ZONE, ZONE_COUNT, ZONE_OFFSET, mirrorZone, zoneSeat, seatZone } from '.
  */
 
 // v5: Troca de Guarda e Relâmpago. v6: Fantasma, Espelho Sombrio, Emboscada e Maldição (status em 16 bits)
-export const PROTOCOL_VERSION = 6;
+// v7: Bloqueio do campo de consumível (USE_LOCKOUT / SNAPSHOT_FLAGS2)
+export const PROTOCOL_VERSION = 7;
 
 export const MSG = Object.freeze({
     SNAPSHOT: 1,
@@ -103,13 +104,17 @@ export const EVENT = Object.freeze({
     AMBUSH: 29,
     // { seat, cards: [{ id, type?, color?, power?, fromType?, fromColor?, fromPower? }] } — Maldição disparou na mão
     // do alvo. Só o alvo recebe as faces (antes/depois); quem amaldiçoou recebe só os ids (versos brilhando).
-    CURSE_TRIGGERED: 30
+    CURSE_TRIGGERED: 30,
+    // { seat, topId, underId, newPower } - Fusão do 1/2 com o 0
+    FUSION: 31,
+    // { cardId, seat, zeroId } - Uma fusão desfeita por um bloqueio ou reverso
+    UNFUSE: 32
 });
 
 export const MIRROR_RESULT = Object.freeze({ WIN: 0, PARADOX: 1 });
 
 // OVERLOAD: Relâmpago na vida — DIRECT_HIT ganha `burned: number[]` (cartas queimadas da mão do alvo)
-export const HIT_EFFECT = Object.freeze({ NONE: 0, LOCKOUT: 1, HAND_SWAP: 2, OVERLOAD: 3 });
+export const HIT_EFFECT = Object.freeze({ NONE: 0, LOCKOUT: 1, HAND_SWAP: 2, OVERLOAD: 3, USE_LOCKOUT: 5 });
 export const GAME_RESULT = Object.freeze({ NONE: 0, VICTORY: 1, DEFEAT: 2 });
 export const END_REASON = Object.freeze({ HP: 0, ABANDON: 1 });
 export const REL_SEAT = Object.freeze({ SELF: 0, OPPONENT: 1 });
@@ -123,6 +128,11 @@ export const SNAPSHOT_FLAGS = Object.freeze({
     OPP_REMATCH: 32,
     SELF_CHOOSING_COLOR: 64,
     OPP_CHOOSING_COLOR: 128
+});
+
+export const SNAPSHOT_FLAGS2 = Object.freeze({
+    SELF_USE_LOCKED: 1,
+    OPP_USE_LOCKED: 2
 });
 
 /**
@@ -170,7 +180,7 @@ export function localizeEvent(event, viewerSeat) {
 // (Cura/Escudo/Reviver usados continuam secretos até o efeito aparecer em combate), nem as moedas e
 // a loja do oponente.
 
-const SHOP_OFFSET = 30;
+const SHOP_OFFSET = 32;
 const SHOP_ITEM_BYTES = 6;
 const HEADER_BYTES = SHOP_OFFSET + CONFIG.SHOP.SLOTS * SHOP_ITEM_BYTES;
 const CARD_BYTES = 8;
@@ -188,6 +198,7 @@ export class SnapshotView {
         this.oppHP = CONFIG.STARTING_HP;
         this.selfColor = CONFIG.COLOR.NONE;
         this.flags = 0;
+        this.flags2 = 0;
         this.selfDiscards = 0;
         this.oppDiscards = 0;
         this.result = GAME_RESULT.NONE;
@@ -322,6 +333,10 @@ export function encodeSnapshot(state, viewerSeat, seq, ackSeq, scratch) {
     if (viewerChooses) flags |= SNAPSHOT_FLAGS.SELF_CHOOSING_COLOR;
     if (choosing && state.colorChooser === oppSeat) flags |= SNAPSHOT_FLAGS.OPP_CHOOSING_COLOR;
 
+    let flags2 = 0;
+    if (state.useLock[viewerSeat] > 0) flags2 |= SNAPSHOT_FLAGS2.SELF_USE_LOCKED;
+    if (state.useLock[oppSeat] > 0) flags2 |= SNAPSHOT_FLAGS2.OPP_USE_LOCKED;
+
     let result = GAME_RESULT.NONE;
     if (state.winner >= 0) result = state.winner === viewerSeat ? GAME_RESULT.VICTORY : GAME_RESULT.DEFEAT;
 
@@ -348,6 +363,7 @@ export function encodeSnapshot(state, viewerSeat, seq, ackSeq, scratch) {
     scratch.setUint16(25, state.coins[viewerSeat]);
     scratch.setUint8(27, state.shopRoundsLeft);
     scratch.setUint8(28, state.rerollCost[viewerSeat]);
+    scratch.setUint8(30, flags2);
     const slots = CONFIG.SHOP.SLOTS;
     for (let slot = 0; slot < slots; slot++) {
         const i = viewerSeat * slots + slot;
@@ -417,6 +433,7 @@ export function decodeSnapshot(data, view) {
     view.coins = dv.getUint16(25);
     view.shopRoundsLeft = dv.getUint8(27);
     view.rerollCost = dv.getUint8(28);
+    view.flags2 = dv.getUint8(30);
     for (let slot = 0; slot < CONFIG.SHOP.SLOTS; slot++) {
         const o = SHOP_OFFSET + slot * SHOP_ITEM_BYTES;
         view.shopType[slot] = dv.getUint8(o);

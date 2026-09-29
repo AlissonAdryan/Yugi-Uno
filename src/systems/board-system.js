@@ -2,6 +2,7 @@ import { CONFIG } from '../config/constants.js';
 import { BOARD_ZONES, ZONE } from '../utils/zones.js';
 import { i18n } from '../i18n/index.js';
 import { globalEvents } from '../core/event-bus.js';
+import { drawThornSeal } from '../render/fx-layer.js';
 
 /**
  * BoardSystem - geometria dos slots do tabuleiro, sempre na perspectiva do jogador local
@@ -82,7 +83,8 @@ export class BoardSystem {
         this.locked[zone] = isLocked ? 1 : 0;
     }
 
-    draw(ctx) {
+    /** @param {number} [time] relógio (s) do FxLayer: o selo fixo respira em fase com o selo animado */
+    draw(ctx, time = 0) {
         if (this.cacheDirty) this.rebuildCache();
 
         // Cache já está em pixels de device 1:1 com o backbuffer: blita fora da transform virtual corrente
@@ -91,7 +93,7 @@ export class BoardSystem {
         ctx.drawImage(this.cacheCanvas, 0, 0);
         ctx.restore();
 
-        this.drawDynamic(ctx);
+        this.drawDynamic(ctx, time);
     }
 
     /** Bordas tracejadas + rótulo do slot de consumível (traduzido): só muda ao redimensionar ou trocar idioma. */
@@ -124,7 +126,7 @@ export class BoardSystem {
     }
 
     /** Realce da zona sob arrasto e cadeado de bloqueio: mudam quadro a quadro, ficam fora do cache. */
-    drawDynamic(ctx) {
+    drawDynamic(ctx, time) {
         if (this.highlightZone !== -1) {
             const r = this.slots[this.highlightZone];
             if (r) {
@@ -143,7 +145,12 @@ export class BoardSystem {
             const zone = BOARD_ZONES[i];
             if (!this.locked[zone]) continue;
             const r = this.slots[zone];
-            if (r) this.drawLock(ctx, r.hitX + r.hitW / 2, r.hitY + r.hitH / 2);
+            if (!r) continue;
+            const cx = r.hitX + r.hitW / 2;
+            const cy = r.hitY + r.hitH / 2;
+            // Slot USE só é bloqueado pela Emboscada: selo de espinhos no lugar do cadeado genérico
+            if (r.useSlot) drawThornSeal(ctx, cx, cy, r.hitW / 2, r.hitH / 2, 1, time);
+            else this.drawLock(ctx, cx, cy);
         }
     }
 

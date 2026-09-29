@@ -45,11 +45,13 @@ export const EN = {
     // Messages
     "WAITING_OPPONENT": "WAITING FOR OPPONENT...",
     "DEFENSE_LOCKED": "YOUR DEFENSE IS LOCKED THIS ROUND!",
+    "USE_SLOT_LOCKED": "YOUR CONSUMABLE SLOT IS LOCKED THIS ROUND!",
     "HAND_LIMIT": "HAND LIMIT! GIVE {n} CARD(S) TO OPPONENT",
     "OPPONENT_DISCARDING": "OPPONENT IS DISCARDING...",
     "NO_COLOR_DISCARD": "NO MATCHING COLOR! DISCARD {n} CARD(S)",
     "OPPONENT_CHOOSING_COLOR": "OPPONENT IS CHOOSING COLOR...",
     "HIT_LOCKOUT": "LOCKED OUT!",
+    "HIT_USE_LOCKOUT": "ITEM LOCKED!",
     "HIT_HAND_SWAP": "HANDS SWAPPED!",
 
     // Network
@@ -144,6 +146,7 @@ export const EN = {
     "CARD_CURSE": "Curse",
     "DESC_CURSE": "Consumable: next round, 2 cards in the enemy hand lose 3 (specials become 1). 2x per match.",
     "AMBUSH_ALERT": "AMBUSH!",
+    "FUSION_ALERT": "FUSION!",
     "CURSE_ALERT": "CURSE!",
     "CARD_INFO_OPEN": "Card info",
     "CARD_INFO_HINT": "Drop a card here to see what it does",

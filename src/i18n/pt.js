@@ -45,11 +45,13 @@ export const PT_BR = {
     // Messages
     "WAITING_OPPONENT": "AGUARDANDO O OPONENTE...",
     "DEFENSE_LOCKED": "SUA DEFESA ESTÁ BLOQUEADA NESTA RODADA!",
+    "USE_SLOT_LOCKED": "SEU CAMPO DE CONSUMÍVEL ESTÁ BLOQUEADO NESTA RODADA!",
     "HAND_LIMIT": "LIMITE DE MÃO! DOE {n} CARTA(S) AO OPONENTE",
     "OPPONENT_DISCARDING": "O OPONENTE ESTÁ DESCARTANDO...",
     "NO_COLOR_DISCARD": "SEM COR EM COMUM! DESCARTE {n} CARTA(S)",
     "OPPONENT_CHOOSING_COLOR": "O OPONENTE ESTÁ ESCOLHENDO A COR...",
     "HIT_LOCKOUT": "BLOQUEIO!",
+    "HIT_USE_LOCKOUT": "ITEM BLOQUEADO!",
     "HIT_HAND_SWAP": "TROCA DE MÃOS!",
 
     // Network
@@ -144,6 +146,7 @@ export const PT_BR = {
     "CARD_CURSE": "Maldição",
     "DESC_CURSE": "Consumível: na próxima rodada, 2 cartas da mão inimiga perdem 3 (especiais viram 1). 2x por partida.",
     "AMBUSH_ALERT": "EMBOSCADA!",
+    "FUSION_ALERT": "FUSÃO!",
     "CURSE_ALERT": "MALDIÇÃO!",
     "CARD_INFO_OPEN": "Informações da carta",
     "CARD_INFO_HINT": "Solte uma carta aqui para ver o que ela faz",

@@ -148,7 +148,7 @@ export class Canvas2DRenderer {
         ctx.setTransform(pixelScale, 0, 0, pixelScale, 0, 0);
         ctx.clearRect(0, 0, vp.width, vp.height);
 
-        this.board.draw(ctx);
+        this.board.draw(ctx, scene.fx ? scene.fx.time : this.time);
         this.drawDeckPile(scene);
         if (scene.guardSwapArmed) this.drawGuardSwapSigils();
         if (scene.ambushArmed) this.drawAmbushSigil();

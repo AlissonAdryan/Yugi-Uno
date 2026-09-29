@@ -45,11 +45,13 @@ export const DE = {
     // Messages
     "WAITING_OPPONENT": "WARTE AUF DEN GEGNER...",
     "DEFENSE_LOCKED": "DEINE VERTEIDIGUNG IST DIESE RUNDE GESPERRT!",
+    "USE_SLOT_LOCKED": "DEIN VERBRAUCHSGEGENSTAND-SLOT IST DIESE RUNDE GESPERRT!",
     "HAND_LIMIT": "HANDLIMIT! GIB {n} KARTE(N) AN DEN GEGNER",
     "OPPONENT_DISCARDING": "DER GEGNER LEGT KARTEN AB...",
     "NO_COLOR_DISCARD": "KEINE GEMEINSAME FARBE! LEGE {n} KARTE(N) AB",
     "OPPONENT_CHOOSING_COLOR": "DER GEGNER WÄHLT DIE FARBE...",
     "HIT_LOCKOUT": "GESPERRT!",
+    "HIT_USE_LOCKOUT": "GEGENSTAND GESPERRT!",
     "HIT_HAND_SWAP": "HANDTAUSCH!",
 
     // Network
@@ -144,6 +146,7 @@ export const DE = {
     "CARD_CURSE": "Fluch",
     "DESC_CURSE": "Verbrauchbar: Nächste Runde verlieren 2 Karten der gegnerischen Hand 3 (Spezialkarten werden zu 1). 2x pro Partie.",
     "AMBUSH_ALERT": "HINTERHALT!",
+    "FUSION_ALERT": "FUSION!",
     "CURSE_ALERT": "FLUCH!",
     "CARD_INFO_OPEN": "Karteninfo",
     "CARD_INFO_HINT": "Lege eine Karte hier ab, um zu sehen, was sie macht",

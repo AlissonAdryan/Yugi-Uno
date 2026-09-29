@@ -45,11 +45,13 @@ export const HI = {
     // Messages
     "WAITING_OPPONENT": "प्रतिद्वंद्वी का इंतज़ार...",
     "DEFENSE_LOCKED": "इस राउंड में आपकी डिफ़ेंस लॉक है!",
+    "USE_SLOT_LOCKED": "इस राउंड में आपका उपभोज्य स्लॉट लॉक है!",
     "HAND_LIMIT": "हैंड लिमिट! प्रतिद्वंद्वी को {n} कार्ड दें",
     "OPPONENT_DISCARDING": "प्रतिद्वंद्वी कार्ड डिस्कार्ड कर रहा है...",
     "NO_COLOR_DISCARD": "कोई समान रंग नहीं! {n} कार्ड डिस्कार्ड करें",
     "OPPONENT_CHOOSING_COLOR": "प्रतिद्वंद्वी रंग चुन रहा है...",
     "HIT_LOCKOUT": "ब्लॉक!",
+    "HIT_USE_LOCKOUT": "आइटम लॉक!",
     "HIT_HAND_SWAP": "हाथ बदले!",
 
     // Network
@@ -144,6 +146,7 @@ export const HI = {
     "CARD_CURSE": "श्राप",
     "DESC_CURSE": "उपभोग्य: अगले राउंड दुश्मन के हाथ के 2 कार्ड 3 कम हो जाते हैं (विशेष कार्ड 1 बन जाते हैं)। हर मैच में 2 बार।",
     "AMBUSH_ALERT": "घात!",
+    "FUSION_ALERT": "संलयन!",
     "CURSE_ALERT": "श्राप!",
     "CARD_INFO_OPEN": "कार्ड जानकारी",
     "CARD_INFO_HINT": "कार्ड यहाँ छोड़ें और देखें कि वह क्या करता है",

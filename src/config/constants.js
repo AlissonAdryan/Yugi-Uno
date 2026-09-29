@@ -38,7 +38,8 @@ const STATUS = Object.freeze({
     GUARD_SWAP: 32,  // Troca de Guarda armada: dispara no início do próximo combate
     AMBUSH: 64,      // Emboscada armada: dispara quando a Defesa entrar na linha de frente neste combate
     CURSE_PENDING: 128, // Maldição plantada: dispara no início da próxima rodada
-    CURSE_SPENT: 256    // as Maldições da partida acabaram (CONFIG.CURSE.MAX_PER_MATCH)
+    CURSE_SPENT: 256,   // as Maldições da partida acabaram (CONFIG.CURSE.MAX_PER_MATCH)
+    USE_LOCKED: 512     // campo USE bloqueado pela Emboscada
 });
 
 /*
@@ -79,7 +80,7 @@ export const CONFIG = Object.freeze({
     NAME_MAX_LENGTH: 16,
     FORCED_DISCARD_COUNT: 2,
     ROUND_DRAWS: Object.freeze({ WINNER: 2, LOSER: 1, TIE: 1 }),
-    NUMBER_RANGE: Object.freeze({ MIN: 1, MAX: 9 }),
+    NUMBER_RANGE: Object.freeze({ MIN: 0, MAX: 9 }),
     REVERSE_COMPENSATION_POWER: 1,
     // Trava de segurança contra loops de combate (cadeias de +2/+4 são finitas, mas nunca confiamos cegamente)
     COMBAT_MAX_STEPS: 200,
@@ -95,7 +96,7 @@ export const CONFIG = Object.freeze({
             BLOCK: 8,
             REVERSE: 7,
             CHANGE_COLOR: 8,
-            HEAL: 4,
+            HEAL: 5,
             SHIELD: 6,
             REVIVE: 1,
             PAINT: 5,
@@ -342,7 +343,13 @@ export const CONFIG = Object.freeze({
         // Maldição disparando no início da rodada (correntes, rachaduras e o valor caindo)
         CURSE: 2300,
         // Moedas do fim da rodada e renovação da loja (pausa curta pra a animação respirar)
-        ROUND_ECONOMY: 500
+        ROUND_ECONOMY: 500,
+        // Carta reforçada pela Emboscada na vida: pausa extra além do DIRECT_HIT pro selo fechar o slot USE
+        // (cinemática: ~650ms até o impacto + ANIM.USE_LOCK)
+        USE_LOCKOUT_EXTRA: 500,
+        // Fusão de combo (1+0 -> 10, 2+0 -> 20, §6.1) e desfazimento (Block/Reverso quebram a fusão)
+        FUSION: 1150,
+        UNFUSE: 650
     }),
 
     ANIM: Object.freeze({
@@ -418,12 +425,20 @@ export const CONFIG = Object.freeze({
         AMBUSH_BIND: 380,
         AMBUSH_PULSE: 260,
         AMBUSH_RISE: 420,
+        // Selo de espinhos no slot USE (Emboscada na vida): fio viaja (25%), teia se fecha e o olho abre
+        USE_LOCK: 1100,
         // Maldição (soma <= TIMINGS.CURSE)
         CURSE_CHAINS: 520,
         CURSE_SHAKE: 520,
         CURSE_DROP: 360,
         CURSE_SHATTER: 520,
-        MUSIC_FADE_S: 0.9
+        MUSIC_FADE_S: 0.9,
+        // Fusão 10/20: o 0 sobe (45% do SPIN), mergulha girando no 1/2 (55%) e o número pulsa (soma <= TIMINGS.FUSION)
+        FUSION_SPIN: 560,
+        FUSION_FLASH: 520,
+        FUSION_LIFT_PX: 70,
+        // Desfusão: o número volta ao valor original e o "0" reaparece com um "pop" (soma <= TIMINGS.UNFUSE)
+        UNFUSE: 650
     }),
 
     AI: Object.freeze({

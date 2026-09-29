@@ -45,11 +45,13 @@ export const KO = {
     // Messages
     "WAITING_OPPONENT": "상대를 기다리는 중...",
     "DEFENSE_LOCKED": "이번 라운드는 방어가 잠겨 있습니다!",
+    "USE_SLOT_LOCKED": "이번 라운드는 소비 아이템 슬롯이 잠겨 있습니다!",
     "HAND_LIMIT": "핸드 제한! 상대에게 카드 {n}장을 주세요",
     "OPPONENT_DISCARDING": "상대가 카드를 버리는 중...",
     "NO_COLOR_DISCARD": "공통 색상이 없습니다! 카드 {n}장을 버리세요",
     "OPPONENT_CHOOSING_COLOR": "상대가 색상을 선택하는 중...",
     "HIT_LOCKOUT": "봉쇄!",
+    "HIT_USE_LOCKOUT": "아이템 봉쇄!",
     "HIT_HAND_SWAP": "핸드 교환!",
 
     // Network
@@ -144,6 +146,7 @@ export const KO = {
     "CARD_CURSE": "저주",
     "DESC_CURSE": "소모품: 다음 라운드, 적 손패 2장이 3 감소합니다(특수 카드는 1이 됨). 한 경기 2회.",
     "AMBUSH_ALERT": "매복!",
+    "FUSION_ALERT": "융합!",
     "CURSE_ALERT": "저주!",
     "CARD_INFO_OPEN": "카드 정보",
     "CARD_INFO_HINT": "카드를 여기에 놓으면 효과를 볼 수 있습니다",

@@ -59,6 +59,9 @@ export class ServerCombat {
 
         let steps = 0;
         while (steps++ < CONFIG.COMBAT_MAX_STEPS && !this.engine.isGameOver() && this.gameWinner < 0) {
+            await this.applyFusions(SEAT.P1, ATTACK);
+            await this.applyFusions(SEAT.P2, ATTACK);
+
             const top0 = s.top(SEAT.P1, ATTACK);
             const top1 = s.top(SEAT.P2, ATTACK);
 
@@ -99,6 +102,35 @@ export class ServerCombat {
         }
         settleAmbushes(this);
         return { roundWinner: this.roundWinner, gameWinner: this.gameWinner };
+    }
+
+    /**
+     * Fusão de combo (GAME_RULES §6.16): um 0 empilhado em cima de um 1 ou 2 da mesma cor (combo permitido
+     * por rules.isValidCombo) se funde antes do choque — o 0 é absorvido e o 1 vira 10, o 2 vira 20. O 0
+     * fica guardado em fusionChild/fusionBase pra caso Block/Reverso desfaçam a fusão (cards/block.js,
+     * cards/reverse.js). Vale também quando um +2/+4 puxa essa sequência.
+     */
+    async applyFusions(seat, zoneOffset) {
+        const s = this.state;
+        const stack = s.zone(seat, zoneOffset);
+        if (stack.length < 2) return;
+        const zero = stack[stack.length - 1];
+        const base = stack[stack.length - 2];
+        if (s.type[zero] !== CARD_TYPES.NUMBER || s.power[zero] !== 0) return;
+        if (s.type[base] !== CARD_TYPES.NUMBER || (s.power[base] !== 1 && s.power[base] !== 2)) return;
+        if (s.color[zero] !== s.color[base]) return;
+
+        const newPower = s.power[base] * 10;
+        console.log(`[ServerCombat] P${seat + 1}: Fusão! ${s.power[base]} + 0 -> ${newPower}.`);
+        this.engine.emit(EVENT.FUSION, { seat, topId: zero, underId: base, newPower });
+
+        s.fusionBase[base] = s.power[base];
+        s.power[base] = newPower;
+        s.fusionChild[base] = zero;
+        s.moveCard(zero, ZONE.DISCARD);
+
+        this.engine.markDirty();
+        await this.engine.sleep(TIMINGS.FUSION);
     }
 
     faceOf(id) {
@@ -308,6 +340,8 @@ export class ServerCombat {
             } else if (type === CARD_TYPES.REVERSE) {
                 extraWait = await resolveReverseDirectHit(this, attacker, target, cardId);
             } else {
+                // Carta reforçada pela Emboscada: o selo de espinhos fecha o slot USE do alvo (animação mais longa)
+                if (s.ambushBoosted[attacker] === cardId) extraWait = TIMINGS.USE_LOCKOUT_EXTRA;
                 revived = this.numericHit(attacker, target, cardId);
             }
 
@@ -332,16 +366,29 @@ export class ServerCombat {
         const s = this.state;
         // O evento descreve o estado antes da mutação: calcula, emite e só então aplica
         const hit = this.previewLifeHit(target, Math.max(0, s.power[cardId]));
+        
+        let effect = HIT_EFFECT.NONE;
+        if (s.ambushBoosted[attacker] === cardId) {
+            effect = HIT_EFFECT.USE_LOCKOUT;
+            s.useLock[target] = 1;
+        }
+
         console.log(`[ServerCombat] Dano direto de P${attacker + 1}: -${hit.damage} HP em P${target + 1}`
             + (hit.absorbed > 0 ? ` (Escudo segurou ${hit.absorbed})` : '')
+            + (effect === HIT_EFFECT.USE_LOCKOUT ? ' -> Consumível bloqueado!' : '')
             + (hit.revived ? ' -> REVIVER salvou da morte!' : hit.guarded ? ' -> Reviver segurou a vida em 1' : ''));
 
-        const payload = { cardId, seat: attacker, damage: hit.damage, effect: HIT_EFFECT.NONE, guarded: hit.guarded ? 1 : 0 };
+        // Fusão 2+0 -> 20 é instável: acertou a vida, a carta se desfaz em vez de voltar pra mão (§6.16)
+        const unstable = s.fusionChild[cardId] !== -1 && s.fusionBase[cardId] === 2;
+
+        const payload = { cardId, seat: attacker, damage: hit.damage, effect, guarded: hit.guarded ? 1 : 0 };
         if (hit.absorbed > 0) payload.absorbed = hit.absorbed;
+        if (unstable) payload.destroyed = 1;
         this.engine.emit(EVENT.DIRECT_HIT, payload);
 
         this.applyLifeHit(attacker, target, hit);
-        s.moveCard(cardId, seatZone(attacker, HAND));
+        if (unstable) this.deck.discard(cardId);
+        else s.moveCard(cardId, seatZone(attacker, HAND));
         return hit.revived;
     }
 

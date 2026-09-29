@@ -45,11 +45,13 @@ export const IT = {
     // Messages
     "WAITING_OPPONENT": "IN ATTESA DELL'AVVERSARIO...",
     "DEFENSE_LOCKED": "LA TUA DIFESA È BLOCCATA QUESTO TURNO!",
+    "USE_SLOT_LOCKED": "IL TUO SLOT CONSUMABILE È BLOCCATO QUESTO TURNO!",
     "HAND_LIMIT": "LIMITE DI MANO! DAI {n} CARTA/E ALL'AVVERSARIO",
     "OPPONENT_DISCARDING": "L'AVVERSARIO STA SCARTANDO...",
     "NO_COLOR_DISCARD": "NESSUN COLORE IN COMUNE! SCARTA {n} CARTA/E",
     "OPPONENT_CHOOSING_COLOR": "L'AVVERSARIO STA SCEGLIENDO IL COLORE...",
     "HIT_LOCKOUT": "BLOCCO!",
+    "HIT_USE_LOCKOUT": "OGGETTO BLOCCATO!",
     "HIT_HAND_SWAP": "SCAMBIO DI MANI!",
 
     // Network
@@ -144,6 +146,7 @@ export const IT = {
     "CARD_CURSE": "Maledizione",
     "DESC_CURSE": "Consumabile: al turno successivo, 2 carte della mano nemica perdono 3 (le speciali diventano 1). 2 volte per partita.",
     "AMBUSH_ALERT": "IMBOSCATA!",
+    "FUSION_ALERT": "FUSIONE!",
     "CURSE_ALERT": "MALEDIZIONE!",
     "CARD_INFO_OPEN": "Info carta",
     "CARD_INFO_HINT": "Rilascia una carta qui per vedere cosa fa",
