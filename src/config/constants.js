@@ -105,7 +105,7 @@ export const CONFIG = Object.freeze({
             GUARD_SWAP: 5,
             LIGHTNING: 3,
             GHOST: 5,
-            MIRROR: 3000,
+            MIRROR: 3,
             AMBUSH: 5,
             CURSE: 2
         })
