@@ -188,7 +188,8 @@ body {
 .settings-btn,
 .shop-btn,
 .settings-content,
-.card-info-float {
+.card-info-float,
+#name-modal .room-card {
     zoom: calc(var(--ui-scale, 1) * 1.5);
 }
 
