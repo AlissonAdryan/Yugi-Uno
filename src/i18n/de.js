@@ -140,7 +140,7 @@ export const DE = {
     "CARD_GHOST": "Geist",
     "DESC_GHOST": "Gleitet durch die gegnerische Karte, ohne sie zu berühren, und verursacht 3 direkten Schaden. Nur der Blitz hält ihn auf.",
     "CARD_MIRROR": "Dunkler Spiegel",
-    "DESC_MIRROR": "Kopiert den gegnerischen Wert +1 und gewinnt den Zusammenstoß. Aufs Leben: der Schaden trifft auch dich.",
+    "DESC_MIRROR": "Kopiert den feindlichen Wert +1 und gewinnt das Duell. Auf Leben: du erhältst die Hälfte des verursachten Schadens.",
     "CARD_AMBUSH": "Hinterhalt",
     "DESC_AMBUSH": "Verbrauchbar: Kommt deine Verteidigung in den Kampf, erhält sie diese Runde +3 Stärke.",
     "CARD_CURSE": "Fluch",

@@ -140,7 +140,7 @@ export const ZH = {
     "CARD_GHOST": "幽灵",
     "DESC_GHOST": "穿过敌方卡牌而不触碰它，对生命造成3点直接伤害。只有闪电能阻止它。",
     "CARD_MIRROR": "暗影之镜",
-    "DESC_MIRROR": "复制敌方数值+1并赢得碰撞。命中生命：伤害也会反弹给你。",
+    "DESC_MIRROR": "复制敌方数值+1并赢得冲突。对生命值：你受到所造成伤害的一半。",
     "CARD_AMBUSH": "伏击",
     "DESC_AMBUSH": "消耗品：若你的防御进入战斗，本回合获得+3力量。",
     "CARD_CURSE": "诅咒",

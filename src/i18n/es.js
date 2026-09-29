@@ -140,7 +140,7 @@ export const ES = {
     "CARD_GHOST": "Fantasma",
     "DESC_GHOST": "Atraviesa la carta enemiga sin tocarla y causa 3 de daño directo. Solo el Relámpago lo detiene.",
     "CARD_MIRROR": "Espejo Sombrío",
-    "DESC_MIRROR": "Copia el valor enemigo +1 y gana el choque. En la vida: el daño también vuelve a ti.",
+    "DESC_MIRROR": "Copia el valor enemigo +1 y gana el choque. En la vida: recibes la mitad del daño causado.",
     "CARD_AMBUSH": "Emboscada",
     "DESC_AMBUSH": "Consumible: si tu Defensa entra en combate, gana +3 de fuerza esta ronda.",
     "CARD_CURSE": "Maldición",

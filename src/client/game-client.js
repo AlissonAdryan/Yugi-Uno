@@ -52,6 +52,7 @@ export class GameClient {
         this.view = new SnapshotView();
         this.hasSnapshot = false;
         this.present = new Uint8Array(this.pool.maxCards);
+        this.defenseLockedMsgTime = 0;
 
         this.board = new BoardSystem();
         this.animator = new Animator();
@@ -495,8 +496,20 @@ export class GameClient {
                 variant = 'paint';
             }
         } else if (phase === GAME_STATES.PLAYING) {
-            if (selfReady && !oppReady) message = i18n.t('WAITING_OPPONENT');
-            else if (!selfReady && v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED)) message = i18n.t('DEFENSE_LOCKED');
+            if (selfReady && !oppReady) {
+                message = i18n.t('WAITING_OPPONENT');
+                this.defenseLockedMsgTime = 0;
+            } else if (!selfReady && v.hasFlag(SNAPSHOT_FLAGS.SELF_DEFENSE_LOCKED)) {
+                if (!this.defenseLockedMsgTime) {
+                    this.defenseLockedMsgTime = Date.now();
+                    setTimeout(() => this.relayout(), 3050);
+                }
+                if (Date.now() - this.defenseLockedMsgTime <= 3000) {
+                    message = i18n.t('DEFENSE_LOCKED');
+                }
+            } else {
+                this.defenseLockedMsgTime = 0;
+            }
         } else if (phase === GAME_STATES.DISCARDING) {
             if (discardsLeft > 0) {
                 message = i18n.t('HAND_LIMIT', { n: discardsLeft });

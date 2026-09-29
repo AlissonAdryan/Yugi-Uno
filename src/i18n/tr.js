@@ -140,7 +140,7 @@ export const TR = {
     "CARD_GHOST": "Hayalet",
     "DESC_GHOST": "Rakip karta dokunmadan içinden geçer ve cana 3 doğrudan hasar verir. Onu yalnızca Şimşek durdurur.",
     "CARD_MIRROR": "Karanlık Ayna",
-    "DESC_MIRROR": "Rakibin değerini +1 kopyalar ve çarpışmayı kazanır. Cana isabet: hasar sana da döner.",
+    "DESC_MIRROR": "Düşman değerini +1 kopyalar ve çarpışmayı kazanır. Can üzerinde: verdiğin hasarın yarısını alırsın.",
     "CARD_AMBUSH": "Pusu",
     "DESC_AMBUSH": "Tüketilebilir: Savunman savaşa girerse bu tur +3 güç kazanır.",
     "CARD_CURSE": "Lanet",

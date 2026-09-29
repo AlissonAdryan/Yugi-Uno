@@ -34,12 +34,14 @@ export class ColorPicker {
         this.mask = -1;
         this.mode = '';
         this.closeTimer = 0;
+        this.showTime = 0;
 
         this.root.style.setProperty('--choice-ms', `${CONFIG.TIMINGS.COLOR_CHOICE_TIMEOUT}ms`);
         this.slices = WHEEL_SLOTS.map(({ color, corner }) => this.createSlice(color, corner));
 
         // Clique no fundo escurecido (fora da carta): só cancela nos modos que permitem (ex.: Pintar)
         this.root.addEventListener('click', (e) => {
+            if (Date.now() - this.showTime < 400) return; // Impede que o 'click' (ou touch end) da seleção da carta feche o menu imediatamente
             if (e.target !== this.root || this.locked || !this.onCancel) return;
             const cancel = this.onCancel;
             this.audio.play(SFX.CLICK);
@@ -56,7 +58,10 @@ export class ColorPicker {
         btn.addEventListener('pointerenter', (e) => {
             if (e.pointerType === 'mouse' && !btn.disabled && !this.locked) this.audio.play(SFX.HOVER);
         });
-        btn.addEventListener('click', () => this.pick(color, btn));
+        btn.addEventListener('click', () => {
+            if (Date.now() - this.showTime < 400) return; // Proteção contra ghost clicks do touch
+            this.pick(color, btn);
+        });
         this.wheel.appendChild(btn);
         return { color, btn };
     }
@@ -75,6 +80,7 @@ export class ColorPicker {
         if (this.visible && mask === this.mask && mode === this.mode) return;
 
         clearTimeout(this.closeTimer);
+        this.showTime = Date.now();
         this.mask = mask;
         this.mode = mode;
         this.locked = false;

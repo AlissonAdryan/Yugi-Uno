@@ -45,6 +45,8 @@ body {
     font-family: 'Righteous', sans-serif;
     color: white;
     background-color: #19196b;
+    -webkit-user-select: none; /* Previne seleção de texto no Safari/iOS */
+    user-select: none; /* Previne seleção de texto em navegadores modernos */
 }
 
 /*
@@ -2157,6 +2159,7 @@ input:focus-visible + .slider {
     border: 2px solid rgba(255, 215, 0, 0.55);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06), 0 22px 60px rgba(0, 0, 0, 0.65), 0 0 44px rgba(255, 190, 40, 0.25);
     overflow: hidden;
+    overscroll-behavior: none; /* Previne efeito "borracha" (rubber-band) em telas touch */
     color: #fff;
     font-family: 'Righteous', sans-serif;
     animation: shopPanelIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -2165,6 +2168,15 @@ input:focus-visible + .slider {
 .shop.closing .shop-panel { animation: shopPanelOut 0.26s ease-in forwards; }
 
 /* Raios dourados girando devagar atrás de tudo */
+.shop-bg {
+    position: absolute;
+    inset: 0;
+    overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+    z-index: 0;
+}
+
 .shop-rays {
     position: absolute;
     left: 50%;

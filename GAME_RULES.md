@@ -1,4 +1,4 @@
-# Livro de Regras Oficiais do Jogo
+﻿# Livro de Regras Oficiais do Jogo
 
 ## 1. Visão Geral e Campo de Batalha
 - **Jogadores:** 2 Jogadores (1v1).
@@ -185,7 +185,7 @@ Durante o jogo, os jogadores obtêm cartas com mecânicas únicas que alteram o 
 * **Jogada:** Ataque ou Defesa, obedecendo à cor da rodada. Vale Espelho de Defesa e Combo (cada Espelho copia sozinho a carta que enfrentar).
 * **Colisão com número:** Copia o valor inimigo **+1** e vence por 1: a inimiga se estilhaça e o Espelho sobrevive valendo **1**. Contra consumíveis invocados (valor 0) ele também vence. Como cada choque é uma cópia nova, ele vence todas as cartas de número que enfrentar.
 * **Contra especiais:** Espelho x Espelho e Espelho x Block são **paradoxos**: os dois se estilhaçam. O **Reverso** age antes e rouba/inverte a pilha com o Espelho. O **Relâmpago** fulmina o Espelho antes da cópia. Contra o **Fantasma** ele se desfaz. +2/+4 explodem antes; o Espelho copia a carta invocada que de fato lutar.
-* **Dano Direto (vida) — dano espelhado:** Causa na vida do oponente o valor que carrega e, **meio segundo depois, o mesmo dano volta para o próprio dono**. O Escudo e o Reviver de cada lado valem normalmente. Se o golpe já matar o oponente, não há reflexo (a partida acaba). Se o reflexo matar o dono, o oponente vence. Um Espelho que nunca copiou nada (valor 0) não tem o que refletir: só racha e se desfaz. O Espelho não volta para a mão.
+* **Dano Direto (vida) — dano espelhado:** Causa na vida do oponente o valor que carrega e, **meio segundo depois, metade do dano causado \(arredondado para baixo, m.nimo 1\) volta para o pr.prio dono**. O Escudo e o Reviver de cada lado valem normalmente. Se o golpe já matar o oponente, não há reflexo (a partida acaba). Se o reflexo matar o dono, o oponente vence. Um Espelho que nunca copiou nada (valor 0) copia uma carta aleatória da mão inimiga (+1) antes de atacar o HP (ou se desfaz se não achar). O Espelho não volta para a mão.
 * **Cinemática:** Na revelação, um clarão espelhado com glitch. Na cópia, energia escura corre da carta inimiga até o espelho, o número dela aparece em **vermelho-sangue**, glitch digital, e pulsa para o +1 em branco. O Espelho avança deixando **estilhaços de vidro** flutuando e a inimiga se estilhaça como um espelho quebrado. Na vida, um clarão escuro no alvo e, meio segundo depois, o mesmo clarão no dono, com estilhaços voando de volta.
 
 ### 6.14 Consumível - Emboscada (Ambush)

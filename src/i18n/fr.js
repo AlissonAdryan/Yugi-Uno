@@ -140,7 +140,7 @@ export const FR = {
     "CARD_GHOST": "Fantôme",
     "DESC_GHOST": "Traverse la carte ennemie sans la toucher et inflige 3 dégâts directs. Seule la Foudre l'arrête.",
     "CARD_MIRROR": "Miroir Sombre",
-    "DESC_MIRROR": "Copie la valeur ennemie +1 et gagne le choc. Sur la vie : les dégâts vous touchent aussi.",
+    "DESC_MIRROR": "Copie la valeur ennemie +1 et gagne le choc. Sur la vie : vous recevez la moitié des dégâts infligés.",
     "CARD_AMBUSH": "Embuscade",
     "DESC_AMBUSH": "Consommable : si votre Défense entre au combat, elle gagne +3 de force cette manche.",
     "CARD_CURSE": "Malédiction",

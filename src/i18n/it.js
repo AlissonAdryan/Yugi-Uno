@@ -140,7 +140,7 @@ export const IT = {
     "CARD_GHOST": "Fantasma",
     "DESC_GHOST": "Attraversa la carta nemica senza toccarla e infligge 3 danni diretti. Solo il Fulmine lo ferma.",
     "CARD_MIRROR": "Specchio Oscuro",
-    "DESC_MIRROR": "Copia il valore nemico +1 e vince lo scontro. Sulla vita: il danno torna anche a te.",
+    "DESC_MIRROR": "Copia il valore nemico +1 e vince lo scontro. Sulla vita: ricevi metà dei danni inflitti.",
     "CARD_AMBUSH": "Imboscata",
     "DESC_AMBUSH": "Consumabile: se la tua Difesa entra in combattimento, ottiene +3 di forza in questo turno.",
     "CARD_CURSE": "Maledizione",

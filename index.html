@@ -62,8 +62,8 @@
         <div class="settings-content">
             <h2 class="settings-title" data-i18n="SETTINGS">CONFIGURAÇÕES</h2>
 
-            <div class="settings-row">
-                <label for="graphics-toggle" data-i18n="GRAPHICS">GRÁFICOS (ALTO/BAIXO)</label>
+            <div class="settings-row" style="margin-bottom: 42px;">
+                <label for="graphics-toggle" data-i18n="GRAPHICS">GRÁFICOS</label>
                 <div class="settings-toggle-container">
                     <span class="settings-toggle-label" data-i18n="GRAPHICS_LOW">BAIXO</span>
                     <label class="switch">
@@ -255,8 +255,10 @@
                 <canvas class="shop-fx"></canvas>
                 <div class="shop-float">
                     <div class="shop-panel" role="dialog" aria-modal="true" aria-labelledby="shop-title">
-                        <div class="shop-rays" aria-hidden="true"></div>
-                        <div class="shop-motes" aria-hidden="true"></div>
+                        <div class="shop-bg">
+                            <div class="shop-rays" aria-hidden="true"></div>
+                            <div class="shop-motes" aria-hidden="true"></div>
+                        </div>
                         <header class="shop-header">
                             <h2 id="shop-title" class="shop-title">
                                 <svg class="shop-title-icon"><use href="#ico-cart"/></svg>

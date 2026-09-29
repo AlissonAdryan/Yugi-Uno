@@ -51,22 +51,51 @@ export async function resolveMirrorParadox(combat, a, b) {
  */
 export async function resolveMirrorDirectHit(combat, attacker, target, cardId) {
     const s = combat.state;
-    const raw = Math.max(0, s.power[cardId]);
+    let raw = Math.max(0, s.power[cardId]);
+    let copiedHandCardId = -1;
+    let copiedValue = 0;
+
+    // Se o Espelho não tem valor copiado (campo vazio), copia de uma carta aleatória da mão
+    if (raw === 0) {
+        const hand = Array.from(s.zone(target, combat.engine.ZONE_OFFSET.HAND));
+        const numericCards = hand.filter(id => s.type[id] === CONFIG.CARD_TYPES.NUMBER);
+
+        if (numericCards.length > 0) {
+            copiedHandCardId = numericCards[Math.floor(Math.random() * numericCards.length)];
+            copiedValue = Math.max(0, s.power[copiedHandCardId]);
+            const bonus = CONFIG.MIRROR.COPY_BONUS;
+            raw = copiedValue + bonus;
+            console.log(`[ServerCombat] Espelho de P${attacker + 1} encontrou alvo vazio. Copiando da mão a carta ${copiedHandCardId} (valor ${copiedValue} + ${bonus} = ${raw}) antes de atacar.`);
+        } else {
+            raw = 1;
+            console.log(`[ServerCombat] Espelho de P${attacker + 1} encontrou alvo vazio e oponente sem números. Dano fixo de 1.`);
+        }
+        s.power[cardId] = raw; // Salva o novo poder
+    }
+
     // Calcula os dois golpes, emite e só então aplica (o snapshot nunca mostra a vida caindo antes da animação)
     const hit = combat.previewLifeHit(target, raw);
+    
+    // O reflexo causa metade do dano atingido (arredondado para baixo, mínimo 1)
+    const recoilBaseDamage = Math.max(1, Math.floor(hit.damage / 2));
+    
     // O reflexo só volta se o alvo ficou de pé (se ele morreu, a partida já acabou)
     const recoil = hit.damage > 0 && hit.hp > 0
-        ? combat.previewLifeHit(attacker, hit.damage)
+        ? combat.previewLifeHit(attacker, recoilBaseDamage)
         : { damage: 0, absorbed: 0, revived: false, guarded: false, hp: s.hp[attacker] };
 
     console.log(`[ServerCombat] Espelho de P${attacker + 1} atingiu P${target + 1}: -${hit.damage} HP`
-        + (recoil.damage > 0 ? `; o reflexo tirou -${recoil.damage} HP do próprio dono.` : raw === 0 ? ' (sem valor copiado: se desfez).' : '.'));
+        + (recoil.damage > 0 ? `; o reflexo tirou -${recoil.damage} HP do próprio dono.` : '.'));
 
     for (const viewer of SEATS) {
         const data = {
             cardId, seat: attacker, damage: hit.damage, recoil: recoil.damage,
             guarded: hit.guarded ? 1 : 0, recoilGuarded: recoil.guarded ? 1 : 0
         };
+        if (copiedHandCardId >= 0) {
+            data.copyFromId = copiedHandCardId;
+            data.copyValue = copiedValue;
+        }
         if (viewer === target && hit.absorbed > 0) data.absorbed = hit.absorbed;
         if (viewer === attacker && recoil.absorbed > 0) data.recoilAbsorbed = recoil.absorbed;
         combat.engine.emitTo(viewer, EVENT.MIRROR_HIT, data);

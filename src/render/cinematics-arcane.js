@@ -377,6 +377,53 @@ export async function mirrorHit(p, evt) {
         return;
     }
 
+    // Se o Espelho não tinha valor, ele copia de uma carta aleatória da mão do alvo agora mesmo!
+    if (evt.copyFromId >= 0 && pool.isActive(id)) {
+        const tid = evt.copyFromId;
+        if (pool.isActive(tid)) {
+            const mx = p.centerX(id);
+            const my = p.centerY(id);
+            const tx = p.centerX(tid);
+            const ty = p.centerY(tid);
+            const baseZ = pool.zIndex[id];
+            
+            pool.zIndex[id] = 600;
+            pool.glowKind[id] = GLOW.MIRROR;
+            pool.glow[id] = 0.9;
+
+            p.audio.play(SFX.MIRROR_COPY);
+            pool.power[id] = evt.copyValue;
+            pool.numberTint[id] = 1;
+            
+            if (p.fx) p.fx.ring(tx, ty, 10, 90, 420, MIRROR_DARK, 2);
+            
+            const tBase = pool.rotation[tid];
+            await p.animate(ANIM.MIRROR_ABSORB, (k) => {
+                if (pool.isActive(tid)) pool.rotation[tid] = tBase + (k < 1 ? Math.sin(k * Math.PI * 12) * 0.04 : 0);
+                if (k >= 1 || !pool.isActive(id)) return;
+                for (let n = 0; n < 3; n++) {
+                    const ox = (Math.random() - 0.5) * 60;
+                    const oy = (Math.random() - 0.5) * 80;
+                    const dark = n % 2 === 0;
+                    p.particles.emit(tx + ox, ty + oy, (mx - tx - ox) * 2.4, (my - ty - oy) * 2.4, 0.42, 2 + Math.random() * 3,
+                        PARTICLE_TYPES.SPARK, dark ? 122 : 230, dark ? 60 : 224, dark ? 255 : 255);
+                }
+            });
+
+            await p.animate(ANIM.MIRROR_GLITCH, (k) => { if (pool.isActive(id)) pool.glitch[id] = k < 1 ? 0.6 + Math.random() * 0.4 : 0; });
+            
+            pool.power[id] = evt.copyValue + CONFIG.MIRROR.COPY_BONUS;
+            pool.numberTint[id] = 0;
+            if (p.fx) p.fx.ring(mx, my, 18, 100, 380, '#ffffff', 2.2);
+            p.particles.emitBurst(mx, my, '#ffffff', 22, 220, PARTICLE_TYPES.STAR);
+            await p.tween(id, { scale: 1.18 }, ANIM.MIRROR_BONUS, Easing.BackOut);
+            
+            // Retorna ao normal antes de investir contra a vida
+            pool.zIndex[id] = baseZ;
+            await p.tween(id, { scale: 1 }, 200);
+        }
+    }
+
     const targetLife = p.hpPoint(selfIsTarget);
     if (pool.isActive(id)) {
         const startY = pool.targetY[id];
