@@ -3,6 +3,7 @@ import {
     AMBUSH_EYE, CURSE_EYES, MIRROR_OVAL, MIRROR_VEINS, RUNES, getSkullSprite, paintGhostFrame, traceGhostCard,
     traceRune, traceVein
 } from './card-art-arcane.js';
+import { GRAPHICS } from '../config/graphics.js';
 
 /**
  * Camadas animadas das cartas arcanas (ligadas em card-effects.js como `extra` dos presets):
@@ -73,7 +74,7 @@ export function drawEthereal(ctx, w, h, time, phase, seed, scratch, color) {
     const c = COLOR_GLOW[color] || COLOR_GLOW[0];
     const aura = sprite(`ghostAura${color}`, 90, 90, softBlob(c.r, c.g, c.b, 0.9));
 
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
     // Neblina à deriva, em três camadas de velocidades diferentes
     for (let k = 0; k < 3; k++) {
         const x = w * (0.5 + 0.48 * Math.sin(time * (0.28 + k * 0.09) + k * 2.1 + phase * 5));
@@ -165,7 +166,7 @@ export function drawAmbushEye(ctx, w, h, time, phase) {
     }
     // Pálpebras: halo aditivo + linha verde
     almond(ctx, e.x, e.y, e.w, Math.max(0.3, eh));
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
     ctx.globalAlpha = 0.55;
     ctx.strokeStyle = 'rgba(57, 255, 20, 0.45)';
     ctx.lineWidth = 3.4;
@@ -204,7 +205,7 @@ function paintSwirl(g, w, h) {
 export function drawMirrorFx(ctx, w, h, time, phase, seed, scratch, color, held) {
     const o = MIRROR_OVAL;
     const pulse = 0.5 + 0.5 * Math.sin(time * 2.1 + phase * TAU);
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
 
     // Reflexo girando dentro do espelho (parece refletir o ambiente ao "inclinar")
     ctx.save();
@@ -279,7 +280,7 @@ function paintFlame(g, w, h) {
 export function drawCurseFx(ctx, w, h, time, phase, seed, pts) {
     const pulse = 0.5 + 0.5 * Math.sin(time * 1.5 + phase * TAU);
     const mist = sprite('curseMist', 64, 64, softBlob(150, 40, 230, 0.6));
-    ctx.globalCompositeOperation = 'lighter';
+    ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
 
     // Névoa roxa rodando devagar (tempestade contida)
     for (let k = 0; k < 3; k++) {
@@ -390,7 +391,7 @@ export const ARCANE_PRESETS = Object.freeze({
         bands: [
             {
                 stops: [[0, 'rgba(57,255,20,0)'], [0.5, 'rgba(57,255,20,0.1)'], [1, 'rgba(57,255,20,0)']],
-                width: 0.5, period: 5.5, sweep: 0.5, alpha: 1, composite: 'lighter'
+                width: 0.5, period: 5.5, sweep: 0.5, alpha: 1, composite: GRAPHICS.compositeLighter
             }
         ],
         sparkles: { count: 4, color: '#6dff4a', minSize: 1, maxSize: 2, minRate: 1.5, maxRate: 3 },
@@ -404,11 +405,11 @@ export const ARCANE_PRESETS = Object.freeze({
                     [0, 'rgba(120,100,200,0)'], [0.3, 'rgba(150,120,255,0.16)'], [0.5, 'rgba(225,215,255,0.34)'],
                     [0.7, 'rgba(90,60,160,0.16)'], [1, 'rgba(120,100,200,0)']
                 ],
-                width: 0.65, period: 3.4, sweep: 0.6, alpha: 1, composite: 'lighter'
+                width: 0.65, period: 3.4, sweep: 0.6, alpha: 1, composite: GRAPHICS.compositeLighter
             },
             {
                 stops: [[0, 'rgba(255,255,255,0)'], [0.5, 'rgba(240,232,255,0.8)'], [1, 'rgba(255,255,255,0)']],
-                width: 0.1, period: 2.2, sweep: 0.35, alpha: 0.9, composite: 'lighter', offset: 0.5
+                width: 0.1, period: 2.2, sweep: 0.35, alpha: 0.9, composite: GRAPHICS.compositeLighter, offset: 0.5
             }
         ],
         sparkles: { count: 10, color: '#b9a3ff', core: '#ffffff', minSize: 1.4, maxSize: 3.2, minRate: 2.2, maxRate: 4.5 },
@@ -422,11 +423,11 @@ export const ARCANE_PRESETS = Object.freeze({
                     [0, 'rgba(90,0,160,0)'], [0.35, 'rgba(140,30,230,0.22)'], [0.5, 'rgba(190,110,255,0.3)'],
                     [0.65, 'rgba(140,30,230,0.22)'], [1, 'rgba(90,0,160,0)']
                 ],
-                width: 0.95, period: 6.5, sweep: 0.9, alpha: 1, composite: 'lighter'
+                width: 0.95, period: 6.5, sweep: 0.9, alpha: 1, composite: GRAPHICS.compositeLighter
             },
             {
                 stops: [[0, 'rgba(255,255,255,0)'], [0.5, 'rgba(230,200,255,0.7)'], [1, 'rgba(255,255,255,0)']],
-                width: 0.12, period: 3.1, sweep: 0.4, alpha: 0.85, composite: 'lighter', offset: 0.3
+                width: 0.12, period: 3.1, sweep: 0.4, alpha: 0.85, composite: GRAPHICS.compositeLighter, offset: 0.3
             }
         ],
         sparkles: { count: 7, color: '#c77dff', core: '#f3e6ff', minSize: 1.4, maxSize: 3, minRate: 1.8, maxRate: 3.6 },

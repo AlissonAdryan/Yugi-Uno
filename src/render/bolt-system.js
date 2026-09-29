@@ -1,3 +1,4 @@
+import { GRAPHICS } from '../config/graphics.js';
 const MAX_BOLTS = 12;
 const SEGMENTS = 16;
 const POINTS = SEGMENTS + 1;
@@ -140,7 +141,7 @@ export class BoltSystem {
         if (!any) return;
 
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
         ctx.lineJoin = 'round';
         ctx.lineCap = 'round';
         for (let i = 0; i < MAX_BOLTS; i++) {

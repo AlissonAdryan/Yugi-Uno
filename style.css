@@ -1219,6 +1219,10 @@ body {
     text-transform: uppercase;
 }
 
+.settings-row label.switch {
+    width: 52px;
+}
+
 .settings-row input[type="range"] {
     flex: 1;
     -webkit-appearance: none;
@@ -1261,6 +1265,81 @@ body {
 
 /* Select de idioma: mesmo cartão roxo neon dos outros controles do painel (bordas/seta customizadas,
    já que o próprio <select> nativo não dá pra estilizar por dentro — é o jeito multiplataforma). */
+.settings-toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+    justify-content: flex-end;
+}
+
+.settings-toggle-label {
+    font-size: 14px;
+    color: #fff;
+    font-variant-numeric: tabular-nums;
+}
+
+/* The switch - the box around the slider */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 52px;
+    height: 28px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+/* The slider */
+.slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #1c0f3d;
+    border: 2px solid #8e2de2;
+    transition: 0.3s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 2px;
+    bottom: 2px;
+    background-color: #8e2de2;
+    transition: 0.3s;
+}
+
+input:checked + .slider {
+    border-color: #ff007f;
+}
+
+input:checked + .slider:before {
+    background-color: #ff007f;
+    transform: translateX(24px);
+}
+
+input:focus-visible + .slider {
+    box-shadow: 0 0 0 3px rgba(255, 0, 127, 0.35);
+}
+
+.slider.round {
+    border-radius: 34px;
+}
+
+.slider.round:before {
+    border-radius: 50%;
+}
+
+.graphics-low .plasma-blob {
+    display: none !important;
+}
+
 .settings-select {
     flex: 1;
     min-width: 0;

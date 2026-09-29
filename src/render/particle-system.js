@@ -8,13 +8,15 @@ export const PARTICLE_TYPES = {
     STAR: 3    // Polígono estrela (magia/invocação)
 };
 
+import { GRAPHICS } from '../config/graphics.js';
+
 /**
  * ParticleSystem - Motor de Efeitos Visuais (Pilar 1 e 2)
  * Tolerância Zero ao GC: Pré-aloca milhares de partículas em TypedArrays.
  */
 export class ParticleSystem {
-    constructor(maxParticles = 2000) {
-        this.maxParticles = maxParticles;
+    constructor(maxParticles = null) {
+        this.maxParticles = maxParticles || GRAPHICS.maxParticles;
         
         // TypedArrays (SoA)
         this.active = new Uint8Array(maxParticles);
@@ -30,9 +32,11 @@ export class ParticleSystem {
         // Cores precisam ser armazenadas (rgba string ou canais separados)
         // Para máxima performance, salvaremos os canais R, G, B em Float32Array (0-255)
         // para facilitar interpolação de cor no futuro, mas por enquanto:
-        this.r = new Uint8Array(maxParticles);
-        this.g = new Uint8Array(maxParticles);
-        this.b = new Uint8Array(maxParticles);
+        this.r = new Uint8Array(this.maxParticles);
+        this.g = new Uint8Array(this.maxParticles);
+        this.b = new Uint8Array(this.maxParticles);
+        this.colorStr = new Array(this.maxParticles).fill('rgba(255,255,255,1)');
+        this.activeCount = 0;
 
         this.freeIndexes = [];
         for (let i = maxParticles - 1; i >= 0; i--) {
@@ -68,6 +72,8 @@ export class ParticleSystem {
         this.r[idx] = r;
         this.g[idx] = g;
         this.b[idx] = b;
+        this.colorStr[idx] = `rgb(${r},${g},${b})`;
+        this.activeCount++;
     }
 
     /**
@@ -80,6 +86,8 @@ export class ParticleSystem {
      * @param {number} type Tipo PARTICLE_TYPES
      */
     emitBurst(x, y, hexColor, count = 50, speed = 200, type = PARTICLE_TYPES.CIRCLE, sizeScale = 1) {
+        count = Math.floor(count * GRAPHICS.particleBurstRatio);
+        if (count <= 0) return;
         // Converte hex para RGB puro matematicamente
         const r = parseInt(hexColor.slice(1, 3), 16) || 255;
         const g = parseInt(hexColor.slice(3, 5), 16) || 255;
@@ -104,6 +112,8 @@ export class ParticleSystem {
      * e flutuam pra cima com leve deriva lateral, vivendo mais que uma explosão comum.
      */
     emitRise(x, y, hexColor, count = 40, spread = 50, speed = 300, type = PARTICLE_TYPES.STAR) {
+        count = Math.floor(count * GRAPHICS.particleBurstRatio);
+        if (count <= 0) return;
         const r = parseInt(hexColor.slice(1, 3), 16) || 255;
         const g = parseInt(hexColor.slice(3, 5), 16) || 255;
         const b = parseInt(hexColor.slice(5, 7), 16) || 255;
@@ -120,6 +130,8 @@ export class ParticleSystem {
 
     /** Rastro de faíscas espalhadas ao longo de um segmento (ex.: energia do slot USE indo até a vida). */
     emitLine(x0, y0, x1, y1, hexColor, count = 30, type = PARTICLE_TYPES.STAR) {
+        count = Math.floor(count * GRAPHICS.particleBurstRatio);
+        if (count <= 0) return;
         const r = parseInt(hexColor.slice(1, 3), 16) || 255;
         const g = parseInt(hexColor.slice(3, 5), 16) || 255;
         const b = parseInt(hexColor.slice(5, 7), 16) || 255;
@@ -140,6 +152,8 @@ export class ParticleSystem {
      * Utilitário para Efeito de Dano em Massa (Onda de Sangue/Impacto da borda da tela)
      */
     emitDamageWave(isPlayerTakingDamage, hexColor, count = 150, type = PARTICLE_TYPES.SQUARE) {
+        count = Math.floor(count * GRAPHICS.particleBurstRatio);
+        if (count <= 0) return;
         const r = parseInt(hexColor.slice(1, 3), 16) || 255;
         const g = parseInt(hexColor.slice(3, 5), 16) || 255;
         const b = parseInt(hexColor.slice(5, 7), 16) || 255;
@@ -176,6 +190,8 @@ export class ParticleSystem {
      * Utilitário: Magia direcional (ex: ataque de uma carta para outra)
      */
     emitTrail(startX, startY, endX, endY, hexColor, count = 20) {
+        count = Math.floor(count * GRAPHICS.particleBurstRatio);
+        if (count <= 0) return;
         const dx = endX - startX;
         const dy = endY - startY;
         const dist = Math.hypot(dx, dy);
@@ -200,6 +216,7 @@ export class ParticleSystem {
      * @param {number} dt Delta time em segundos (ex: 0.016 para 60fps)
      */
     update(dt) {
+        if (this.activeCount === 0) return;
         const max = this.maxParticles;
         const friction = 0.95; // Arrasto atmosférico
         
@@ -210,6 +227,7 @@ export class ParticleSystem {
                 
                 if (this.life[i] <= 0) {
                     this.active[i] = 0;
+                    this.activeCount--;
                     this.freeIndexes.push(i);
                     continue;
                 }
@@ -230,8 +248,10 @@ export class ParticleSystem {
      * @param {CanvasRenderingContext2D} ctx 
      */
     draw(ctx) {
-        // Efeito de brilho aditivo (Overlap de cores gera branco incandescente)
-        ctx.globalCompositeOperation = 'lighter';
+        if (this.activeCount === 0) return;
+
+        // Efeito de brilho aditivo (Overlap de cores gera branco incandescente) ou opaco se gráficos baixos
+        ctx.globalCompositeOperation = GRAPHICS.useLighter ? 'lighter' : 'source-over';
 
         const max = this.maxParticles;
 
@@ -244,7 +264,8 @@ export class ParticleSystem {
                 
                 // Fade out baseado na vida
                 const alpha = Math.max(0, this.life[i] / this.maxLife[i]);
-                ctx.fillStyle = `rgba(${this.r[i]}, ${this.g[i]}, ${this.b[i]}, ${alpha})`;
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.colorStr[i];
                 
                 ctx.beginPath();
                 
@@ -289,7 +310,8 @@ export class ParticleSystem {
             }
         }
         
-        // Restaura composição normal para o resto do jogo não ficar aditivo
+        // Restaura alfa e composição normal para o resto do jogo
+        ctx.globalAlpha = 1.0;
         ctx.globalCompositeOperation = 'source-over';
     }
 }

@@ -232,8 +232,11 @@ export class FxLayer {
         this.appSize0 = 0;
         this.appSize1 = 0;
         this.appLife = 0;
-        this.appMax = 0;
         this.appPeak = 0;
+
+        this.ringCount = 0;
+        this.tetherCount = 0;
+        this.sealCount = 0;
     }
 
     /** Sprite surgindo em (x, y), crescendo de size0 a size1 e sumindo (entra rápido, sai devagar). */
@@ -258,14 +261,16 @@ export class FxLayer {
             if (this.ringActive[i] === 0) { slot = i; break; }
             if (this.ringLife[i] < this.ringLife[slot]) slot = i;
         }
-        this.ringActive[slot] = 1;
+        if (this.ringActive[slot] === 0) {
+            this.ringCount++;
+            this.ringActive[slot] = 1;
+        }
         this.ringX[slot] = x;
         this.ringY[slot] = y;
         this.ringR0[slot] = r0;
         this.ringR1[slot] = r1;
         this.ringLife[slot] = durationMs;
         this.ringMax[slot] = durationMs;
-        this.ringWidth[slot] = width;
         this.ringSquash[slot] = squash;
         this.ringColor[slot] = hex;
     }
@@ -280,11 +285,13 @@ export class FxLayer {
             if (this.tetherActive[i] === 0) { slot = i; break; }
             if (this.tetherLife[i] < this.tetherLife[slot]) slot = i;
         }
-        this.tetherActive[slot] = 1;
+        if (this.tetherActive[slot] === 0) {
+            this.tetherCount++;
+            this.tetherActive[slot] = 1;
+        }
         this.tetherX[slot] = x;
         this.tetherY[slot] = y;
         this.tetherCard[slot] = cardId;
-        this.tetherLife[slot] = durationMs;
         this.tetherMax[slot] = durationMs;
         this.tetherKind[slot] = kind;
     }
@@ -299,7 +306,10 @@ export class FxLayer {
         for (let i = 0; i < MAX_SEALS; i++) {
             if (this.sealActive[i] === 0) { slot = i; break; }
         }
-        this.sealActive[slot] = 1;
+        if (this.sealActive[slot] === 0) {
+            this.sealCount++;
+            this.sealActive[slot] = 1;
+        }
         this.sealFromX[slot] = fromX;
         this.sealFromY[slot] = fromY;
         this.sealX[slot] = cx;
@@ -312,7 +322,10 @@ export class FxLayer {
     }
 
     endSeal(slot) {
-        if (slot >= 0 && slot < MAX_SEALS) this.sealActive[slot] = 0;
+        if (slot >= 0 && slot < MAX_SEALS && this.sealActive[slot] === 1) {
+            this.sealActive[slot] = 0;
+            this.sealCount--;
+        }
     }
 
     drawSeal(ctx, i) {
@@ -347,9 +360,11 @@ export class FxLayer {
         this.ringActive.fill(0);
         this.tetherActive.fill(0);
         this.sealActive.fill(0);
-        this.vigLife = 0;
         this.vigAmount = 0;
         this.appLife = 0;
+        this.ringCount = 0;
+        this.tetherCount = 0;
+        this.sealCount = 0;
     }
 
     /** Vinheta radial pré-rasterizada por cor (uma vez por cor, nunca por frame). */
@@ -376,16 +391,25 @@ export class FxLayer {
 
     /** @param {number} dt ms */
     update(dt) {
+        if (this.ringCount === 0 && this.tetherCount === 0 && this.sealCount === 0 
+            && this.vigAmount <= 0 && this.appLife <= 0 && this.vigLife <= 0) return;
+
         this.time += dt / 1000;
         for (let i = 0; i < MAX_RINGS; i++) {
             if (this.ringActive[i] === 0) continue;
             this.ringLife[i] -= dt;
-            if (this.ringLife[i] <= 0) this.ringActive[i] = 0;
+            if (this.ringLife[i] <= 0) {
+                this.ringActive[i] = 0;
+                this.ringCount--;
+            }
         }
         for (let i = 0; i < MAX_TETHERS; i++) {
             if (this.tetherActive[i] === 0) continue;
             this.tetherLife[i] -= dt;
-            if (this.tetherLife[i] <= 0 || this.pool.active[this.tetherCard[i]] !== 1) this.tetherActive[i] = 0;
+            if (this.tetherLife[i] <= 0 || this.pool.active[this.tetherCard[i]] !== 1) {
+                this.tetherActive[i] = 0;
+                this.tetherCount--;
+            }
         }
         for (let i = 0; i < MAX_SEALS; i++) {
             if (this.sealActive[i] === 1) this.sealElapsed[i] += dt;
@@ -407,6 +431,9 @@ export class FxLayer {
      * @param {number} height altura virtual da tela
      */
     draw(ctx, width, height) {
+        if (this.ringCount === 0 && this.tetherCount === 0 && this.sealCount === 0 
+            && this.vigAmount <= 0 && this.appLife <= 0) return;
+
         if (this.vigAmount > 0.001 && this.vigSprite) {
             ctx.save();
             ctx.globalAlpha = Math.min(1, this.vigAmount);

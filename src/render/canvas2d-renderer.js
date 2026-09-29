@@ -2,6 +2,7 @@ import { CONFIG } from '../config/constants.js';
 import { CardArt, drawHealIcon, drawShieldIcon } from './card-art.js';
 import { CardEffects } from './card-effects.js';
 import { ZONE } from '../utils/zones.js';
+import { GRAPHICS } from '../config/graphics.js';
 
 const { CARD_TYPES, COLOR_HEX, COLOR, CARD_DIMENSIONS, CARD_VISUALS } = CONFIG;
 const NUMBER_LABELS = Array.from({ length: 64 }, (_, i) => String(i));
@@ -119,8 +120,29 @@ export class Canvas2DRenderer {
         this.faceHeld = false;
         this.faceTint = 0;
 
+        this.haloHover = this.buildHaloSprite('#00ffff', 20);
+        this.haloSelect = this.buildHaloSprite('#ff3333', 14);
+
         this.resize();
         viewport.onChange(() => this.resize());
+    }
+
+    buildHaloSprite(color, blurPx) {
+        const w = CARD_DIMENSIONS.WIDTH;
+        const h = CARD_DIMENSIONS.HEIGHT;
+        const r = CARD_DIMENSIONS.RADIUS;
+        const pad = blurPx * 2;
+        const c = document.createElement('canvas');
+        c.width = w + pad * 2; 
+        c.height = h + pad * 2;
+        const g = c.getContext('2d');
+        g.shadowColor = color; 
+        g.shadowBlur = blurPx;
+        g.fillStyle = color;
+        g.beginPath(); 
+        g.roundRect(pad, pad, w, h, r); 
+        g.fill();
+        return { canvas: c, pad };
     }
 
     /** Backbuffer em pixels físicos (nítido em telas de alta densidade); o jogo desenha em coordenadas virtuais. */
@@ -170,18 +192,18 @@ export class Canvas2DRenderer {
 
             ctx.save();
             const zone = pool.zone[i];
-            if (i === scene.hoveredCard) {
-                ctx.shadowColor = '#00ffff';
-                ctx.shadowBlur = 20;
-            } else if (zone === scene.selectableZone) {
-                ctx.shadowColor = '#ff3333';
-                ctx.shadowBlur = 14;
-            }
 
             ctx.translate(drawX + width / 2, drawY + pool.hoverOffsetY[i] + height / 2);
             if (pool.rotation[i] !== 0) ctx.rotate(pool.rotation[i]);
             if (pool.scale[i] !== 1) ctx.scale(pool.scale[i], pool.scale[i]);
             ctx.translate(-width / 2, -height / 2);
+
+            let halo = null;
+            if (i === scene.hoveredCard) halo = this.haloHover;
+            else if (zone === scene.selectableZone) halo = this.haloSelect;
+            if (halo) {
+                ctx.drawImage(halo.canvas, -halo.pad, -halo.pad);
+            }
 
             if (pool.alpha[i] < 1) ctx.globalAlpha = Math.max(0, pool.alpha[i]);
             this.faceHeld = i === scene.hoveredCard || i === scene.draggedCard;
@@ -204,7 +226,7 @@ export class Canvas2DRenderer {
 
         if (scene.fx) {
             scene.fx.update(dt);
-            scene.fx.draw(ctx, vp.width, vp.height);
+            if (GRAPHICS.enableFxLayer) scene.fx.draw(ctx, vp.width, vp.height);
         }
         if (scene.bolts) {
             scene.bolts.update(dt);
@@ -220,7 +242,7 @@ export class Canvas2DRenderer {
         const ctx = this.ctx;
         const vp = this.viewport;
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
         ctx.globalAlpha = Math.min(1, amount) * 0.42;
         ctx.fillStyle = color || '#cfefff';
         ctx.fillRect(0, 0, vp.width, vp.height);
@@ -237,7 +259,7 @@ export class Canvas2DRenderer {
         const t = this.time;
         const pulse = 0.5 + 0.5 * Math.sin(t * 3.2);
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
         for (let side = 1; side < 2; side++) {
             const atk = this.board.slots[side === 0 ? ZONE_SELF_ATTACK : ZONE_OPP_ATTACK];
             const def = this.board.slots[side === 0 ? ZONE_SELF_DEFENSE : ZONE_OPP_DEFENSE];
@@ -334,7 +356,7 @@ export class Canvas2DRenderer {
         if (sc.glow > 0) {
             const radius = h * Math.max(1, sc.scale) * 1.1;
             ctx.globalAlpha = sc.glow;
-            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
             ctx.drawImage(this.getGlowSprite(), cx - radius, cy - radius, radius * 2, radius * 2);
             ctx.globalCompositeOperation = 'source-over';
         }
@@ -342,7 +364,7 @@ export class Canvas2DRenderer {
         if (sc.flash > 0) {
             const f = sc.flash;
             const burst = h * (2.2 + (1 - f) * 2.5);
-            ctx.globalCompositeOperation = 'lighter';
+            ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
             ctx.globalAlpha = f;
             ctx.drawImage(this.getGlowSprite(), cx - burst, cy - burst, burst * 2, burst * 2);
             ctx.globalCompositeOperation = 'source-over';
@@ -509,8 +531,9 @@ export class Canvas2DRenderer {
         ctx.beginPath();
         ctx.roundRect(-pad, -pad, w + pad * 2, h + pad * 2, r + pad/2);
         
-        const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.005);
-        ctx.strokeStyle = `rgba(123, 104, 238, ${0.4 + pulse * 0.6})`;
+        const pulse = 0.5 + 0.5 * Math.sin(this.time * 5);
+        ctx.globalAlpha = 0.4 + pulse * 0.6;
+        ctx.strokeStyle = '#7b68ee';
         ctx.lineWidth = 4 + pulse * 2;
         ctx.shadowColor = '#7b68ee';
         ctx.shadowBlur = 10 + pulse * 10;
@@ -675,7 +698,7 @@ export class Canvas2DRenderer {
         const hex = COLOR_HEX[color] || COLOR_HEX[COLOR.NONE];
         const pulse = 0.5 + 0.5 * Math.sin(this.time * speed);
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
         ctx.beginPath();
         ctx.roundRect(1.5, 1.5, w - 3, h - 3, CARD_DIMENSIONS.RADIUS - 1);
         ctx.shadowColor = hex;
@@ -700,7 +723,7 @@ export class Canvas2DRenderer {
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.font = power > 0 ? MIRROR_NUMBER_FONT : MIRROR_GLYPH_FONT;
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
         ctx.fillStyle = MIRROR_TINT_GLOW[tint];
         ctx.globalAlpha = 0.35 * base;
         // "Reflexo" deslocado atrás (o espelho mostra uma versão distorcida)
@@ -734,7 +757,7 @@ export class Canvas2DRenderer {
             ctx.restore();
         }
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
         ctx.globalAlpha = 0.25 * g;
         ctx.fillStyle = (jitterSeed & 1) === 0 ? '#ff00c8' : '#00e5ff';
         ctx.fillRect(0, ((jitterSeed * 37) % GLITCH_STRIPS) * stripH, w, stripH * 0.6);
@@ -747,7 +770,7 @@ export class Canvas2DRenderer {
         const h = CARD_DIMENSIONS.HEIGHT;
         ctx.save();
         ctx.shadowBlur = 0;
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
         ctx.beginPath();
         ctx.roundRect(-2, -2, w + 4, h + 4, CARD_DIMENSIONS.RADIUS + 2);
         ctx.globalAlpha = Math.min(1, amount);
@@ -774,7 +797,7 @@ export class Canvas2DRenderer {
         const pulse = 0.5 + 0.5 * Math.sin(t * 2.6);
         const pad = 9;
         ctx.save();
-        ctx.globalCompositeOperation = 'lighter';
+        ctx.globalCompositeOperation = GRAPHICS.compositeLighter;
         ctx.lineCap = 'round';
         ctx.beginPath();
         ctx.roundRect(r.hitX - pad, r.hitY - pad, r.hitW + pad * 2, r.hitH + pad * 2, CARD_DIMENSIONS.RADIUS + pad);

@@ -107,7 +107,7 @@ export class CardPool {
         this.numberTint[id] = 0;
     }
 
-    /** Ordena os ids ativos por zIndex (insertion sort estável, sem alocação; dados quase ordenados). */
+    /** Ordena os ids ativos por zIndex (insertion sort estavel; verifica se precisa ordenar antes). */
     sortDrawOrder() {
         const order = this.drawOrder;
         const z = this.zIndex;
@@ -115,15 +115,26 @@ export class CardPool {
         for (let i = 0; i < this.maxCards; i++) {
             if (this.active[i] === 1) order[count++] = i;
         }
+        
+        let dirty = false;
         for (let i = 1; i < count; i++) {
-            const id = order[i];
-            const key = z[id];
-            let j = i - 1;
-            while (j >= 0 && z[order[j]] > key) {
-                order[j + 1] = order[j];
-                j--;
+            if (z[order[i - 1]] > z[order[i]]) {
+                dirty = true;
+                break;
             }
-            order[j + 1] = id;
+        }
+        
+        if (dirty) {
+            for (let i = 1; i < count; i++) {
+                const id = order[i];
+                const key = z[id];
+                let j = i - 1;
+                while (j >= 0 && z[order[j]] > key) {
+                    order[j + 1] = order[j];
+                    j--;
+                }
+                order[j + 1] = id;
+            }
         }
         this.drawCount = count;
     }

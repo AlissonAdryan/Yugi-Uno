@@ -1,6 +1,7 @@
 import { CONFIG } from '../config/constants.js';
 import { SFX } from '../config/sound-presets.js';
 import { i18n, LANGUAGES } from '../i18n/index.js';
+import { GRAPHICS } from '../config/graphics.js';
 
 const { BUS } = CONFIG.AUDIO;
 const STORAGE_KEY = 'yugi-uno:volume';
@@ -28,6 +29,7 @@ export class SettingsPanel {
         this.panel = $('settings-panel');
         this.closeBtn = $('settings-close');
         this.langSelect = $('language-select');
+        this.graphicsToggle = $('graphics-toggle');
 
         this.loadSaved();
         this.initLanguageSelect();
@@ -66,6 +68,10 @@ export class SettingsPanel {
             group.input.value = String(percent);
             this.apply(group, percent);
         }
+        
+        if (this.graphicsToggle) {
+            this.graphicsToggle.checked = GRAPHICS.isHigh;
+        }
     }
 
     bindEvents() {
@@ -80,6 +86,15 @@ export class SettingsPanel {
             group.input.addEventListener('input', () => {
                 this.apply(group, Number(group.input.value));
                 this.save();
+            });
+        }
+        
+        if (this.graphicsToggle) {
+            this.graphicsToggle.addEventListener('change', (e) => {
+                GRAPHICS.setHigh(e.target.checked);
+                this.audio.play(SFX.CLICK);
+                // Força um resize no canvas para aplicar novo MAX_DPR se estiver in-game
+                window.dispatchEvent(new Event('resize'));
             });
         }
     }

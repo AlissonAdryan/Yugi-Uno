@@ -67,6 +67,8 @@ const CARD_FLAGS = Object.freeze({
     RESALE: 1     // comprada na loja: revende por CONFIG.SHOP.RESALE_RATIO do valor (evita lucro infinito)
 });
 
+import { GRAPHICS } from './graphics.js';
+
 export const CONFIG = Object.freeze({
     CANVAS_ID: 'game-canvas',
     PHYSICS_TIMESTEP: 1000 / 60,
@@ -142,7 +144,7 @@ export const CONFIG = Object.freeze({
     VIEW: Object.freeze({
         DESIGN_WIDTH: 1425,
         DESIGN_HEIGHT: 926,
-        MAX_DPR: 2,
+        get MAX_DPR() { return GRAPHICS.maxDpr; },
         UI_SCALE_MIN: 0.6,
         UI_SCALE_MAX: 1.25
     }),

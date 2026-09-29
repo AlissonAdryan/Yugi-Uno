@@ -1,4 +1,5 @@
 import { ARCANE_PRESETS } from './card-effects-arcane.js';
+import { GRAPHICS } from '../config/graphics.js';
 
 const TAU = Math.PI * 2;
 
@@ -271,7 +272,7 @@ export class CardEffects {
      */
     draw(ctx, name, w, h, radius, time, seed, color = 0, held = false) {
         const fx = this.get(name);
-        if (!fx) return;
+        if (!fx || !GRAPHICS.enableFoil) return;
         const diag = Math.sqrt(w * w + h * h);
         const phase = (seed * 0.6180339887) % 1;
 
@@ -291,7 +292,7 @@ export class CardEffects {
             const bw = diag * band.width;
             const x = -diag / 2 - bw + (u / band.sweep) * (diag + bw);
             ctx.globalAlpha = band.alpha;
-            ctx.globalCompositeOperation = band.composite;
+            ctx.globalCompositeOperation = (band.composite === 'lighter' && !GRAPHICS.useLighter) ? 'source-over' : band.composite;
             ctx.drawImage(band.sprite, x, -diag / 2, bw, diag);
         }
         ctx.restore();
