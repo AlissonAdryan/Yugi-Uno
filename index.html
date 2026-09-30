@@ -6,8 +6,8 @@
     <title>Yugi-Uno!</title>
     <link rel="icon" href="data:,">
     <link href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-DFJmbcBt.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CFtpui05.css">
+  <script type="module" crossorigin src="./assets/index-x6K663yP.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CiXpH6BZ.css">
 </head>
 <body>
     <!-- Sprite de ícones vetoriais (moeda, carrinho, gelo...). Tamanho 0 em vez de display:none:
@@ -292,6 +292,12 @@
             <div id="damage-text-container"></div>
 
             <div id="color-alert"></div>
+
+            <!-- Pânico do Reverso Kármico: textos via i18n em hud.showPanic -->
+            <div id="panic-badge" class="panic-badge" hidden>
+                <span class="panic-label"></span>
+                <span class="panic-time"></span>
+            </div>
 
             <!-- Escolha de cor do perdedor da rodada: uma "carta Trocar Cor" gigante; fatias montadas em color-picker.js -->
             <div id="color-picker" class="color-picker" hidden>
