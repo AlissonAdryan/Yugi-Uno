@@ -6,8 +6,8 @@
     <title>Yugi-Uno!</title>
     <link rel="icon" href="data:,">
     <link href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-DPBQU6VH.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-C7bUVa1_.css">
+  <script type="module" crossorigin src="./assets/index-CmDg2oRm.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-FbyS6Ex7.css">
 </head>
 <body>
     <!-- Sprite de ícones vetoriais (moeda, carrinho, gelo...). Tamanho 0 em vez de display:none:
@@ -183,6 +183,8 @@
                     <span class="hp-gold-sheen"></span>
                     <span class="hp-divine-beam"></span>
                 </div>
+                <span class="hp-revive-badge" aria-hidden="true"></span>
+                <span id="opp-spectator-coins" class="spectator-coins" hidden><svg class="ico-coin"><use href="#ico-coin"/></svg><b>0</b></span>
                 <!-- Lixeira do oponente (só mostra as cartas dele sendo vendidas: verso, sem valor) -->
                 <div id="opp-trash" class="trash trash--opp" aria-hidden="true">
                     <svg class="trash-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -209,6 +211,7 @@
                     <span class="hp-divine-beam"></span>
                 </div>
                 <span class="hp-revive-badge" aria-hidden="true"></span>
+                <span id="self-spectator-coins" class="spectator-coins" hidden><svg class="ico-coin"><use href="#ico-coin"/></svg><b>0</b></span>
                 <!-- Lixeira: arraste uma carta da mão até aqui para vendê-la por moedas -->
                 <div id="self-trash" class="trash trash--self" aria-hidden="true">
                     <span class="trash-ember"></span>
