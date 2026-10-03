@@ -4,12 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Yugi-Uno!</title>
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="data:,">
     <link href="https://fonts.googleapis.com/css2?family=Righteous&display=swap" rel="stylesheet">
-  <script type="module" crossorigin src="./assets/index-4dngjr2w.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-KOh4OLJ8.css">
+  <script type="module" crossorigin src="./assets/index-XEMqTjW5.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-BI52D7no.css">
 </head>
-<body>
+<body>
     <!-- Sprite de ícones vetoriais (moeda, carrinho, gelo...). Tamanho 0 em vez de display:none:
          gradientes dentro de um SVG com display:none não renderizam em alguns navegadores. -->
     <svg class="icon-sprite" width="0" height="0" aria-hidden="true" focusable="false">
@@ -181,6 +181,8 @@
                 <span class="hp-curse-badge" aria-hidden="true">
                     <svg viewBox="0 0 24 24"><path d="M12 2C7 2 4 5.6 4 10c0 2.5 1.1 4.3 2.8 5.3V19a1 1 0 0 0 1 1h1.4v-2h1.6v2h2.4v-2h1.6v2h1.4a1 1 0 0 0 1-1v-3.7C18.9 14.3 20 12.5 20 10c0-4.4-3-8-8-8Zm-3.3 11a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4Zm6.6 0a2.2 2.2 0 1 1 0-4.4 2.2 2.2 0 0 1 0 4.4Z"/></svg>
                 </span>
+                <!-- A Morte: chamas carmesim na vida do marcado (plantada: só quem usou e espectadores veem) -->
+                <span class="hp-death" aria-hidden="true"><b class="hp-death-turns"></b></span>
                 <div class="hp-fx hp-fx--front" aria-hidden="true">
                     <span class="hp-shield"></span>
                     <span class="hp-shield-ripple"></span>
@@ -208,6 +210,7 @@
                 <span class="hp-halo" aria-hidden="true"></span>
                 <span id="self-name" class="player-name" data-i18n="YOU">VOCÊ</span>
                 <span id="self-hp" class="hp-value">30</span>
+                <span class="hp-death" aria-hidden="true"><b class="hp-death-turns"></b></span>
                 <div class="hp-fx hp-fx--front" aria-hidden="true">
                     <span class="hp-shield"></span>
                     <span class="hp-shield-ripple"></span>
