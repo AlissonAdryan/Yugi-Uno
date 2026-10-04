@@ -212,6 +212,7 @@ export class Canvas2DRenderer {
 
         pool.sortDrawOrder();
         const order = pool.drawOrder;
+        this.prepareFoils(scene, order, pool.drawCount);
         for (let n = 0; n < pool.drawCount; n++) {
             const i = order[n];
             const drawX = pool.x[i] + (pool.targetX[i] - pool.x[i]) * k;
@@ -272,6 +273,29 @@ export class Canvas2DRenderer {
         if (scene.showcase) this.drawShowcase(scene.showcase);
         this.particles.draw(ctx);
         if (ultimate) ultimate.drawPost(ctx, this.canvas, vp.width, vp.height, pixelScale);
+    }
+
+    /**
+     * Pré-passada do laminado: pinta no atlas do CardEffects o efeito de toda carta que vai desenhá-lo neste
+     * frame (mesmas condições e parâmetros de drawStyledFace), antes do primeiro carimbo. Assim o buffer vira
+     * uma foto só por frame, em vez de uma cópia por carta (ver CardEffects). Cartas fora da lista (vitrine,
+     * pintura em andamento) continuam funcionando pelo buffer avulso.
+     */
+    prepareFoils(scene, order, count) {
+        const effects = this.effects;
+        effects.beginFrame();
+        if (!GRAPHICS.enableFoil) return;
+        const pool = this.pool;
+        for (let n = 0; n < count; n++) {
+            const i = order[n];
+            const type = pool.type[i];
+            if (type === CARD_TYPES.HIDDEN || pool.paintAnim[i] === 1 || !(pool.alpha[i] > 0.99)) continue;
+            const visual = CARD_VISUALS[type];
+            if (!visual || !visual.fx) continue;
+            const held = i === scene.hoveredCard || i === scene.draggedCard;
+            effects.prepare(visual.fx, CARD_DIMENSIONS.WIDTH, CARD_DIMENSIONS.HEIGHT, CARD_DIMENSIONS.RADIUS,
+                this.time, i, pool.color[i], held);
+        }
     }
 
     /**

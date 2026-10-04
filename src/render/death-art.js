@@ -330,8 +330,9 @@ function almond(ctx, cx, cy, ew, eh) {
 /**
  * O olho da Ronova. `open` 0..1 (pálpebras), `gx/gy` -1..1 (olhar), `rot` giro do selo da íris.
  * `lashes` = quantas chamas lambem a pálpebra de cima (0 = nenhuma).
+ * `inCard` = olho da carta: o brilho de trás passa das laterais e é recortado na carta (sem clip()).
  */
-export function drawRonovaEye(ctx, cx, cy, ew, eh, open, gx, gy, rot, time, lashes = 5) {
+export function drawRonovaEye(ctx, cx, cy, ew, eh, open, gx, gy, rot, time, lashes = 5, inCard = false) {
     const lighter = GRAPHICS.compositeLighter;
     const ho = eh * open;
     ctx.save();
@@ -340,7 +341,8 @@ export function drawRonovaEye(ctx, cx, cy, ew, eh, open, gx, gy, rot, time, lash
     const pulse = 0.75 + 0.25 * Math.sin(time * 2.2);
     ctx.globalCompositeOperation = lighter;
     ctx.globalAlpha = 0.3 * pulse * (0.35 + 0.65 * open);
-    ctx.drawImage(getGlowSprite(255, 40, 60), cx - ew * 1.7, cy - eh * 3.2, ew * 3.4, eh * 6.4);
+    if (inCard) drawImageInCard(ctx, getGlowSprite(255, 40, 60), cx - ew * 1.7, cy - eh * 3.2, ew * 3.4, eh * 6.4, null);
+    else ctx.drawImage(getGlowSprite(255, 40, 60), cx - ew * 1.7, cy - eh * 3.2, ew * 3.4, eh * 6.4);
 
     // Chamas lambendo a pálpebra de cima (seguem a curva do olho)
     if (lashes > 0) {
@@ -406,14 +408,19 @@ export function drawRonovaOrb(ctx, x, y, r, px, py, time, bright = 0) {
     const a0 = time * 1.6 + x * 0.1;
     ctx.globalCompositeOperation = lighter;
     ctx.lineCap = 'round';
+    // Os dois arcos de cada passada ficam em lados opostos (2.1 rad cada, meia volta de distância): nunca se
+    // tocam, então um único stroke com os dois é idêntico a dois strokes, com metade das chamadas à GPU
     for (let pass = 0; pass < 2; pass++) {
         ctx.lineWidth = pass === 0 ? r * 0.32 : r * 0.08;
         ctx.strokeStyle = pass === 0 ? 'rgba(255, 30, 55, 0.3)' : 'rgba(255, 120, 132, 0.85)';
+        ctx.beginPath();
         for (let k = 0; k < 2; k++) {
-            ctx.beginPath();
-            ctx.arc(x, y, r * (1.3 + k * 0.14), a0 + k * Math.PI, a0 + k * Math.PI + 2.1);
-            ctx.stroke();
+            const rr = r * (1.3 + k * 0.14);
+            const start = a0 + k * Math.PI;
+            ctx.moveTo(x + Math.cos(start) * rr, y + Math.sin(start) * rr);
+            ctx.arc(x, y, rr, start, start + 2.1);
         }
+        ctx.stroke();
     }
     ctx.globalAlpha = 0.6;
     ctx.drawImage(getGlowSprite(255, 30, 50), x - r * 2.2, y - r * 2.2, r * 4.4, r * 4.4);
@@ -440,6 +447,78 @@ export function drawRonovaOrb(ctx, x, y, r, px, py, time, bright = 0) {
     ctx.restore();
 }
 
+// --- Recorte da carta sem clip() ----------------------------------------------------------------------
+// Um clip() com o retângulo arredondado numa carta girada (o leque da mão) obriga a GPU a gerar uma máscara
+// por frame: era metade do custo da camada viva. Aqui o recorte vira geometria exata: nas bordas retas basta
+// cortar o retângulo de origem do drawImage; onde a peça encosta num canto arredondado, ela é preenchida como
+// padrão (CanvasPattern, transparente fora do sprite) dentro do pedaço exato da carta, um roundRect com raio
+// só nos cantos de verdade. O que sobra de diferença (amostragem no pixel da borda) fica sob o contorno de
+// 2 unidades que drawStyledFace desenha por cima.
+const cardPatternMatrix = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
+const cardCornerRadii = [0, 0, 0, 0];
+const flamePatterns = [null, null, null];
+
+function getFlamePattern(ctx, variant) {
+    let pattern = flamePatterns[variant];
+    if (!pattern) {
+        pattern = ctx.createPattern(getFlameSprite(variant), 'no-repeat');
+        flamePatterns[variant] = pattern;
+    }
+    return pattern;
+}
+
+/**
+ * `ctx.drawImage(img, dx, dy, dw, dh)` recortado no retângulo arredondado da carta (0,0,W,H,R), sem clip().
+ * @param {CanvasPattern|null} pattern padrão 'no-repeat' do mesmo `img` (usado só quando encosta num canto)
+ */
+function drawImageInCard(ctx, img, dx, dy, dw, dh, pattern) {
+    let x0 = dx > 0 ? dx : 0;
+    let y0 = dy > 0 ? dy : 0;
+    let x1 = dx + dw < W ? dx + dw : W;
+    let y1 = dy + dh < H ? dy + dh : H;
+    if (x1 <= x0 || y1 <= y0) return;
+    const left = x0 < R;
+    const right = x1 > W - R;
+    const top = y0 < R;
+    const bottom = y1 > H - R;
+    if (!((left || right) && (top || bottom)) || !pattern) {
+        // Só bordas retas: cortar o retângulo de origem é exatamente o que o clip faria
+        const kx = img.width / dw;
+        const ky = img.height / dh;
+        ctx.drawImage(img, (x0 - dx) * kx, (y0 - dy) * ky, (x1 - x0) * kx, (y1 - y0) * ky, x0, y0, x1 - x0, y1 - y0);
+        return;
+    }
+    // Encosta num canto: a região vira o quadrado do canto inteiro (o padrão é transparente fora do sprite),
+    // e então a interseção com a carta é um roundRect com raio R só nos cantos da própria carta
+    if (left) { x0 = 0; if (x1 < R) x1 = R; }
+    if (right) { x1 = W; if (x0 > W - R) x0 = W - R; }
+    if (top) { y0 = 0; if (y1 < R) y1 = R; }
+    if (bottom) { y1 = H; if (y0 > H - R) y0 = H - R; }
+    cardCornerRadii[0] = left && top ? R : 0;
+    cardCornerRadii[1] = right && top ? R : 0;
+    cardCornerRadii[2] = right && bottom ? R : 0;
+    cardCornerRadii[3] = left && bottom ? R : 0;
+    cardPatternMatrix.a = dw / img.width;
+    cardPatternMatrix.d = dh / img.height;
+    cardPatternMatrix.e = dx;
+    cardPatternMatrix.f = dy;
+    pattern.setTransform(cardPatternMatrix);
+    ctx.fillStyle = pattern;
+    ctx.beginPath();
+    ctx.roundRect(x0, y0, x1 - x0, y1 - y0, cardCornerRadii);
+    ctx.fill();
+}
+
+/** O ponto está dentro do retângulo arredondado da carta? */
+function insideCard(x, y) {
+    if (x < 0 || x > W || y < 0 || y > H) return false;
+    const cx = x < R ? R : x > W - R ? W - R : x;
+    const cy = y < R ? R : y > H - R ? H - R : y;
+    const ddx = x - cx;
+    const ddy = y - cy;
+    return ddx * ddx + ddy * ddy <= R * R;
+}
+
 // Chamas da carta (base x, largura, altura base) e brasas subindo
 const CARD_FLAMES = Object.freeze([
     [6, 15, 34], [19, 18, 46], [33, 15, 38], [47, 19, 52], [61, 15, 40], [75, 18, 48], [90, 15, 36]
@@ -454,10 +533,9 @@ const CARD_EMBERS = 10;
 export function drawRonovaLive(ctx, time, seed, held) {
     const lighter = GRAPHICS.compositeLighter;
     const high = GRAPHICS.isHigh;
+    // Sem clip(): cada peça que pode passar da borda é recortada pela geometria (drawImageInCard/insideCard);
+    // o olho e as órbitas cabem inteiros na carta
     ctx.save();
-    ctx.beginPath();
-    ctx.roundRect(0, 0, W, H, R);
-    ctx.clip();
 
     // Chamas da morte subindo do pé da carta
     ctx.globalCompositeOperation = lighter;
@@ -466,9 +544,14 @@ export function drawRonovaLive(ctx, time, seed, held) {
         const f = CARD_FLAMES[i];
         const flick = 0.72 + 0.2 * Math.sin(time * (5.6 + i * 0.7) + i * 1.7 + seed) + 0.1 * Math.sin(time * 13.1 + i * 3);
         ctx.globalAlpha = 0.42 + 0.28 * flick;
-        drawFlame(ctx, f[0] + Math.sin(time * 1.4 + i * 2.2) * 2, H + 4, f[1], f[2] * flick, i);
+        const v = i % FLAME_LEANS.length;
+        const fw = f[1];
+        const fh = f[2] * flick;
+        drawImageInCard(ctx, getFlameSprite(v), f[0] + Math.sin(time * 1.4 + i * 2.2) * 2 - fw / 2, H + 4 - fh, fw, fh,
+            getFlamePattern(ctx, v));
     }
-    // Brasas
+    // Brasas: quadradinhos de até 1.5 unidade; com o centro dentro da carta, o que sobra pra fora cai sob o
+    // contorno (2 unidades), então basta cortar nas bordas retas
     if (high) {
         ctx.fillStyle = '#ff8a5c';
         for (let e = 0; e < CARD_EMBERS; e++) {
@@ -476,16 +559,19 @@ export function drawRonovaLive(ctx, time, seed, held) {
             v -= Math.floor(v);
             const ex = 8 + ((e * 37 + seed * 11) % 84) + Math.sin(time * 2 + e) * 3;
             const ey = H + 4 - v * (H + 12);
+            if (!insideCard(ex, ey)) continue;
             const s = 0.8 + (e % 3) * 0.35;
+            const top = ey - s / 2;
+            const bottom = ey + s / 2 < H ? ey + s / 2 : H;
             ctx.globalAlpha = (1 - v) * 0.9;
-            ctx.fillRect(ex - s / 2, ey - s / 2, s, s);
+            ctx.fillRect(ex - s / 2, top, s, bottom - top);
         }
     }
     ctx.globalCompositeOperation = 'source-over';
     ctx.globalAlpha = 1;
 
     const eye = ronovaMainEye(time, seed, scratchEye);
-    drawRonovaEye(ctx, DEATH_EYE.x, DEATH_EYE.y, DEATH_EYE.ew, DEATH_EYE.eh, eye.open, eye.gx, eye.gy, eye.rot, time, high ? 5 : 3);
+    drawRonovaEye(ctx, DEATH_EYE.x, DEATH_EYE.y, DEATH_EYE.ew, DEATH_EYE.eh, eye.open, eye.gx, eye.gy, eye.rot, time, high ? 5 : 3, true);
     for (let k = 0; k < DEATH_ORBS.length; k++) {
         const o = DEATH_ORBS[k];
         const g = ronovaOrbGaze(time, seed, k, scratchOrb);

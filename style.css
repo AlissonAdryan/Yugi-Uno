@@ -359,7 +359,10 @@ body {
     background: linear-gradient(90deg, rgba(200, 255, 255, 0), rgba(225, 255, 255, 0.65), rgba(200, 255, 255, 0));
     transform: translateX(-150%) skewX(-18deg);
     animation: shieldSheen 3s linear infinite;
+    animation-play-state: paused; /* invisível sem Escudo: cada animação viva custa estilo na thread principal */
 }
+
+.status-shield .hp-shield::before { animation-play-state: running; }
 
 /* Clarão quando absorve um golpe */
 .hp-shield::after {
@@ -463,7 +466,10 @@ body {
     background: linear-gradient(90deg, rgba(255, 215, 0, 0), rgba(255, 240, 170, 0.55), rgba(255, 215, 0, 0));
     transform: translateX(-150%) skewX(-18deg);
     animation: shieldSheen 3.6s linear infinite;
+    animation-play-state: paused; /* só corre com o Reviver ativo (a caixa fica invisível sem ele) */
 }
+
+.status-revive .hp-gold-sheen::before { animation-play-state: running; }
 
 .hp-revive-badge {
     position: absolute;
@@ -1158,7 +1164,11 @@ body {
     border: 1.5px solid rgba(255, 70, 90, 0.8);
     box-shadow: inset 0 0 14px rgba(255, 30, 55, 0.5);
     animation: deathEmber 1.9s ease-in-out infinite;
+    animation-play-state: paused; /* só arde com a marca plantada/ativa (fora disso a borda está invisível) */
 }
+
+.death-pending .hp-death::before,
+.death-active .hp-death::before { animation-play-state: running; }
 
 .death-pending .hp-death,
 .death-active .hp-death { opacity: 1; }
@@ -2420,9 +2430,8 @@ input:focus-visible + .slider {
     width: 1100px;
     height: 1100px;
     margin: -550px 0 0 -550px;
-    background: repeating-conic-gradient(from 0deg, rgba(255, 215, 0, 0.055) 0deg 7deg, rgba(255, 215, 0, 0) 7deg 20deg);
-    -webkit-mask-image: radial-gradient(circle, #000 10%, transparent 65%);
-    mask-image: radial-gradient(circle, #000 10%, transparent 65%);
+    /* Canvas pintado uma vez por ShopPanel.paintRays (leque cônico já com o esmaecimento radial embutido):
+       sem mask-image, a GPU não precisa de uma superfície extra a cada frame só pra girar os raios */
     animation: raysSpin 60s linear infinite;
     pointer-events: none;
 }
@@ -2575,13 +2584,24 @@ input:focus-visible + .slider {
     margin-bottom: 2px;
 }
 
+.shop-card-body {
+    position: relative;
+    width: 115px;
+    height: 172px;
+    /* Mesma sombra do antigo filter: drop-shadow no canvas, mas rasterizada uma vez só: o canvas é redesenhado
+       a cada frame (laminado ao vivo) e um filtro nele obrigava a GPU a refazer o desfoque em todo frame.
+       Raio = 10 unidades da carta x 1.15 (115px / 100 unidades). O desfoque do drop-shadow é desvio-padrão;
+       o da box-shadow é o dobro dele: 24px aqui = drop-shadow(... 12px) (diferença medida: ~0.03/255 por pixel) */
+    border-radius: 11.5px;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+    animation: cardFloat 3.2s ease-in-out infinite;
+    animation-delay: calc(var(--i) * -1.07s);
+}
+
 .shop-card {
     display: block;
     width: 115px;
     height: 172px;
-    filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.55));
-    animation: cardFloat 3.2s ease-in-out infinite;
-    animation-delay: calc(var(--i) * -1.07s);
 }
 
 .shop-name {
@@ -2760,11 +2780,14 @@ input:focus-visible + .slider {
     color: #fff;
     filter: drop-shadow(0 0 4px #7fdcff);
     animation: snowSpin 6s linear infinite;
+    animation-play-state: paused; /* escondido (opacity 0) fora do congelamento: não gasta frame à toa */
 }
+
+.is-frozen .shop-frost svg { animation-play-state: running; }
 
 .shop-item.is-frozen { --accent: #7fdcff; }
 .is-frozen .shop-frost { opacity: 1; transform: scale(1); }
-.is-frozen .shop-card { animation-play-state: paused; }
+.is-frozen .shop-card-body { animation-play-state: paused; }
 
 /* Comprado */
 .shop-stamp {
@@ -2788,10 +2811,10 @@ input:focus-visible + .slider {
 }
 
 .is-sold .shop-stamp { animation: stampIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
-.is-sold .shop-card { opacity: 0.15; animation: none; }
+.is-sold .shop-card-body { opacity: 0.15; animation: none; }
 .is-sold .shop-price, .is-sold .shop-actions { opacity: 0.35; pointer-events: none; }
 .shop-item.is-sold { --accent: #2ecc71; }
-.just-bought .shop-card { animation: cardBought 0.5s ease-in forwards; }
+.just-bought .shop-card-body { animation: cardBought 0.5s ease-in forwards; }
 
 .shop-item.deny .shop-item-tilt { animation: denyShake 0.42s ease-out; }
 .shop-item.flip-out .shop-item-tilt { animation: flipOut 0.17s ease-in forwards; }
@@ -3194,7 +3217,7 @@ input:focus-visible + .slider {
  * ========================================= */
 .graphics-low .shop-rays,
 .graphics-low .shop-motes,
-.graphics-low .shop-card {
+.graphics-low .shop-card-body {
     animation: none !important;
 }
 

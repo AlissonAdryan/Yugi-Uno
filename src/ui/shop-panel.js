@@ -12,6 +12,22 @@ const SLOTS = SHOP.SLOTS;
 const CARD_CSS_WIDTH = 115;
 const CARD_UNITS = CONFIG.CARD_DIMENSIONS;
 const MOTE_COUNT = 16;
+// Raios dourados do fundo (bate com .shop-rays no CSS): leque de RAY_COUNT fatias de RAY_ARC_DEG a cada
+// 360/RAY_COUNT graus, esmaecendo do centro (RAY_FADE_FROM) até sumir (RAY_FADE_TO) no raio do canto mais distante
+const RAYS_CSS_SIZE = 1100;
+const RAY_COUNT = 18;
+const RAY_ARC_DEG = 7;
+const RAY_ALPHA = 0.055;
+const RAY_FADE_FROM = 0.1;
+const RAY_FADE_TO = 0.65;
+const RAYS_MAX_PX = 2048;
+
+let fontReady = false;
+/** A fonte das faces (Righteous) já carregou? Depois de pronta não volta atrás: o resultado fica em cache. */
+function previewFontReady() {
+    if (!fontReady) fontReady = document.fonts.check('50px Righteous');
+    return fontReady;
+}
 const CLOSE_MS = 260;
 const FLIP_OUT_MS = 170;
 const PENDING_TIMEOUT_MS = 4000;
@@ -41,7 +57,7 @@ const ITEM_TEMPLATE = `
         <div class="shop-item-glow"></div>
         <span class="shop-deal"></span>
         <div class="shop-card-wrap">
-            <canvas class="shop-card"></canvas>
+            <div class="shop-card-body"><canvas class="shop-card"></canvas></div>
             <div class="shop-frost"><svg><use href="#ico-snow"/></svg></div>
         </div>
         <h3 class="shop-name"></h3>
@@ -77,6 +93,10 @@ export class ShopPanel {
         this.walletCoins = $('wallet-coins');
         this.fxCanvas = this.root.querySelector('.shop-fx');
         this.fxCtx = this.fxCanvas.getContext('2d');
+        /** O canvas de partículas ocupa a tela toda: só é limpo/reenviado à GPU enquanto há partícula viva */
+        this.fxDirty = false;
+        this.raysCanvas = this.root.querySelector('.shop-rays');
+        this.raysPx = 0;
         this.itemsEl = this.root.querySelector('.shop-items');
         this.shopWallet = this.root.querySelector('.shop-wallet');
         this.shopCoins = this.root.querySelector('.shop-coins');
@@ -109,6 +129,8 @@ export class ShopPanel {
         this.pendingTimer = 0;
         this.forceFlipMask = 0;
         this.flipTimers = new Array(SLOTS).fill(0);
+        /** Prévia estática (sem laminado/efeito vivo) já desenhada: não precisa repintar a cada frame */
+        this.previewDrawn = new Uint8Array(SLOTS);
         this.cardDensity = 1;
 
         this.particles = new ParticleSystem(800);
@@ -305,6 +327,7 @@ export class ShopPanel {
             const forced = (this.forceFlipMask & (1 << slot)) !== 0;
             if (prev && prev.key === item.key && !forced) continue;
             this.items[slot] = item;
+            this.previewDrawn[slot] = 0; // a face nova aparece já no próximo frame, como antes (mesmo durante o giro)
             this.forceFlipMask &= ~(1 << slot);
 
             const replaced = prev && (prev.face !== item.face || ((prev.flags & SHOP_ITEM_FLAGS.SOLD) && !(item.flags & SHOP_ITEM_FLAGS.SOLD)));
@@ -387,10 +410,54 @@ export class ShopPanel {
             s.canvas.width = Math.round(CARD_UNITS.WIDTH * this.cardDensity);
             s.canvas.height = Math.round(CARD_UNITS.HEIGHT * this.cardDensity);
         }
+        // Redimensionar apaga os canvas: as prévias estáticas e o canvas de partículas recomeçam limpos
+        this.previewDrawn.fill(0);
         this.fxDpr = dpr;
         this.fxCanvas.width = Math.round(window.innerWidth * dpr);
         this.fxCanvas.height = Math.round(window.innerHeight * dpr);
+        this.fxDirty = false;
         this.particles.setBounds(window.innerWidth, window.innerHeight);
+        this.paintRays(Math.min(RAYS_MAX_PX, Math.round(RAYS_CSS_SIZE * this.viewport.uiScale * dpr)));
+    }
+
+    /**
+     * Pinta os raios do fundo uma única vez, já esmaecidos (o mesmo que o antigo repeating-conic-gradient +
+     * mask-image radial). Assim o giro em CSS é só um transform de uma textura pronta, sem máscara por frame.
+     * @param {number} px lado do backbuffer em pixels físicos
+     */
+    paintRays(px) {
+        if (px === this.raysPx || px <= 0) return;
+        this.raysPx = px;
+        const c = this.raysCanvas;
+        c.width = px;
+        c.height = px;
+        const g = c.getContext('2d');
+        const half = RAYS_CSS_SIZE / 2;
+        g.setTransform(px / RAYS_CSS_SIZE, 0, 0, px / RAYS_CSS_SIZE, 0, 0);
+        g.fillStyle = `rgba(255, 215, 0, ${RAY_ALPHA})`;
+        // conic-gradient começa às 12h (CSS 0deg); no canvas o ângulo 0 aponta para as 3h
+        const step = (Math.PI * 2) / RAY_COUNT;
+        const arc = (RAY_ARC_DEG * Math.PI) / 180;
+        const reach = half * Math.SQRT2 + 2;
+        g.beginPath();
+        for (let i = 0; i < RAY_COUNT; i++) {
+            const a0 = i * step - Math.PI / 2;
+            g.moveTo(half, half);
+            g.arc(half, half, reach, a0, a0 + arc);
+            g.closePath();
+        }
+        g.fill();
+        // Máscara radial "circle" do CSS: o raio do gradiente vai até o canto mais distante (farthest-corner)
+        const fade = g.createRadialGradient(half, half, 0, half, half, half * Math.SQRT2);
+        fade.addColorStop(0, 'rgba(0, 0, 0, 1)');
+        fade.addColorStop(RAY_FADE_FROM, 'rgba(0, 0, 0, 1)');
+        fade.addColorStop(RAY_FADE_TO, 'rgba(0, 0, 0, 0)');
+        fade.addColorStop(1, 'rgba(0, 0, 0, 0)');
+        g.globalCompositeOperation = 'destination-in';
+        g.fillStyle = fade;
+        g.fillRect(0, 0, RAYS_CSS_SIZE, RAYS_CSS_SIZE);
+        g.globalCompositeOperation = 'source-over';
+        console.log(`[Shop] Raios do fundo pintados em ${px}x${px}px.`);
     }
 
     drawCard(slot) {
@@ -401,6 +468,17 @@ export class ShopPanel {
         ctx.setTransform(d, 0, 0, d, 0, 0);
         ctx.clearRect(0, 0, CARD_UNITS.WIDTH, CARD_UNITS.HEIGHT);
         this.painter(ctx, item.type, item.color, item.power, 11 + slot * 7, d);
+        // Antes da fonte carregar o pintor usa um fallback: a prévia estática segue sendo repintada até sair a certa
+        // (a animada é repintada todo frame de qualquer jeito, então nem consulta a fonte)
+        if (!this.isAnimatedPreview(slot)) this.previewDrawn[slot] = previewFontReady() ? 1 : 0;
+    }
+
+    /** A face tem laminado/efeito vivo (precisa ser repintada a cada frame)? */
+    isAnimatedPreview(slot) {
+        const item = this.items[slot];
+        if (!item) return false;
+        const visual = CONFIG.CARD_VISUALS[item.type];
+        return !!(visual && visual.fx);
     }
 
     /** Troca o conteúdo do item com um giro (sai de lado, troca, volta com impulso). */
@@ -715,6 +793,7 @@ export class ShopPanel {
         this.loopId = 0;
         this.fxCtx.setTransform(1, 0, 0, 1, 0, 0);
         this.fxCtx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
+        this.fxDirty = false;
     }
 
     frame(now) {
@@ -722,14 +801,24 @@ export class ShopPanel {
         this.lastFrame = now;
         this.particles.update(dt);
 
-        const ctx = this.fxCtx;
-        ctx.setTransform(1, 0, 0, 1, 0, 0);
-        ctx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
-        ctx.setTransform(this.fxDpr, 0, 0, this.fxDpr, 0, 0);
-        this.particles.draw(ctx);
+        // Canvas de tela cheia: tocar nele (mesmo só limpar) força reenviar a textura inteira à GPU. Sem partícula
+        // viva ele já está vazio, então só é limpo uma última vez quando a última partícula morre
+        const alive = this.particles.activeCount > 0;
+        if (alive || this.fxDirty) {
+            const ctx = this.fxCtx;
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, this.fxCanvas.width, this.fxCanvas.height);
+            if (alive) {
+                ctx.setTransform(this.fxDpr, 0, 0, this.fxDpr, 0, 0);
+                this.particles.draw(ctx);
+            }
+            this.fxDirty = alive;
+        }
 
-        // Prévias ao vivo: o laminado/efeitos animados das cartas continuam rodando dentro da loja
-        for (let slot = 0; slot < SLOTS; slot++) this.drawCard(slot);
+        // Prévias ao vivo: o laminado/efeitos animados continuam rodando; faces estáticas são pintadas uma vez
+        for (let slot = 0; slot < SLOTS; slot++) {
+            if (!this.previewDrawn[slot] || this.isAnimatedPreview(slot)) this.drawCard(slot);
+        }
 
         this.loopId = requestAnimationFrame(this._frame);
     }

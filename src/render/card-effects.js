@@ -237,25 +237,49 @@ function compile(name, preset) {
         sparkleX, sparkleY, sparkleSize, sparkleRate, sparklePhase,
         sparkleColor: sp ? sp.color : '#ffffff',
         sparkleCore: sp && sp.core ? sp.core : null,
+        sparkleSprite: null,
         // Camada desenhada à mão por cima (ex.: raios do FOIL_STORM) com um buffer de trabalho próprio
         extra: preset.extra || null,
         scratch: preset.extra ? new Float32Array(64) : null
     };
 }
 
+// --- Atlas do laminado -------------------------------------------------------------------------------
+// Cada laminado é pintado num buffer à parte e depois "carimbado" na carta (é o que recorta o efeito no
+// formato da carta e mantém a mistura das camadas). Carimbar um canvas noutro faz o navegador tirar uma foto
+// dele; reescrever o mesmo buffer pra carta seguinte obriga a copiar essa foto (copy-on-write): uma cópia por
+// carta por frame, na thread principal. Com o atlas, as cartas do frame são pintadas antes (pré-passada do
+// renderer), cada uma na sua célula, e carimbadas depois: uma foto por frame. Dois atlas alternados: o do
+// frame anterior ainda pode estar em uso pela GPU quando o seguinte começa a ser pintado.
+const ATLAS_COLS = 8;
+const ATLAS_ROWS = 6;
+const ATLAS_CELLS = ATLAS_COLS * ATLAS_ROWS;
+const ATLAS_GAP = 2; // px transparentes entre células: a amostragem nas bordas nunca puxa a carta vizinha
+
 export class CardEffects {
     constructor() {
         /** @type {Map<string, ReturnType<typeof compile>>} */
         this.compiled = new Map();
-        
-        // --- OTIMIZAÇÃO DE PERFORMANCE (Offscreen Canvas para Alpha Masking) ---
+
+        // Buffer avulso: cartas desenhadas fora da pré-passada do frame (loja, painel de info, vitrine)
         this.scratchCanvas = document.createElement('canvas');
         this.scratchCanvas.width = 1;
         this.scratchCanvas.height = 1;
         this.scratchCtx = this.scratchCanvas.getContext('2d', { willReadFrequently: false });
-        
-        // Cache de faíscas para substituir caminhos Bézier (beginPath/arc) por DrawImage
-        this.sparkleCache = new Map();
+
+        this.atlases = [null, null];
+        this.atlasCtxs = [null, null];
+        this.atlasIndex = 0;
+        this.atlasCellW = 0;
+        this.atlasCellH = 0;
+        // Células pintadas neste frame (SoA): os parâmetros que definem o laminado de cada uma
+        this.cellCount = 0;
+        this.cellName = new Array(ATLAS_CELLS).fill(null);
+        this.cellSeed = new Float64Array(ATLAS_CELLS);
+        this.cellTime = new Float64Array(ATLAS_CELLS);
+        this.cellColor = new Int32Array(ATLAS_CELLS);
+        this.cellHeld = new Uint8Array(ATLAS_CELLS);
+        this.cellRadius = new Float64Array(ATLAS_CELLS);
     }
 
     /** Presets são compilados sob demanda (só custam memória se alguma carta com o efeito aparecer). */
@@ -273,6 +297,151 @@ export class CardEffects {
         return fx;
     }
 
+    /** Faísca do preset pintada uma vez (4 pontas côncavas + núcleo opcional), guardada no próprio preset. */
+    sparkleSpriteFor(fx) {
+        if (fx.sparkleSprite) return fx.sparkleSprite;
+        const sc = document.createElement('canvas');
+        sc.width = 32;
+        sc.height = 32;
+        const sct = sc.getContext('2d', { willReadFrequently: false });
+        sct.translate(16, 16);
+        sct.fillStyle = fx.sparkleColor;
+        sparklePath(sct, 0, 0, 16);
+        sct.fill();
+        if (fx.sparkleCore) {
+            sct.fillStyle = fx.sparkleCore;
+            sparklePath(sct, 0, 0, 16 * 0.45);
+            sct.fill();
+        }
+        fx.sparkleSprite = sc;
+        return sc;
+    }
+
+    /** Início de um frame do tabuleiro: alterna o atlas e esvazia as células. Chamar antes de `prepare`. */
+    beginFrame() {
+        this.atlasIndex ^= 1;
+        this.cellCount = 0;
+    }
+
+    /** Atlas atual com células de w x h (criado na primeira vez, ou de novo se o tamanho da carta mudar). */
+    ensureAtlas(w, h) {
+        if (this.atlasCellW !== w || this.atlasCellH !== h) {
+            this.atlasCellW = w;
+            this.atlasCellH = h;
+            this.atlases[0] = null;
+            this.atlases[1] = null;
+        }
+        const i = this.atlasIndex;
+        if (this.atlases[i]) return this.atlasCtxs[i];
+        const canvas = document.createElement('canvas');
+        canvas.width = ATLAS_COLS * (w + ATLAS_GAP);
+        canvas.height = ATLAS_ROWS * (h + ATLAS_GAP);
+        this.atlases[i] = canvas;
+        this.atlasCtxs[i] = canvas.getContext('2d', { willReadFrequently: false });
+        console.log(`[CardEffects] Atlas ${i} do laminado criado: ${canvas.width}x${canvas.height}px (${ATLAS_CELLS} células).`);
+        return this.atlasCtxs[i];
+    }
+
+    /**
+     * Pré-passada: pinta o laminado de uma carta na próxima célula livre do atlas, com os mesmos parâmetros
+     * que o `draw` dela vai receber. Sem efeito, laminado desligado ou atlas cheio: não faz nada e o `draw`
+     * dessa carta usa o buffer avulso.
+     */
+    prepare(name, w, h, radius, time, seed, color = 0, held = false) {
+        const fx = this.get(name);
+        if (!fx || !GRAPHICS.enableFoil || this.cellCount >= ATLAS_CELLS) return;
+        const g = this.ensureAtlas(w, h);
+        const cell = this.cellCount++;
+        this.cellName[cell] = name;
+        this.cellSeed[cell] = seed;
+        this.cellTime[cell] = time;
+        this.cellColor[cell] = color;
+        this.cellHeld[cell] = held ? 1 : 0;
+        this.cellRadius[cell] = radius;
+        this.paint(g, (cell % ATLAS_COLS) * (w + ATLAS_GAP), ((cell / ATLAS_COLS) | 0) * (h + ATLAS_GAP),
+            fx, w, h, radius, time, seed, color, held);
+    }
+
+    /** Célula deste frame pintada com exatamente estes parâmetros (-1 se não houver). */
+    findCell(name, w, h, radius, time, seed, color, held) {
+        if (w !== this.atlasCellW || h !== this.atlasCellH) return -1;
+        const heldBit = held ? 1 : 0;
+        for (let c = 0; c < this.cellCount; c++) {
+            if (this.cellSeed[c] === seed && this.cellName[c] === name && this.cellTime[c] === time
+                && this.cellColor[c] === color && this.cellHeld[c] === heldBit && this.cellRadius[c] === radius) {
+                return c;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * Pinta o laminado em (ox, oy) de `g`, recortado no retângulo w x h e no formato da carta. Mesmo resultado,
+     * pixel a pixel, do antigo buffer avulso de w x h.
+     */
+    paint(g, ox, oy, fx, w, h, radius, time, seed, color, held) {
+        g.setTransform(1, 0, 0, 1, ox, oy);
+        g.save();
+        // Recorte retangular alinhado aos pixels (o mais barato que existe): nada vaza pra célula vizinha e o
+        // destination-in do fim só age dentro desta célula
+        g.beginPath();
+        g.rect(0, 0, w, h);
+        g.clip();
+        g.clearRect(0, 0, w, h);
+        g.globalAlpha = 1;
+        g.globalCompositeOperation = 'source-over';
+
+        const diag = Math.sqrt(w * w + h * h);
+        const phase = (seed * 0.6180339887) % 1;
+
+        g.save();
+        g.translate(w / 2, h / 2);
+        g.rotate(fx.angle);
+        for (let i = 0; i < fx.bands.length; i++) {
+            const band = fx.bands[i];
+            let u = time / band.period + phase + band.offset;
+            u -= Math.floor(u);
+            if (u > band.sweep) continue;
+            const bw = diag * band.width;
+            const x = -diag / 2 - bw + (u / band.sweep) * (diag + bw);
+            g.globalAlpha = band.alpha;
+            g.globalCompositeOperation = (band.composite === 'lighter' && !GRAPHICS.useLighter) ? 'source-over' : band.composite;
+            g.drawImage(band.sprite, x, -diag / 2, bw, diag);
+        }
+        g.restore();
+
+        g.globalCompositeOperation = 'source-over';
+        if (fx.count > 0) {
+            const sc = this.sparkleSpriteFor(fx);
+            for (let i = 0; i < fx.count; i++) {
+                let a = Math.sin(time * fx.sparkleRate[i] + fx.sparklePhase[i] + phase * TAU);
+                if (a <= 0) continue;
+                a = a * a * a;
+                const x = fx.sparkleX[i] * w;
+                const y = fx.sparkleY[i] * h;
+                const r = fx.sparkleSize[i] * (0.45 + 0.55 * a);
+                g.globalAlpha = a;
+                g.drawImage(sc, x - r, y - r, r * 2, r * 2);
+            }
+        }
+
+        if (fx.extra) {
+            g.globalAlpha = 1;
+            g.globalCompositeOperation = 'source-over';
+            fx.extra(g, w, h, time, phase, seed | 0, fx.scratch, color, held);
+        }
+
+        // Formato da carta: o que ficou fora do retângulo arredondado some (só dentro do recorte da célula)
+        g.globalCompositeOperation = 'destination-in';
+        g.globalAlpha = 1;
+        g.fillStyle = '#fff';
+        g.beginPath();
+        g.roundRect(0, 0, w, h, radius);
+        g.fill();
+        g.restore();
+        g.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
     /**
      * Desenha o efeito sobre uma face já desenhada em (0,0,w,h).
      * @param {CanvasRenderingContext2D} ctx
@@ -285,87 +454,30 @@ export class CardEffects {
     draw(ctx, name, w, h, radius, time, seed, color = 0, held = false) {
         const fx = this.get(name);
         if (!fx || !GRAPHICS.enableFoil) return;
-        
-        // Ajustar o canvas auxiliar para o tamanho exato da renderização atual
-        if (this.scratchCanvas.width !== w || this.scratchCanvas.height !== h) {
-            this.scratchCanvas.width = w;
-            this.scratchCanvas.height = h;
-        }
 
-        const sCtx = this.scratchCtx;
-        sCtx.clearRect(0, 0, w, h); // Limpa o buffer
-        
-        const diag = Math.sqrt(w * w + h * h);
-        const phase = (seed * 0.6180339887) % 1;
-
-        sCtx.save();
-        sCtx.translate(w / 2, h / 2);
-        sCtx.rotate(fx.angle);
-        for (let i = 0; i < fx.bands.length; i++) {
-            const band = fx.bands[i];
-            let u = time / band.period + phase + band.offset;
-            u -= Math.floor(u);
-            if (u > band.sweep) continue;
-            const bw = diag * band.width;
-            const x = -diag / 2 - bw + (u / band.sweep) * (diag + bw);
-            sCtx.globalAlpha = band.alpha;
-            sCtx.globalCompositeOperation = (band.composite === 'lighter' && !GRAPHICS.useLighter) ? 'source-over' : band.composite;
-            sCtx.drawImage(band.sprite, x, -diag / 2, bw, diag);
-        }
-        sCtx.restore();
-
-        sCtx.globalCompositeOperation = 'source-over';
-        for (let i = 0; i < fx.count; i++) {
-            let a = Math.sin(time * fx.sparkleRate[i] + fx.sparklePhase[i] + phase * TAU);
-            if (a <= 0) continue;
-            a = a * a * a;
-            const x = fx.sparkleX[i] * w;
-            const y = fx.sparkleY[i] * h;
-            const r = fx.sparkleSize[i] * (0.45 + 0.55 * a);
-            
-            // Usar cache de Sprite da faísca em vez de recalcular vetor a cada frame
-            const sparkleKey = fx.sparkleColor + (fx.sparkleCore || '');
-            let sc = this.sparkleCache.get(sparkleKey);
-            if (!sc) {
-                sc = document.createElement('canvas');
-                sc.width = 32;
-                sc.height = 32;
-                const sct = sc.getContext('2d', { willReadFrequently: false });
-                sct.translate(16, 16);
-                sct.fillStyle = fx.sparkleColor;
-                sparklePath(sct, 0, 0, 16);
-                sct.fill();
-                if (fx.sparkleCore) {
-                    sct.fillStyle = fx.sparkleCore;
-                    sparklePath(sct, 0, 0, 16 * 0.45);
-                    sct.fill();
-                }
-                this.sparkleCache.set(sparkleKey, sc);
+        let source;
+        let sx = 0;
+        let sy = 0;
+        const cell = this.findCell(name, w, h, radius, time, seed, color, held);
+        if (cell >= 0) {
+            source = this.atlases[this.atlasIndex];
+            sx = (cell % ATLAS_COLS) * (w + ATLAS_GAP);
+            sy = ((cell / ATLAS_COLS) | 0) * (h + ATLAS_GAP);
+        } else {
+            // Fora da pré-passada: buffer avulso (o caminho antigo, uma foto por carta)
+            if (this.scratchCanvas.width !== w || this.scratchCanvas.height !== h) {
+                this.scratchCanvas.width = w;
+                this.scratchCanvas.height = h;
             }
-            
-            sCtx.globalAlpha = a;
-            sCtx.drawImage(sc, x - r, y - r, r * 2, r * 2);
-        }
-        
-        if (fx.extra) {
-            sCtx.globalAlpha = 1;
-            sCtx.globalCompositeOperation = 'source-over';
-            fx.extra(sCtx, w, h, time, phase, seed | 0, fx.scratch, color, held);
+            this.paint(this.scratchCtx, 0, 0, fx, w, h, radius, time, seed, color, held);
+            source = this.scratchCanvas;
         }
 
-        // --- MÁSCARA DE RECORTE VIA ALPHA MASKING (Fim do gargalo do clip) ---
-        sCtx.globalCompositeOperation = 'destination-in';
-        sCtx.globalAlpha = 1;
-        sCtx.fillStyle = '#fff';
-        sCtx.beginPath();
-        sCtx.roundRect(0, 0, w, h, radius);
-        sCtx.fill();
-
-        // Carimbar o resultado otimizado no Canvas principal
+        // Carimbar o resultado no canvas principal
         ctx.save();
         ctx.globalCompositeOperation = 'source-over';
         ctx.globalAlpha = 1;
-        ctx.drawImage(this.scratchCanvas, 0, 0, w, h);
+        ctx.drawImage(source, sx, sy, w, h, 0, 0, w, h);
         ctx.restore();
     }
 }
