@@ -110,7 +110,7 @@ export const CONFIG = Object.freeze({
             MIRROR: 3,
             AMBUSH: 6,
             CURSE: 2,
-            DEATH: 1
+            DEATH: 1000
         })
     }),
     
